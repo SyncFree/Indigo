@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry excluding="sys/utils/Globals.java|swift/crdt/ReleaseOwnershipUpdate.java|swift/crdt/ReleaseLockUpdate.java|swift/crdt/PreferOwnerPolicy.java|swift/crdt/GetOwnershipUpdate.java|swift/crdt/AcquireLockUpdate.java" kind="src" path="src"/>
+	<classpathentry kind="src" path="src-test"/>
+	<classpathentry kind="src" path="src-app"/>
+	<classpathentry kind="lib" path="lib/xpp3_min-1.1.4c.jar"/>
+	<classpathentry kind="lib" path="lib/xstream-1.4.3.jar"/>
+	<classpathentry kind="lib" path="lib/ssj.jar"/>
+	<classpathentry kind="lib" path="lib/minlog-1.2.jar"/>
+	<classpathentry kind="lib" path="lib/objenesis-1.2.jar"/>
+	<classpathentry kind="lib" path="lib/reflectasm-1.09-shaded.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
+	<classpathentry kind="lib" path="lib/netty-all-4.0.19.Final.jar"/>
+	<classpathentry kind="lib" path="lib/kryo-2.24.1.jar"/>
+	<classpathentry excluding="swift/client/SwiftImplTest.java" kind="src" path="src-core-test"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
