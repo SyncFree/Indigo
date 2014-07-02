@@ -2,6 +2,7 @@ package swift.proto;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
@@ -17,6 +18,8 @@ public class RemoteCommitUpdatesRequest extends ClientRequest {
 	protected Timestamp timestamp;
 	transient Timestamp prvCltTimestamp;
 	transient Envelope source;
+
+	public transient Set<String> kUnstable;
 
 	public RemoteCommitUpdatesRequest() {
 	}

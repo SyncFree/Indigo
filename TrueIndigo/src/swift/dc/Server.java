@@ -76,6 +76,8 @@ public class Server implements SurrogateProtocol {
 
 	final Map<CommitUpdatesRequest, Long> blockedTransactions;
 
+	final KStabilityService kStability;
+
 	protected Server() {
 
 		this.siteId = Args.valueOf("-siteId", "X");
@@ -90,11 +92,13 @@ public class Server implements SurrogateProtocol {
 
 		this.dataServer = new DataServer(this);
 
+		this.kStability = new KStabilityService(this);
+
 		this.suPubSub = new SurrogatePubSubService(generalExecutor, this);
 
-		this.blockedTransactions = new ConcurrentHashMap<CommitUpdatesRequest, Long>();
+		this.blockedTransactions = new ConcurrentHashMap<>();
 
-		ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(512);
+		ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(512);
 		crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);
 		crdtExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
@@ -256,8 +260,8 @@ public class Server implements SurrogateProtocol {
 		}
 
 		final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();
-		ops.forEach(o -> {
-			o.addSystemTimestamp(req.getTimestamp());
+		ops.forEach(op -> {
+			op.addSystemTimestamp(req.getTimestamp());
 		});
 
 		req.getDependencyClock().record(req.getTimestamp());
@@ -280,10 +284,13 @@ public class Server implements SurrogateProtocol {
 
 				if (r.getStatus() == CommitTimestampReply.CommitTSStatus.OK) {
 					if (logger.isLoggable(Level.INFO)) {
-						logger.info("Commit: for publish DC version: SENDING ; on tx:" + req.getTimestamp());
+						logger.info("Commit OK: ts:" + req.getTimestamp());
 					}
 
-					req.getSource().reply(new CommitUpdatesReply(req.getTimestamp()));
+					req.setKStability(0);
+					kStability.makeStable(req, () -> {
+						req.getSource().reply(new CommitUpdatesReply(req.getTimestamp()));
+					});
 				}
 			});
 		}
