@@ -153,7 +153,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 			IndigoSequencer.main(new String[]{"-name", "X"});
 			IndigoServer.main(new String[]{"-servers", "localhost"});
 
-			args = new String[]{"-server", "localhost", "-threads", "2", "-props", "src-app/swift/application/social/swiftsocial-test.props"};
+			args = new String[]{"-server", "localhost", "-threads", "5", "-props", "src-app/swift/application/social/swiftsocial-test.props"};
 			instance.initDB(args);
 			instance.doBenchmark(args);
 			exit(0);
