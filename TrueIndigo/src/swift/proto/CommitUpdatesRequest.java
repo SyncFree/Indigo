@@ -22,6 +22,7 @@ import java.util.List;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.dc.Defaults;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
@@ -39,9 +40,9 @@ public class CommitUpdatesRequest extends ClientRequest {
 	protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
 	protected CausalityClock dependencyClock;
 	protected Timestamp cltTimestamp;
-
 	protected Timestamp timestamp;
-	transient Timestamp prvCltTimestamp;
+	protected int kStability;
+
 	transient Envelope source;
 
 	public CommitUpdatesRequest() {
@@ -52,6 +53,15 @@ public class CommitUpdatesRequest extends ClientRequest {
 		this.cltTimestamp = cltTimestamp;
 		this.dependencyClock = dependencyClock;
 		this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
+		this.kStability = Defaults.DEFAULT_K_STABILITY;
+	}
+
+	public int kStability() {
+		return kStability;
+	}
+
+	public void setKStability(int ks) {
+		this.kStability = ks;
 	}
 
 	public void setSource(Envelope source) {
@@ -76,9 +86,8 @@ public class CommitUpdatesRequest extends ClientRequest {
 	 * @param timestamp
 	 *            from the sequencer
 	 */
-	public void setTimestamps(Timestamp timestamp, Timestamp prvCltTimestamp) {
+	public void setTimestamp(Timestamp timestamp) {
 		this.timestamp = timestamp;
-		this.prvCltTimestamp = prvCltTimestamp;
 	}
 
 	/**
@@ -95,10 +104,6 @@ public class CommitUpdatesRequest extends ClientRequest {
 	 */
 	public Timestamp getCltTimestamp() {
 		return cltTimestamp;
-	}
-
-	public Timestamp getPrvCltTimestamp() {
-		return prvCltTimestamp;
 	}
 
 	/**

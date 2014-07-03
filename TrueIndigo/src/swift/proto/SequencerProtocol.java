@@ -14,7 +14,7 @@ public interface SequencerProtocol extends MessageHandler {
 		throw NotImplemented;
 	}
 
-	default boolean onReceive(final Envelope e, final GenerateTimestampRequest r) {
+	default void onReceive(final Envelope e, final GenerateTimestampRequest r) {
 		throw NotImplemented;
 	}
 }

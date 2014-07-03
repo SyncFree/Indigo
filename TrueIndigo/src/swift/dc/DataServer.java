@@ -27,7 +27,6 @@ import java.util.logging.Logger;
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.ManagedCRDT;
@@ -192,9 +191,12 @@ public final class DataServer {
 			// sending.
 			final ManagedCRDT<?> crdt = data.copyWithRestrictedVersioning(req.getVersion());
 
-			Timestamp ts = clocks.getLatest(clocks.clientClock, req.getCltId());
-			if (ts != null)
-				crdt.augmentWithScoutClockWithoutMappings(ts);
+			// TODO CHECK WHY THIS IS NECESSARY...
+
+			// Timestamp ts = clocks.getLatest(clocks.clientClock,
+			// req.getCltId());
+			// if (ts != null)
+			// crdt.augmentWithScoutClockWithoutMappings(ts);
 
 			return crdt;
 		} finally {
@@ -221,17 +223,11 @@ public final class DataServer {
 				data = localPutCRDT(crdt);
 			}
 
-			data.pruneIfPossible();
-
-			if (req.getPrvCltTs() != null)
-				data.augmentWithScoutClockWithoutMappings(req.getPrvCltTs());
+			data.pruneIfPossible(clocks.pruneClockCopy());
 
 			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 			data.augmentWithDCClockWithoutMappings(req.getCurrentState());
-
 			data.discardScoutClock(req.getCltTs().getIdentifier());
-
-			clocks.recordAllUntil(req.getCltTs(), clocks.clientClock);
 			if (logger.isLoggable(Level.INFO)) {
 				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = " + req.getCltTs());
 			}
@@ -247,6 +243,6 @@ public final class DataServer {
 	}
 
 	public void updatePruneClock(CausalityClock safeSnapshot) {
-		// clocks.updateClock(clocks.pruneClock, safeSnapshot);
+		clocks.updateClock(clocks.pruneClock, safeSnapshot);
 	}
 }

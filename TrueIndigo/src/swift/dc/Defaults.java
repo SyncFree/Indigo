@@ -25,6 +25,9 @@ import java.util.logging.Logger;
  * 
  */
 public class Defaults {
+
+	public static final int DEFAULT_K_STABILITY = 0;
+
 	public static final Logger DCLogger = Logger.getLogger("swift.dc");
 
 	public static final String SEQUENCER_URL = "tcp://*:29999";

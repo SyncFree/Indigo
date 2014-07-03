@@ -18,7 +18,7 @@ public interface SurrogateProtocol extends MessageHandler {
 		throw NotImplemented;
 	}
 
-	default void onReceive(Envelope src, BatchCommitUpdatesRequest r) {
+	default void onReceive(Envelope src, RemoteCommitUpdatesRequest req) {
 		throw NotImplemented;
 	}
 }

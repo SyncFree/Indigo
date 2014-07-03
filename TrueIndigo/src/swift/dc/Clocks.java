@@ -25,7 +25,7 @@ final public class Clocks {
 		this.pruneClock = ClockFactory.newClock();
 		this.clientClock = ClockFactory.newClock();
 		this.currentClock = ClockFactory.newClock();
-		this.clockGen = new IncrementalTimestampGenerator(Args.valueOf("-site", "X"));
+		this.clockGen = new IncrementalTimestampGenerator(Args.valueOf("-siteId", "X"));
 	}
 
 	CMP_CLOCK cmp(CausalityClock clk, CausalityClock that) {
@@ -63,6 +63,12 @@ final public class Clocks {
 	public Timestamp getLatest(CausalityClock clk, String identifier) {
 		synchronized (clk) {
 			return clk.getLatest(identifier);
+		}
+	}
+
+	public CausalityClock pruneClockCopy() {
+		synchronized (pruneClock) {
+			return pruneClock.clone();
 		}
 	}
 

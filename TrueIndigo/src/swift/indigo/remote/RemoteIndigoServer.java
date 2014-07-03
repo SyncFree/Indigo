@@ -48,14 +48,13 @@ public class RemoteIndigoServer implements IndigoProtocol, SurrogateProtocol {
 			CausalityClock snapshot = server.clocks.currentClockCopy();
 			src.reply(new AcquireLocksReply(server.registerSnapshot(snapshot), snapshot));
 		} else {
-			stub.asyncRequest(lockManager, req, r -> {
+			stub.asyncRequest(lockManager, req, (AcquireLocksReply r) -> {
 				if (r != null) {
-					src.reply(r);
+					src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
 				}
 			});
 		}
 	}
-
 	@Override
 	public void onReceive(final Envelope src, final DiscardSnapshotRequest request) {
 		server.disposeSnapshot(request.serial());

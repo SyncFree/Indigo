@@ -88,6 +88,11 @@ public class AcquireLocksReply {
 		return this.cltTimestamp.equals(cltTimestamp);
 	}
 
+	public AcquireLocksReply setSerial(long serial) {
+		this.serial = serial;
+		return this;
+	}
+
 	public long serial() {
 		return serial;
 	}

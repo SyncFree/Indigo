@@ -127,5 +127,6 @@ public class KryoCRDTUtils {
 		registerable.register(Map.Entry.class, 0xA4);
 		registerable.register(TreeSet.class, 0xA5);
 
+		Thread.dumpStack();
 	}
 }

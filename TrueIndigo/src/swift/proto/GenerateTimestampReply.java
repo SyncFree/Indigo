@@ -40,22 +40,23 @@ public class GenerateTimestampReply {
 		INVALID_OPERATION
 	}
 
-	long cltClock;
 	Timestamp timestamp;
+	Timestamp cltTimestamp;
+
 	GenerateStatus status;
 
 	public GenerateTimestampReply() {
 	}
 
-	public GenerateTimestampReply(final Timestamp timestamp, final long cltClock) {
+	public GenerateTimestampReply(final Timestamp timestamp, final Timestamp cltTimestamp) {
 		this.status = GenerateStatus.SUCCESSS;
 		this.timestamp = timestamp;
-		this.cltClock = cltClock;
+		this.cltTimestamp = cltTimestamp;
 	}
 
-	public GenerateTimestampReply(final long cltClock) {
+	public GenerateTimestampReply(final Timestamp cltTimestamp) {
 		this.status = GenerateStatus.ALREADY_COMMITTED;
-		this.cltClock = cltClock;
+		this.cltTimestamp = cltTimestamp;
 	}
 
 	/**
@@ -66,11 +67,12 @@ public class GenerateTimestampReply {
 		return timestamp;
 	}
 
+	public Timestamp getCltTimestamp() {
+		return cltTimestamp;
+	}
+
 	public GenerateStatus getStatus() {
 		return status;
 	}
 
-	public long getCltClock() {
-		return cltClock;
-	}
 }

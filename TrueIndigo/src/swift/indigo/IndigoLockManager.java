@@ -90,10 +90,10 @@ class IndigoLockManager implements IndigoProtocol {
 
 		this.endpoints = new HashMap<String, Endpoint>();
 
-		Args.subList("-sequencers").forEach(it -> {
-			Url u = new Url(it);
-			endpoints.put(u.siteId(), Networking.resolve(it, Defaults.SEQUENCER_URL));
+		Args.subList("-sequencers").forEach(str -> {
+			endpoints.put(new Url(str).siteId(), Networking.resolve(str, Defaults.SEQUENCER_URL));
 		});
+
 		System.err.println(endpoints);
 		Log.info("ENDPOINTS: " + endpoints);
 
@@ -498,7 +498,7 @@ class IndigoLockManager implements IndigoProtocol {
 					Timestamp ts = sequencer.clocks.newTimestamp();
 
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
-					req.setTimestamps(ts, null);
+					req.setTimestamp(ts);
 				} else {
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
 				}

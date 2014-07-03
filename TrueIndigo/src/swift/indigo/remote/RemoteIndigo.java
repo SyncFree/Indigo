@@ -135,7 +135,7 @@ public class RemoteIndigo implements Indigo {
 
 			if (!updates.isEmpty()) {
 				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates);
-				req.setTimestamps(timestamp, null);
+				req.setTimestamp(timestamp);
 
 				final Semaphore semaphore = new Semaphore(0);
 				stub.asyncRequest(server, req, (CommitUpdatesReply reply) -> {
@@ -166,7 +166,6 @@ public class RemoteIndigo implements Indigo {
 				if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND) {
 					return createCRDT(uid, snapshot, classOfV);
 				}
-				System.err.println(version + "   ------------>>>>>" + reply.getStatus());
 			}
 			throw new RuntimeException("Unexpected Error while fetching: " + uid);
 		}

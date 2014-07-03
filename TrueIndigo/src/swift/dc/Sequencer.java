@@ -16,8 +16,6 @@
  *****************************************************************************/
 package swift.dc;
 
-import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
-import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
 import static sys.Context.Networking;
 import static sys.Context.Sys;
 
@@ -27,8 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.clocks.CausalityClock;
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.proto.CommitTimestampReply;
 import swift.proto.CommitTimestampReply.CommitTSStatus;
@@ -42,7 +38,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
 import sys.net.api.Service;
 import sys.utils.Args;
-import sys.utils.FifoQueue;
 import sys.utils.Tasks;
 /**
  * 
@@ -50,39 +45,34 @@ import sys.utils.Tasks;
  * 
  */
 public class Sequencer implements SequencerProtocol {
-	private static Logger logger = Logger.getLogger(Sequencer.class.getName());
+	private static Logger Log = Logger.getLogger(Sequencer.class.getName());
 
-	final ConcurrentHashMap<String, FifoQueue<CommitTimestampRequest>> fifoQueues;
-	final ConcurrentHashMap<Timestamp, GenerateTimestampRequest> pendingTimestampRequests;
 	final ConcurrentHashMap<Timestamp, Long> pendingTimestamps;
 
 	public final Service stub;
 	public final String siteId;
 	public final Clocks clocks;
 
+	final FifoQueues fifo;
+
 	protected Sequencer() {
 
 		this.siteId = Args.valueOf("-siteId", "X");
 
-		this.fifoQueues = new ConcurrentHashMap<String, FifoQueue<CommitTimestampRequest>>();
-		this.pendingTimestampRequests = new ConcurrentHashMap<Timestamp, GenerateTimestampRequest>();
-		this.pendingTimestamps = new ConcurrentHashMap<Timestamp, Long>();
+		this.fifo = new FifoQueues();
+		this.pendingTimestamps = new ConcurrentHashMap<>();
 
 		Endpoint localEndpoint = Networking.resolve(Args.valueOf("-url", Defaults.SEQUENCER_URL));
 		this.stub = Networking.bind(localEndpoint, this);
 
 		this.clocks = new Clocks("Sequencer");
 
-		if (logger.isLoggable(Level.INFO)) {
-			logger.info("Sequencer ready... @ " + localEndpoint);
+		if (Log.isLoggable(Level.INFO)) {
+			Log.info("Sequencer ready... @ " + localEndpoint);
 		}
 
 		Tasks.every(1.0, () -> {
 			cleanExpiredTimestamps();
-		});
-
-		Tasks.every(0.1, () -> {
-			cleanPendingTimestampRequests();
 		});
 	}
 
@@ -103,89 +93,76 @@ public class Sequencer implements SequencerProtocol {
 		pendingTimestamps.keySet().removeAll(expired);
 	}
 
-	private void cleanPendingTimestampRequests() {
-
-		Set<Timestamp> processed = new HashSet<Timestamp>();
-		pendingTimestampRequests.forEach((ts, req) -> {
-			if (onReceive(req.getSource(), req))
-				processed.add(ts);
-		});
-		pendingTimestampRequests.keySet().removeAll(processed);
-	}
-
 	@Override
 	public void onReceive(final Envelope src, final CurrentClockRequest r) {
-		if (logger.isLoggable(Level.INFO)) {
-			logger.info("sequencer: CurrentClockRequest: " + r);
+		if (Log.isLoggable(Level.INFO)) {
+			Log.info("sequencer: CurrentClockRequest: " + r);
 		}
 		src.reply(new CurrentClockReply(clocks.currentClockCopy()));
 	}
 
 	@Override
-	public boolean onReceive(final Envelope src, final GenerateTimestampRequest r) {
-		if (logger.isLoggable(Level.INFO)) {
-			logger.info("sequencer: GenerateTimestampRequest: " + r);
+	public void onReceive(final Envelope src, final GenerateTimestampRequest req) {
+		if (Log.isLoggable(Level.INFO)) {
+			Log.info("pre sequencer: GenerateTimestampRequest: " + req);
 		}
 
-		Timestamp cTS = r.getCltTimestamp();
-
-		CausalityClock cltClock = clocks.clientClockCopy();
-
-		long last = cltClock.getLatestCounter(cTS.getIdentifier());
-		if (cltClock.includes(cTS)) {
-			src.reply(new GenerateTimestampReply(last));
-			return true;
-		}
-
-		CMP_CLOCK cmp = clocks.cmp(clocks.currentClock, r.getDependencyClk());
-
-		if (cTS.getCounter() == (last + 1L) && cmp.is(CMP_EQUALS, CMP_DOMINATES)) {
-			Timestamp ts = clocks.newTimestamp();
-			pendingTimestamps.put(ts, Sys.timeMillis() + Defaults.DEFAULT_TRXIDTIME * 2);
-			src.reply(new GenerateTimestampReply(ts, last));
-			return true;
-		} else {
-			r.setSource(src);
-			pendingTimestampRequests.put(cTS, r);
-			return false;
-		}
-	}
-	private void doCommit(CommitTimestampRequest req) {
-		if (logger.isLoggable(Level.INFO)) {
-			logger.info("sequencer: CommitTimestampRequest:" + req.getTimestamp());
-		}
-		System.err.println("COMMIT:" + req.getTimestamp() + "/" + req.getCltTimestamp());
-
-		if (!clocks.record(req.getCltTimestamp(), clocks.clientClock))
-			req.getSource().reply(new CommitTimestampReply(CommitTSStatus.FAILED, clocks.currentClockCopy()));
-
-		Timestamp ts = req.getTimestamp();
-		pendingTimestamps.remove(ts);
-		clocks.record(ts, clocks.currentClock);
-
-		req.getSource().reply(new CommitTimestampReply(CommitTSStatus.OK, clocks.currentClockCopy()));
-	}
-
-	private FifoQueue<CommitTimestampRequest> queueFor(final String clientId) {
-		FifoQueue<CommitTimestampRequest> res = fifoQueues.get(clientId), nq;
-		if (res == null) {
-			res = fifoQueues.putIfAbsent(clientId, nq = new FifoQueue<CommitTimestampRequest>(clientId) {
-				public void process(CommitTimestampRequest r) {
-					doCommit(r);
+		if (clocks.record(req.getCltTimestamp(), clocks.clientClock)) {
+			req.setSource(src);
+			fifo.queue4GenTS(req.getCltTimestamp().getIdentifier()).enqueue(req.getCltTimestamp().getCounter(), req, (GenerateTimestampRequest i) -> {
+				if (Log.isLoggable(Level.INFO)) {
+					Log.info("do sequencer: GenerateTimestampRequest: " + i);
 				}
+				Timestamp iTS = clocks.newTimestamp();
+				pendingTimestamps.put(iTS, Sys.timeMillis() + Defaults.DEFAULT_TRXIDTIME * 2);
+				i.getSource().reply(new GenerateTimestampReply(iTS, i.getCltTimestamp()));
 			});
-			if (res == null)
-				res = nq;
+		} else {
+			if (Log.isLoggable(Level.INFO)) {
+				Log.info("do sequencer: Duplicate GenerateTimestampRequest: " + req);
+			}
+			src.reply(new GenerateTimestampReply(req.getCltTimestamp()));
 		}
-		return res;
 	}
 
 	@Override
 	public void onReceive(final Envelope src, final CommitTimestampRequest req) {
-		req.setSource(src);
+		req.rtClock = System.currentTimeMillis();
 		Timestamp ts = req.getTimestamp();
-		queueFor(ts.getIdentifier()).offer(ts.getCounter(), req);
+		if (Log.isLoggable(Level.INFO)) {
+			Log.info("sequencer: CommitTimestampRequest:" + req.getTimestamp());
+		}
+		if (clocks.record(ts, clocks.currentClock)) {
+			pendingTimestamps.remove(ts);
+			src.reply(new CommitTimestampReply(CommitTSStatus.OK, clocks.currentClockCopy()));
+		} else
+			src.reply(new CommitTimestampReply(CommitTSStatus.FAILED, clocks.currentClockCopy()));
 	}
+
+	// @Override
+	// public void onReceive(final Envelope src, final CommitTimestampRequest
+	// req) {
+	// req.rtClock = System.currentTimeMillis();
+	//
+	// req.setSource(src);
+	// Timestamp ts = req.getTimestamp();
+	// fifo.queue4CommitTS(ts.getIdentifier()).enqueue(ts.getCounter(), req,
+	// (CommitTimestampRequest i) -> {
+	// if (Log.isLoggable(Level.INFO)) {
+	// Log.info("sequencer: CommitTimestampRequest:" + req.getTimestamp());
+	// }
+	// System.err.println(siteId + " @@@@ " + i.getTimestamp() + " waited:" +
+	// i.latency() + " ms");
+	// Timestamp iTS = i.getTimestamp();
+	// if (clocks.record(iTS, clocks.currentClock)) {
+	// pendingTimestamps.remove(iTS);
+	// i.getSource().reply(new CommitTimestampReply(CommitTSStatus.OK,
+	// clocks.currentClockCopy()));
+	// } else
+	// i.getSource().reply(new CommitTimestampReply(CommitTSStatus.FAILED,
+	// clocks.currentClockCopy()));
+	// });
+	// }
 
 	public static void main(String[] args) {
 		Args.use(args);

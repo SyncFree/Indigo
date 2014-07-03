@@ -79,6 +79,7 @@ public class IndigoServer extends Server {
 	}
 
 	public long registerSnapshot(CausalityClock snapshot) {
+		super.clocks.updateCurrentClock(snapshot);
 		long serial = snapshots.incrementAndGet();
 		Snapshots.register(serial, snapshot);
 		return serial;
@@ -238,7 +239,7 @@ public class IndigoServer extends Server {
 						if (timestamp == null) {
 							server.prepareAndDoCommit(session, req);
 						} else {
-							req.setTimestamps(timestamp, null);
+							req.setTimestamp(timestamp);
 							server.doOneCommit(session, req);
 						}
 					}

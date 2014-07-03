@@ -31,6 +31,8 @@ public class CommitTimestampRequest implements Message {
 	Timestamp timestamp;
 	Timestamp cltTimestamp;
 
+	public long rtClock;
+
 	transient Envelope source;
 
 	public CommitTimestampRequest() {
@@ -39,6 +41,10 @@ public class CommitTimestampRequest implements Message {
 	public CommitTimestampRequest(Timestamp timestamp, Timestamp cltTimestamp) {
 		this.timestamp = timestamp;
 		this.cltTimestamp = cltTimestamp;
+	}
+
+	public long latency() {
+		return System.currentTimeMillis() - rtClock;
 	}
 
 	public void setSource(Envelope source) {
@@ -66,5 +72,9 @@ public class CommitTimestampRequest implements Message {
 	@Override
 	public void deliverTo(Envelope src, MessageHandler handler) {
 		((SequencerProtocol) handler).onReceive(src, this);
+	}
+
+	public String toString() {
+		return Long.toString(timestamp.getCounter());
 	}
 }
