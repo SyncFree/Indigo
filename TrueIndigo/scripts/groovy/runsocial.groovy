@@ -13,6 +13,8 @@ def __ = onControlC({
     System.exit(0);
 })
 
+ShepardAddr = 'peeramidion.irisa.fr'
+
 
 PlanetLab = [
     'planetlab-3.imperial.ac.uk',
@@ -38,7 +40,6 @@ Scouts1 = SGroup( PlanetLab[2..3], DC_1 )
 Scouts2 = SGroup( PlanetLab[0..1], DC_2 )
 
 Scouts = ( Topology.scouts() ).unique()
-ShepardAddr = 'planetlab1.di.fct.unl.pt'
 
 Duration = 180
 InterCmdDelay = 25
