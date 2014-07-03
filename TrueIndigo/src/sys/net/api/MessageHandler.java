@@ -16,13 +16,15 @@
  *****************************************************************************/
 package sys.net.api;
 
+import static sys.utils.NotImplemented.NotImplemented;
+
 public interface MessageHandler {
 
 	default void onFailure(final Endpoint dst, final Message m) {
-		Thread.dumpStack();
+		throw NotImplemented;
 	}
 
 	default void onReceive(final Envelope e, final Message m) {
-		Thread.dumpStack();
+		throw NotImplemented;
 	}
 }

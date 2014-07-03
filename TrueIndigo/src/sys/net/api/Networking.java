@@ -16,6 +16,6 @@ public interface Networking {
 
 	public Service stub();
 
-	Service stub(ServiceType type);
+	public Service stub(ServiceType type);
 
 }

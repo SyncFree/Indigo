@@ -13,8 +13,8 @@ import com.esotericsoftware.kryo.io.Output;
 
 public class ServicePacket implements KryoSerializable, Envelope {
 
-	long handlerId;
 	Object payload;
+	long handlerId;
 
 	transient int msgSize;
 	transient TcpService service;
@@ -28,7 +28,7 @@ public class ServicePacket implements KryoSerializable, Envelope {
 	}
 
 	ServicePacket(Object payload, Handler<?> handler, boolean streamingReplies) {
-		this(payload, handler == null ? 0L : -g_replyHandlerId.incrementAndGet());
+		this(payload, handler == null ? 0L : g_replyHandlerId.incrementAndGet() + 1L);
 	}
 
 	ServicePacket(Object payload, long handlerId) {
@@ -74,5 +74,5 @@ public class ServicePacket implements KryoSerializable, Envelope {
 		return handlerId + "  " + payload.getClass();
 	}
 
-	static AtomicLong g_replyHandlerId = new AtomicLong(0L);
+	static AtomicLong g_replyHandlerId = new AtomicLong(8L);
 }

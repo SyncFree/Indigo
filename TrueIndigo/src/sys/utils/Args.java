@@ -31,7 +31,7 @@ import java.util.Map;
  */
 public class Args {
 
-	static Map<String, String[]> _args = new HashMap<String, String[]>();
+	static Map<String, String[]> _args = new HashMap<>();
 
 	static String[] _current;
 

@@ -1,10 +1,20 @@
 package sys.net.api;
 
+import static sys.utils.NotImplemented.NotImplemented;
+
 public interface Envelope {
 
-	Endpoint sender();
+	default Endpoint sender() {
+		throw NotImplemented;
+	}
 
-	<T> void reply(T msg);
+	default <T> void reply(T msg) {
+	}
 
-	int msgSize();
+	default int msgSize() {
+		throw NotImplemented;
+	}
+
+	final Envelope DISCARD = new Envelope() {
+	};
 }

@@ -1,6 +1,6 @@
 package sys.utils;
 
-public class Numbers {
+final public class Numbers {
 
 	public static boolean isInteger(String s) {
 		try {
@@ -9,6 +9,10 @@ public class Numbers {
 		} catch (Exception x) {
 			return false;
 		}
+	}
+
+	public static boolean isOdd(long v) {
+		return (v & 1L) != 0L;
 	}
 
 	public static int integer(String s) {

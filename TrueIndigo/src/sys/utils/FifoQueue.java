@@ -24,6 +24,10 @@ public class FifoQueue<T> {
 	protected Long nextKey = 1L;
 	protected SortedMap<Long, T> queue = new TreeMap<Long, T>();
 
+	public interface OfferHandler<V> {
+		public void onResult(final V result);
+	}
+
 	public FifoQueue() {
 		this("?");
 	}
@@ -42,6 +46,20 @@ public class FifoQueue<T> {
 				nextKey++;
 			}
 		}
+	}
+
+	synchronized public boolean enqueue(long seqN, T val, OfferHandler<T> handler) {
+		if (seqN >= nextKey) {
+			queue.put(seqN, val);
+
+			Long headKey;
+			while (queue.size() > 0 && (headKey = queue.firstKey()).longValue() == nextKey) {
+				handler.onResult(queue.remove(headKey));
+				nextKey++;
+			}
+			return true;
+		} else
+			return false;
 	}
 
 	public void process(T val) {

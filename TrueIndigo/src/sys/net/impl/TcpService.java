@@ -22,6 +22,9 @@ import sys.net.api.Service;
 import sys.utils.Threading;
 
 public class TcpService implements Service, MessageHandler {
+
+	private static Logger Log = Logger.getLogger(TcpService.class.getName());
+
 	public static final int QUEUE_BACKPRESSURE_SIZE = 512;
 	public static final int RETRIES = 3;
 	public static final int RETRY_DELAY = 500;
@@ -89,18 +92,26 @@ public class TcpService implements Service, MessageHandler {
 	}
 
 	public <T> void reply(ServicePacket e, T m) {
-		mgr.send(e.sender(), new ServicePacket(m, e.handlerId));
+		mgr.send(e.sender(), new ServicePacket(m, -e.handlerId));
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public void onReceive(ServicePacket pkt) {
-		long handlerId = pkt.handlerId;
-		Handler handler = handlerId < 0 ? handlers.get(handlerId) : handlers.remove(handlerId);
-		if (handler == null) {
-			((Message) pkt.payload).deliverTo(pkt, msgHandler);
-			pkt.payload = null;
-		} else {
-			handler.deliver(pkt.payload);
+		try {
+			long hid = pkt.handlerId;
+			if (hid >= 0L) {
+				((Message) pkt.payload).deliverTo(pkt, msgHandler);
+				pkt.payload = null;
+			} else {
+				hid = -hid;
+				Handler handler = (hid & 1L) != 0L ? handlers.get(hid) : handlers.remove(hid);
+				if (handler != null)
+					handler.deliver(pkt.payload);
+				else
+					Log.warning("No handler for reply: " + pkt.payload);
+			}
+		} catch (Throwable t) {
+			t.printStackTrace();
 		}
 	}
 	@Override
@@ -124,14 +135,17 @@ public class TcpService implements Service, MessageHandler {
 	@Override
 	public <T> void asyncRequest(Endpoint dst, Message m, Handler<T> replyHandler) {
 		ServicePacket pkt = new ServicePacket(m, replyHandler);
-		handlers.put(pkt.handlerId, replyHandler);
+		if (replyHandler != null)
+			handlers.put(pkt.handlerId, replyHandler);
+
 		mgr.send(dst, pkt);
 	}
 
 	@Override
 	public <T> void asyncRequest(Endpoint dst, Message m, Handler<T> replyHandler, boolean streamingReplies) {
-		ServicePacket pkt = new ServicePacket(m, replyHandler);
-		handlers.put(pkt.handlerId, replyHandler);
+		ServicePacket pkt = new ServicePacket(m, replyHandler, streamingReplies);
+		if (replyHandler != null)
+			handlers.put(pkt.handlerId, replyHandler);
 		mgr.send(dst, pkt);
 	}
 

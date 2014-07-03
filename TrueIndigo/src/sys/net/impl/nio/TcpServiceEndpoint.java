@@ -103,11 +103,9 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 
 		Endpoint remoteEndpoint;
 		final SocketChannel channel;
-		final KryoOutputBuffer outBuf;
 
 		TcpChannel(SocketChannel channel) {
 			this.channel = channel;
-			this.outBuf = new KryoOutputBuffer();
 			this.setSocketOptions(channel.socket());
 			Threading.newThread(true, () -> {
 				try {
@@ -122,6 +120,7 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 					}
 				} catch (Exception x) {
 					x.printStackTrace();
+
 					service.onFailedChannel(this, null);
 				} finally {
 					IO.close(channel);
@@ -136,15 +135,15 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 			service.onNewChannel(this);
 		}
 
-		public synchronized void setRemoteGID(GID gid) {
+		public void setRemoteGID(GID gid) {
 			remoteEndpoint = Networking.resolve(String.format("tcp://%s:0/%s", IP.localHostAddressString(), gid));
 			service.onNewChannel(this);
 		}
 
 		@Override
-		synchronized public boolean send(Object obj) {
+		public boolean send(Object obj) {
 			try {
-				int frameSize = outBuf.writeClassAndObject(obj, channel);
+				int frameSize = outBuf().writeClassAndObject(obj, channel);
 				Sys.uploadedBytes().addAndGet(frameSize);
 			} catch (Exception x) {
 				x.printStackTrace();
@@ -178,6 +177,16 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 		}
 	}
 
+	private static final ThreadLocal<KryoOutputBuffer> outBuf = new ThreadLocal<KryoOutputBuffer>() {
+		@Override
+		protected KryoOutputBuffer initialValue() {
+			return new KryoOutputBuffer();
+		}
+	};
+
+	public static KryoOutputBuffer outBuf() {
+		return outBuf.get();
+	}
 }
 
 final class KryoInputBuffer {
@@ -284,6 +293,8 @@ final class KryoOutputBuffer {
 		buffer.putInt(0, length - 4);
 		buffer.limit(length);
 
-		return ch.write(buffer);
+		synchronized (ch) {
+			return ch.write(buffer);
+		}
 	}
 }

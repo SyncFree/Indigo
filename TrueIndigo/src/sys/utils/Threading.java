@@ -193,5 +193,5 @@ final public class Threading {
 		lock.unlock();
 	}
 
-	static ConcurrentHashMap<Object, ReentrantLock> locks = new ConcurrentHashMap<Object, ReentrantLock>();
+	static ConcurrentHashMap<Object, ReentrantLock> locks = new ConcurrentHashMap<>();
 }

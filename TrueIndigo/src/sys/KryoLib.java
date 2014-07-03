@@ -160,7 +160,7 @@ public class KryoLib {
 	// }
 	// }
 
-	private static final InheritableThreadLocal<Kryo> kryo = new InheritableThreadLocal<Kryo>() {
+	private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
 		@Override
 		protected Kryo initialValue() {
 			return getKryoInstance();
