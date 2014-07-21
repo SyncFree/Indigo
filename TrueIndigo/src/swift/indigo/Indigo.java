@@ -1,5 +1,7 @@
 package swift.indigo;
 
+import java.util.Collection;
+
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.exceptions.NetworkException;
@@ -9,15 +11,17 @@ import swift.exceptions.WrongTypeException;
 
 public interface Indigo {
 
-	public void beginTxn(Lock... locks);
+    public void beginTxn();
 
-	public void beginTxn(Lock[] locks, CounterReservation[] counters);
+    public void beginTxn(Collection<ResourceRequest<?>> resources);
 
-	public void endTxn();
+    public void endTxn();
 
-	public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
+    public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException;
 
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException;
 
-	public void abortTxn();
+    public void abortTxn();
 }

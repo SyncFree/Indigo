@@ -1,38 +1,97 @@
 package swift.indigo;
 
 import swift.api.CRDTIdentifier;
+import swift.clocks.Timestamp;
+import sys.utils.Threading;
 
-public class CounterReservation {
+public class CounterReservation implements ResourceRequest<Integer> {
 
-	private CRDTIdentifier id;
-	private int amount;
+    private CRDTIdentifier resourceId;
+    private int resource;
+    private String requesterId;
 
-	public CounterReservation() {
+    // ATTENTION: The timestamp is used in the hashcode but it might not be set.
+    // The hashcode function should only be called when it is set (after the
+    // counter is reserved)
+    private Timestamp ts;
 
-	}
+    public CounterReservation() {
 
-	public CounterReservation(CRDTIdentifier id, int amount) {
-		this.id = id;
-		this.amount = amount;
-	}
+    }
 
-	public CRDTIdentifier getId() {
-		return id;
-	}
+    public CounterReservation(String requesterId, CRDTIdentifier id, int amount) {
+        this.requesterId = requesterId;
+        this.resourceId = id;
+        this.resource = amount;
+    }
 
-	public void setId(CRDTIdentifier id) {
-		this.id = id;
-	}
+    @Override
+    public void setClientTs(Timestamp ts) {
+        this.ts = ts;
+    }
 
-	public int getAmount() {
-		return amount;
-	}
+    public CRDTIdentifier getResourceId() {
+        return resourceId;
+    }
 
-	public void setAmount(int amount) {
-		this.amount = amount;
-	}
+    public Integer getResource() {
+        return resource;
+    }
 
-	public String toString() {
-		return "{" + id + ", " + amount + "}";
-	}
+    @Override
+    public String getRequesterId() {
+        return requesterId;
+    }
+
+    public String toString() {
+        return "{" + resourceId + ", " + resource + "}";
+    }
+
+    public int hashCode() {
+        return resourceId.hashCode() + requesterId.hashCode() + resource + ts.hashCode();
+
+    }
+
+    public boolean equals(Object other) {
+        return equals((CounterReservation) other);
+    }
+
+    private boolean equals(CounterReservation other) {
+        return resourceId.equals(other.resourceId);
+    }
+
+    // ATTENTION: This assumes there is only two types of resources: locks and
+    // counters
+    @Override
+    public int compareTo(ResourceRequest<Integer> other) {
+        if (other instanceof CounterReservation) {
+            return resourceId.compareTo(((CounterReservation) other).resourceId);
+        } else {
+            // CounterReservation has less priority than any other resource type
+            return -1;
+        }
+    }
+
+    public void lockStuff() {
+        Threading.lock(IndigoResourceManager.LOCKS_TABLE);
+        // // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
+        // // Arrays.asList(counters));
+        // for (Lock i : locks)
+        // Threading.lock(i.id());
+        // for (CounterReservation i : counters)
+        // Threading.lock(i.getId());
+        // // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
+        // // Arrays.asList(counters));
+    }
+
+    public void unlockStuff() {
+        Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
+        // for (Lock i : locks)
+        // Threading.unlock(i.id());
+        // for (CounterReservation i : counters)
+        // Threading.unlock(i.getId());
+        // // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
+        // // Arrays.asList(counters));
+    }
+
 }

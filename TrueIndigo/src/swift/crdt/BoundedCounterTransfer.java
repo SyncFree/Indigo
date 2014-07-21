@@ -47,10 +47,4 @@ public class BoundedCounterTransfer<T extends BoundedCounterCRDT<T>> implements 
         this.amount = amount;
     }
 
-    @Override
-    public Object getValueWithoutMetadata() {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
 }

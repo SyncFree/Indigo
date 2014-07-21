@@ -15,136 +15,155 @@ import swift.utils.Pair;
 
 public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extends BaseCRDT<T> {
 
-	private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
+    private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
 
-		@Override
-		public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {
-			return o2.getSecond() - o1.getSecond();
-		}
-	};
+        @Override
+        public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {
+            return o2.getSecond() - o1.getSecond();
+        }
+    };
 
-	protected Map<String, Map<String, Integer>> permissions;
-	protected Map<String, Integer> delta;
-	protected int initVal, val;
-	transient private boolean outdated;
+    protected Map<String, Map<String, Integer>> permissions;
+    protected Map<String, Integer> delta;
+    protected int initVal, val;
 
-	public BoundedCounterCRDT() {
-		super();
-	}
+    transient private boolean failed;
+    transient private boolean invalidated;
 
-	public BoundedCounterCRDT(CRDTIdentifier id) {
-		super(id);
-	}
+    public BoundedCounterCRDT() {
+        super();
+    }
 
-	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
-		super(id, txn, clock);
-	}
+    public BoundedCounterCRDT(CRDTIdentifier id) {
+        super(id);
+    }
 
-	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal, Map<String, Map<String, Integer>> permissions, Map<String, Integer> decrements) {
-		super(id, txn, clock);
-		this.permissions = permissions;
-		this.delta = decrements;
-		this.initVal = initVal;
-		this.val = initVal + totalAvailable() - totalSpent();
-	}
+    public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
+        super(id, txn, clock);
+    }
 
-	public BoundedCounterCRDT(CRDTIdentifier id, int initVal) {
-		super(id);
-		this.initVal = initVal;
-		this.val = initVal;
-		this.permissions = new HashMap<String, Map<String, Integer>>();
-		this.delta = new HashMap<String, Integer>();
+    public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal,
+            Map<String, Map<String, Integer>> permissions, Map<String, Integer> decrements) {
+        super(id, txn, clock);
+        this.permissions = permissions;
+        this.delta = decrements;
+        this.initVal = initVal;
+        this.val = initVal + totalProduced() - totalSpent();
+    }
 
-	}
+    public BoundedCounterCRDT(CRDTIdentifier id, int initVal) {
+        super(id);
+        this.initVal = initVal;
+        this.val = initVal;
+        this.permissions = new HashMap<String, Map<String, Integer>>();
+        this.delta = new HashMap<String, Integer>();
 
-	@Override
-	public Integer getValue() {
-		return val;
-	}
+    }
 
-	protected int totalSpent() {
-		int totalSpent = 0;
-		for (Integer spentSiteId : delta.values()) {
-			totalSpent += spentSiteId;
-		}
-		return totalSpent;
-	}
+    @Override
+    public Integer getValue() {
+        return val;
+    }
 
-	protected int totalAvailable() {
-		int totalAvailable = 0;
-		for (Entry<String, Map<String, Integer>> sitePermissions : permissions.entrySet()) {
-			totalAvailable += sitePermissions.getValue().get(sitePermissions.getValue());
-		}
-		return totalAvailable;
-	}
+    protected int totalSpent() {
+        int totalSpent = 0;
+        for (Integer spentSiteId : delta.values()) {
+            totalSpent += spentSiteId;
+        }
+        return totalSpent;
+    }
 
-	protected void checkExistsPermissionPair(String leftId, String rightId) {
-		if (!permissions.containsKey(leftId)) {
-			HashMap<String, Integer> sitePerm = new HashMap<String, Integer>();
-			sitePerm.put(rightId, 0);
-			if (leftId.equals(rightId)) {
-				delta.put(leftId, 0);
-			}
-			permissions.put(leftId, sitePerm);
-		}
+    protected int totalProduced() {
+        int totalAvailable = 0;
+        for (Entry<String, Map<String, Integer>> sitePermissions : permissions.entrySet()) {
+            totalAvailable += sitePermissions.getValue().get(sitePermissions.getKey());
+        }
+        return totalAvailable;
+    }
 
-		if (!permissions.get(leftId).containsKey(rightId)) {
-			permissions.get(leftId).put(rightId, 0);
-		}
-	}
+    protected void checkExistsPermissionPair(String leftId, String rightId) {
+        if (!permissions.containsKey(leftId)) {
+            HashMap<String, Integer> sitePerm = new HashMap<String, Integer>();
+            sitePerm.put(rightId, 0);
+            if (leftId.equals(rightId)) {
+                delta.put(leftId, 0);
+            }
+            permissions.put(leftId, sitePerm);
+        }
 
-	public int availableSiteId(String siteId) {
-		int given = 0;
-		int received = 0;
-		int spent = 0;
+        if (!permissions.get(leftId).containsKey(rightId)) {
+            permissions.get(leftId).put(rightId, 0);
+        }
+    }
 
-		checkExistsPermissionPair(siteId, siteId);
-		spent = delta.get(siteId);
-		Map<String, Integer> sitePermissions = permissions.get(siteId);
-		for (Entry<String, Integer> p : sitePermissions.entrySet()) {
-			if (!p.getKey().equals(siteId)) {
-				given += p.getValue();
-			}
-		}
-		for (Entry<String, Map<String, Integer>> allPermissions : permissions.entrySet()) {
-			Integer receivedPermissions = allPermissions.getValue().get(siteId);
-			if (receivedPermissions != null) {
-				received += receivedPermissions;
-			}
-		}
-		return received - given - spent;
-	}
+    public int availableSiteId(String siteId) {
+        int given = 0;
+        int received = 0;
+        int spent = 0;
 
-	public Queue<Pair<String, Integer>> preferenceList() {
-		PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1, DEFAUT_PREFERENCE_LIST);
-		for (String site : permissions.keySet()) {
-			preferenceList.add(new Pair<String, Integer>(site, availableSiteId(site)));
-		}
-		return preferenceList;
-	}
+        checkExistsPermissionPair(siteId, siteId);
+        spent = delta.get(siteId);
+        Map<String, Integer> sitePermissions = permissions.get(siteId);
+        for (Entry<String, Integer> p : sitePermissions.entrySet()) {
+            if (!p.getKey().equals(siteId)) {
+                given += p.getValue();
+            }
+        }
+        for (Entry<String, Map<String, Integer>> allPermissions : permissions.entrySet()) {
+            Integer receivedPermissions = allPermissions.getValue().get(siteId);
+            if (receivedPermissions != null) {
+                received += receivedPermissions;
+            }
+        }
+        return received - given - spent;
+    }
 
-	public void applyTransfer(BoundedCounterTransfer<T> transferUpdate) {
-		checkExistsPermissionPair(transferUpdate.getOriginId(), transferUpdate.getTargetId());
-		Map<String, Integer> targetPermissions = permissions.get(transferUpdate.getOriginId());
-		targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId()) + transferUpdate.getAmount());
-	}
+    public int givenTo(String giver, String receiver) {
+        Map<String, Integer> sitePermissions = permissions.get(giver);
+        Integer val = sitePermissions.get(receiver);
+        return val == null ? 0 : val;
+    }
 
-	public abstract boolean decrement(int amount, String siteId);
+    public Queue<Pair<String, Integer>> preferenceList() {
+        PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1,
+                DEFAUT_PREFERENCE_LIST);
+        for (String site : permissions.keySet()) {
+            preferenceList.add(new Pair<String, Integer>(site, availableSiteId(site)));
+        }
+        return preferenceList;
+    }
 
-	public abstract boolean increment(int amount, String siteId);
+    public void applyTransfer(BoundedCounterTransfer<T> transferUpdate) {
+        checkExistsPermissionPair(transferUpdate.getOriginId(), transferUpdate.getTargetId());
+        Map<String, Integer> targetPermissions = permissions.get(transferUpdate.getOriginId());
+        targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId())
+                + transferUpdate.getAmount());
+    }
 
-	public abstract boolean transfer(int amount, String originId, String targetId);
+    public abstract boolean decrement(int amount, String siteId);
 
-	protected abstract void applyInc(BoundedCounterIncrement<T> incUpdate);
+    public abstract boolean increment(int amount, String siteId);
 
-	protected abstract void applyDec(BoundedCounterDecrement<T> decUpdate);
+    public abstract boolean transfer(int amount, String originId, String targetId);
 
-	public boolean isOutdated() {
-		return outdated;
-	}
+    protected abstract void applyInc(BoundedCounterIncrement<T> incUpdate);
 
-	public void setOutdated() {
-		outdated = true;
-	}
+    protected abstract void applyDec(BoundedCounterDecrement<T> decUpdate);
+
+    public boolean isInvalidated() {
+        return invalidated;
+    }
+
+    public void invalidate() {
+        invalidated = true;
+    }
+
+    public boolean isFailed() {
+        return failed;
+    }
+
+    public void setFailed() {
+        failed = true;
+    }
 
 }
