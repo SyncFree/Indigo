@@ -16,17 +16,12 @@
  *****************************************************************************/
 package indigo.application.tournament.cs;
 
-import sys.net.api.rpc.AbstractRpcHandler;
-import sys.net.api.rpc.RpcHandle;
+import sys.net.api.Envelope;
+import sys.net.api.MessageHandler;
 
-public abstract class AppRequestHandler extends AbstractRpcHandler {
+public interface AppRequestHandler extends MessageHandler {
 
-    public void onReceive(final AppRequest r) {
-        Thread.dumpStack();
-    }
-
-    public void onReceive(final RpcHandle handle, final AppRequest r) {
-        Thread.dumpStack();
-    }
-
+	default public void onReceive(final Envelope src, final AppRequest r) {
+		Thread.dumpStack();
+	}
 }

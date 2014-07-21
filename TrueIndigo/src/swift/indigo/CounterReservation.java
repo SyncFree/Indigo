@@ -6,92 +6,96 @@ import sys.utils.Threading;
 
 public class CounterReservation implements ResourceRequest<Integer> {
 
-    private CRDTIdentifier resourceId;
-    private int resource;
-    private String requesterId;
+	private CRDTIdentifier resourceId;
+	private int resource;
+	private String requesterId;
 
-    // ATTENTION: The timestamp is used in the hashcode but it might not be set.
-    // The hashcode function should only be called when it is set (after the
-    // counter is reserved)
-    private Timestamp ts;
+	// ATTENTION: The timestamp is used in the hashcode but it might not be set.
+	// The hashcode function should only be called when it is set (after the
+	// counter is reserved)
+	private Timestamp ts;
 
-    public CounterReservation() {
+	public CounterReservation() {
 
-    }
+	}
 
-    public CounterReservation(String requesterId, CRDTIdentifier id, int amount) {
-        this.requesterId = requesterId;
-        this.resourceId = id;
-        this.resource = amount;
-    }
+	public CounterReservation(CRDTIdentifier id, int amount) {
+		this("app", id, amount);
+	}
 
-    @Override
-    public void setClientTs(Timestamp ts) {
-        this.ts = ts;
-    }
+	public CounterReservation(String requesterId, CRDTIdentifier id, int amount) {
+		this.requesterId = requesterId;
+		this.resourceId = id;
+		this.resource = amount;
+	}
 
-    public CRDTIdentifier getResourceId() {
-        return resourceId;
-    }
+	@Override
+	public void setClientTs(Timestamp ts) {
+		this.ts = ts;
+	}
 
-    public Integer getResource() {
-        return resource;
-    }
+	public CRDTIdentifier getResourceId() {
+		return resourceId;
+	}
 
-    @Override
-    public String getRequesterId() {
-        return requesterId;
-    }
+	public Integer getResource() {
+		return resource;
+	}
 
-    public String toString() {
-        return "{" + resourceId + ", " + resource + "}";
-    }
+	@Override
+	public String getRequesterId() {
+		return requesterId;
+	}
 
-    public int hashCode() {
-        return resourceId.hashCode() + requesterId.hashCode() + resource + ts.hashCode();
+	public String toString() {
+		return "{" + resourceId + ", " + resource + "}";
+	}
 
-    }
+	public int hashCode() {
+		return resourceId.hashCode() + requesterId.hashCode() + resource + ts.hashCode();
 
-    public boolean equals(Object other) {
-        return equals((CounterReservation) other);
-    }
+	}
 
-    private boolean equals(CounterReservation other) {
-        return resourceId.equals(other.resourceId);
-    }
+	public boolean equals(Object other) {
+		return equals((CounterReservation) other);
+	}
 
-    // ATTENTION: This assumes there is only two types of resources: locks and
-    // counters
-    @Override
-    public int compareTo(ResourceRequest<Integer> other) {
-        if (other instanceof CounterReservation) {
-            return resourceId.compareTo(((CounterReservation) other).resourceId);
-        } else {
-            // CounterReservation has less priority than any other resource type
-            return -1;
-        }
-    }
+	private boolean equals(CounterReservation other) {
+		return resourceId.equals(other.resourceId);
+	}
 
-    public void lockStuff() {
-        Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-        // // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-        // for (Lock i : locks)
-        // Threading.lock(i.id());
-        // for (CounterReservation i : counters)
-        // Threading.lock(i.getId());
-        // // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-    }
+	// ATTENTION: This assumes there is only two types of resources: locks and
+	// counters
+	@Override
+	public int compareTo(ResourceRequest<Integer> other) {
+		if (other instanceof CounterReservation) {
+			return resourceId.compareTo(((CounterReservation) other).resourceId);
+		} else {
+			// CounterReservation has less priority than any other resource type
+			return -1;
+		}
+	}
 
-    public void unlockStuff() {
-        Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-        // for (Lock i : locks)
-        // Threading.unlock(i.id());
-        // for (CounterReservation i : counters)
-        // Threading.unlock(i.getId());
-        // // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-    }
+	public void lockStuff() {
+		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
+		// // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+		// for (Lock i : locks)
+		// Threading.lock(i.id());
+		// for (CounterReservation i : counters)
+		// Threading.lock(i.getId());
+		// // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+	}
+
+	public void unlockStuff() {
+		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
+		// for (Lock i : locks)
+		// Threading.unlock(i.id());
+		// for (CounterReservation i : counters)
+		// Threading.unlock(i.getId());
+		// // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+	}
 
 }

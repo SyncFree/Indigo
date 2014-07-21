@@ -16,29 +16,26 @@
  *****************************************************************************/
 package indigo.application.tournament.cs;
 
-import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
+import sys.net.api.Envelope;
+import sys.net.api.Message;
+import sys.net.api.MessageHandler;
 
-public class AppRequest implements RpcMessage {
+public class AppRequest implements Message {
 
-    int sessionId;
-    String payload;
+	int sessionId;
+	String payload;
 
-    AppRequest() {
-    }
+	AppRequest() {
+	}
 
-    public AppRequest(int sessionId, String payload) {
-        this.payload = payload;
-        this.sessionId = sessionId;
-    }
+	public AppRequest(int sessionId, String payload) {
+		this.payload = payload;
+		this.sessionId = sessionId;
+	}
 
-    @Override
-    public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        if (handle.expectingReply())
-            ((AppRequestHandler) handler).onReceive(handle, this);
-        else
-            ((AppRequestHandler) handler).onReceive(this);
-    }
+	@Override
+	public void deliverTo(Envelope src, MessageHandler handler) {
+		((AppRequestHandler) handler).onReceive(src, this);
+	}
 
 }

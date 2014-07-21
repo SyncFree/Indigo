@@ -16,23 +16,15 @@
  *****************************************************************************/
 package indigo.application.adservice.cs;
 
-import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
+public class AppReply {
 
-public class AppReply implements RpcMessage {
+	String payload;
 
-    String payload;
+	AppReply() {
+	}
 
-    AppReply() {
-    }
-
-    public AppReply(String payload) {
-        this.payload = payload;
-    }
-
-    @Override
-    public void deliverTo(RpcHandle handle, RpcHandler handler) {
-    }
+	public AppReply(String payload) {
+		this.payload = payload;
+	}
 
 }

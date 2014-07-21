@@ -13,5 +13,6 @@
 	<classpathentry kind="lib" path="lib/netty-all-4.0.19.Final.jar"/>
 	<classpathentry kind="lib" path="lib/kryo-2.24.1.jar"/>
 	<classpathentry excluding="swift/client/SwiftImplTest.java" kind="src" path="src-core-test"/>
+	<classpathentry kind="lib" path="lib/junit-4.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

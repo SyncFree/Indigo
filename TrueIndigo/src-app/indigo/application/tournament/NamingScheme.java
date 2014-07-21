@@ -16,7 +16,7 @@
  *****************************************************************************/
 package indigo.application.tournament;
 
-import swift.crdt.core.CRDTIdentifier;
+import swift.api.CRDTIdentifier;
 
 /**
  * Provides methods for generating CRDT Identifiers based on the class and type
@@ -28,36 +28,36 @@ import swift.crdt.core.CRDTIdentifier;
 
 public class NamingScheme {
 
-    public static CRDTIdentifier forPlayer(String playerName) {
-        return new CRDTIdentifier("player", playerName);
-    }
+	public static CRDTIdentifier forPlayer(String playerName) {
+		return new CRDTIdentifier("player", playerName);
+	}
 
-    public static CRDTIdentifier forPlayerTournaments(String playerName) {
-        return new CRDTIdentifier("player_tournaments", playerName);
-    }
+	public static CRDTIdentifier forPlayerTournaments(String playerName) {
+		return new CRDTIdentifier("player_tournaments", playerName);
+	}
 
-    public static CRDTIdentifier forTournament(String tournamentName) {
-        return new CRDTIdentifier("tournament", tournamentName);
-    }
+	public static CRDTIdentifier forTournament(String tournamentName) {
+		return new CRDTIdentifier("tournament", tournamentName);
+	}
 
-    public static CRDTIdentifier fotMatches(String matchId) {
-        return new CRDTIdentifier("matches", matchId);
-    }
+	public static CRDTIdentifier fotMatches(String matchId) {
+		return new CRDTIdentifier("matches", matchId);
+	}
 
-    public static CRDTIdentifier forMatchHistory() {
-        return new CRDTIdentifier("indexes", "matches");
-    }
+	public static CRDTIdentifier forMatchHistory() {
+		return new CRDTIdentifier("indexes", "matches");
+	}
 
-    public static CRDTIdentifier forPlayerIndex(int site) {
-        return new CRDTIdentifier("indexes", "players_" + site);
-    }
+	public static CRDTIdentifier forPlayerIndex(int site) {
+		return new CRDTIdentifier("indexes", "players_" + site);
+	}
 
-    public static CRDTIdentifier forTournamentIndex(int site) {
-        return new CRDTIdentifier("indexes", "tournaments_" + site);
-    }
+	public static CRDTIdentifier forTournamentIndex(int site) {
+		return new CRDTIdentifier("indexes", "tournaments_" + site);
+	}
 
-    public static CRDTIdentifier forTournamentSize(String tournamentName) {
-        return new CRDTIdentifier("tournament_counter", tournamentName);
-    }
+	public static CRDTIdentifier forTournamentSize(String tournamentName) {
+		return new CRDTIdentifier("tournament_counter", tournamentName);
+	}
 
 }

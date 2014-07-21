@@ -3,20 +3,20 @@
     <!--this file was created by Eclipse Runnable JAR Export Wizard-->
     <!--ANT 1.7 is required                                        -->
     <target name="create_run_jar">
-        <jar destfile="/Users/smd/Dropbox/workspace/TrueIndigo/swiftcloud.jar" filesetmanifest="mergewithoutmain">
+        <jar destfile="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/swiftcloud.jar" filesetmanifest="mergewithoutmain">
             <manifest>
                 <attribute name="Main-Class" value="swift.application.social.SwiftSocialBenchmark"/>
                 <attribute name="Class-Path" value="."/>
             </manifest>
-            <fileset dir="/Users/smd/Dropbox/workspace/TrueIndigo/bin"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/xpp3_min-1.1.4c.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/xstream-1.4.3.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/ssj.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/minlog-1.2.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/objenesis-1.2.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/reflectasm-1.09-shaded.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/netty-all-4.0.19.Final.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/workspace/TrueIndigo/lib/kryo-2.24.1.jar"/>
+            <fileset dir="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/bin"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/xpp3_min-1.1.4c.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/xstream-1.4.3.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/ssj.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/minlog-1.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/objenesis-1.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/reflectasm-1.09-shaded.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/netty-all-4.0.19.Final.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/kryo-2.24.1.jar"/>
         </jar>
     </target>
 </project>

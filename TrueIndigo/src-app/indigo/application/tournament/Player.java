@@ -16,36 +16,36 @@
  *****************************************************************************/
 package indigo.application.tournament;
 
-import swift.crdt.core.CRDTIdentifier;
+import swift.api.CRDTIdentifier;
 import swift.crdt.core.Copyable;
 
 public class Player implements Copyable {
-    String name;
-    int primarySite;
+	String name;
+	int primarySite;
 
-    CRDTIdentifier viewCount;
+	CRDTIdentifier viewCount;
 
-    /** DO NOT USE: Empty constructor needed for Kryo */
-    public Player() {
-    }
+	/** DO NOT USE: Empty constructor needed for Kryo */
+	public Player() {
+	}
 
-    public Player(final String name, final int primarySite) {
-        this.name = name;
-        this.primarySite = primarySite;
-    }
+	public Player(final String name, final int primarySite) {
+		this.name = name;
+		this.primarySite = primarySite;
+	}
 
-    @Override
-    public Object copy() {
-        Player copyObj = new Player(name, primarySite);
-        return copyObj;
-    }
+	@Override
+	public Object copy() {
+		Player copyObj = new Player(name, primarySite);
+		return copyObj;
+	}
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder(name);
-        sb.append("NAME: ");
-        sb.append(name);
-        return sb.toString();
-    }
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder(name);
+		sb.append("NAME: ");
+		sb.append(name);
+		return sb.toString();
+	}
 
 }
