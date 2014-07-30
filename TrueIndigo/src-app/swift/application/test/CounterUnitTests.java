@@ -5,6 +5,8 @@ import static sys.Context.Networking;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.Semaphore;
 
 import org.junit.After;
 import org.junit.Before;
@@ -58,14 +60,14 @@ public class CounterUnitTests {
     @Test
     public void incrementAndRead() throws SwiftException {
         increment("" + key, 10, stub1);
-        getValue("" + key, 10, stub1);
+        compareValue("" + key, 10, stub1);
     }
 
     @Test
     public void twoIncrementAndRead() throws SwiftException {
         increment("" + key, 10, stub1);
         increment("" + key, 10, stub1);
-        getValue("" + key, 20, stub1);
+        compareValue("" + key, 20, stub1);
     }
 
     @Test
@@ -86,6 +88,57 @@ public class CounterUnitTests {
     public void decrementSucceeds() throws SwiftException {
         increment("" + key, 10, stub1);
         assertEquals(true, decrement("" + key, 10, stub1));
+    }
+
+    @Test
+    public void decrementCycle() throws SwiftException {
+        int count = 50;
+        increment("" + key, count, stub1);
+        for (int i = 0; i < count; i++) {
+            decrement("" + key, 1, stub1);
+            System.out.println(getValue("" + key, stub1));
+        }
+        compareValue("" + key, 0, stub1);
+    }
+
+    @Test
+    public void decrementCycleTwotThreads() throws SwiftException, InterruptedException, BrokenBarrierException {
+        int count = 50;
+        increment("" + key, count, stub1);
+        Semaphore sem = new Semaphore(2);
+        sem.acquire(2);
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    for (int i = 0; i < count / 2; i++) {
+                        decrement("" + key, 1, stub1);
+                        System.out.println(getValue("" + key, stub1));
+                    }
+                    sem.release();
+                } catch (SwiftException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    for (int i = 0; i < count / 2; i++) {
+                        decrement("" + key, 1, stub2);
+                        // System.out.println(getValue("" + key, stub2));
+                    }
+                    sem.release();
+                } catch (SwiftException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        sem.acquire();
+        Thread.sleep(1000);
+        compareValue("" + key, 0, stub1);
+
     }
 
     @Test
@@ -152,10 +205,7 @@ public class CounterUnitTests {
 
     }
 
-    public void getValue(String key, int expected, Indigo stub) throws SwiftException {
-        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-        resources.add(new CounterReservation(hostname, new CRDTIdentifier(table, key), 0));
-
+    public void compareValue(String key, int expected, Indigo stub) throws SwiftException {
         stub.beginTxn();
         BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
 
@@ -163,6 +213,13 @@ public class CounterUnitTests {
 
         stub.endTxn();
 
+    }
+
+    public int getValue(String key, Indigo stub) throws SwiftException {
+        stub.beginTxn();
+        BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+        stub.endTxn();
+        return x.getValue();
     }
 
     @After
