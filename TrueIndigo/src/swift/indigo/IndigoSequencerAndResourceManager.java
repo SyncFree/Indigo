@@ -33,6 +33,8 @@ import swift.indigo.proto.InitializeResources;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.proto.CommitTimestampRequest;
+import swift.proto.GenerateTimestampReply;
+import swift.proto.GenerateTimestampRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
 import sys.net.impl.Url;
@@ -65,6 +67,13 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
         });
 
         lockManagerNode = new ResourceManagerNode(this, endpoints);
+    }
+
+    @Override
+    public void onReceive(final Envelope conn, final GenerateTimestampRequest request) {
+        if (logger.isLoggable(Level.INFO))
+            logger.info("OVERRIDE sequencer super method ");
+        conn.reply(new GenerateTimestampReply(request.getCltTimestamp(), super.clocks.newTimestamp()));
     }
 
     @Override

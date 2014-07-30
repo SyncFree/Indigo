@@ -41,6 +41,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
     private Map<Timestamp, AcquireResourcesReply> replies = new ConcurrentHashMap<Timestamp, AcquireResourcesReply>();
 
+    private IndigoSequencerAndResourceManager sequencer;
+
     public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, final Map<String, Endpoint> endpoints) {
 
         // TODO: Add ordering function
@@ -51,6 +53,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
         this.endpoints = endpoints;
         this.stub = sequencer.stub;
 
+        this.sequencer = sequencer;
         this.active = true;
 
         new Thread(new Runnable() {
@@ -113,18 +116,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
         // });
     }
 
-    @Override
-    public void onReceive(Envelope conn, AcquireResourcesRequest request) {
-        RequestWithReply requestWR = new RequestWithReply(conn, request);
-        if (!incomingRequests.contains(requestWR)) {
-            incomingRequests.add(requestWR);
-        } else {
-            if (logger.isLoggable(Level.INFO))
-                logger.info("Duplicate request");
-        }
-
-    }
-
     public synchronized void process(TransferResourcesRequest request) {
         if (logger.isLoggable(Level.INFO))
             logger.info("Processing TransferResourcesRequest" + request);
@@ -151,9 +142,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
         reply = null;
         // Handle repeated messages
         if (reply == null) {
-            reply = manager.acquireResources(request);
-            if (reply.acquiredStatus().equals(AcquireReply.YES))
-                replies.put(request.getClientTs(), reply);
+            if (request.getRequests().size() > 0) {
+                reply = manager.acquireResources(request);
+                if (reply.acquiredStatus().equals(AcquireReply.YES))
+                    replies.put(request.getClientTs(), reply);
+            } else {
+                conn.reply(new AcquireResourcesReply(AcquireReply.YES, sequencer.clocks.currentClockCopy()));
+            }
+
         }
         conn.reply(reply);
     }
@@ -161,6 +157,19 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
     /**
      * Message handlers
      */
+
+    @Override
+    public void onReceive(Envelope conn, AcquireResourcesRequest request) {
+        RequestWithReply requestWR = new RequestWithReply(conn, request);
+        if (!incomingRequests.contains(requestWR)) {
+            incomingRequests.add(requestWR);
+        } else {
+            if (logger.isLoggable(Level.INFO))
+                logger.info("Duplicate request");
+            conn.reply(new AcquireResourcesReply(AcquireReply.NO, sequencer.clocks.currentClockCopy()));
+        }
+
+    }
 
     @Override
     public synchronized void onReceive(Envelope conn, TransferResourcesRequest request) {
