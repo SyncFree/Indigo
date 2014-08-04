@@ -43,13 +43,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
     private IndigoSequencerAndResourceManager sequencer;
 
-    public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, final Map<String, Endpoint> endpoints) {
+    public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
+            final Map<String, Endpoint> endpoints) {
 
         // TODO: Add ordering function
         transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
         this.incomingRequests = new LinkedList<ClientRequest>();
 
-        this.manager = new IndigoResourceManager(sequencer, endpoints, transferRequestsQueue);
+        this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, transferRequestsQueue);
         this.endpoints = endpoints;
         this.stub = sequencer.stub;
 

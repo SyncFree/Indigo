@@ -66,7 +66,8 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
             endpoints.put(new Url(str).siteId(), Networking.resolve(str, Defaults.SEQUENCER_URL));
         });
 
-        lockManagerNode = new ResourceManagerNode(this, endpoints);
+        Endpoint surrogate = Networking.resolve(Args.valueOf("-server", Defaults.SERVER_URL4SEQUENCERS));
+        lockManagerNode = new ResourceManagerNode(this, surrogate, endpoints);
     }
 
     @Override
