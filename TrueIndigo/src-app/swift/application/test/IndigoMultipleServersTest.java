@@ -28,7 +28,7 @@ public class IndigoMultipleServersTest {
     private static Indigo stub2;
 
     static String table = "LOCK";
-    static char key = 'A';
+    static char key = '@';
 
     public static void startDC1Server(String siteId, int sequencerPort, int serverPort, int serverPort4Seq,
             int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers, String[] otherServers) {
@@ -63,30 +63,83 @@ public class IndigoMultipleServersTest {
         }
     }
 
+    @Before
+    public void updateTestKey() {
+        key++;
+    }
+
+    public static void initKey(Indigo stub, CRDTIdentifier id, String owner) throws SwiftException {
+        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+        resources.add(new LockReservation(owner, id, ShareableLock.ALLOW));
+        stub.beginTxn(resources);
+        stub.endTxn();
+        stub.beginTxn();
+        stub.endTxn();
+    }
+
     @Test
     public void testReplication() throws SwiftException, InterruptedException {
-        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-        resources.add(new LockReservation("DC_A", new CRDTIdentifier("LOCK", "A"), ShareableLock.ALLOW));
-
-        stub1.beginTxn(resources);
-        stub1.endTxn();
-        stub1.beginTxn();
-        System.out.println(stub1.get(new CRDTIdentifier(table, "" + key), false, EscrowableTokenCRDT.class));
-        stub1.endTxn();
+        CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+        initKey(stub1, id, "DC_A");
 
         stub1.beginTxn();
-        ShareableLock typeDC1 = stub1.get(new CRDTIdentifier(table, "" + key), false, EscrowableTokenCRDT.class)
-                .getValue();
+        ShareableLock typeDC1 = stub1.get(id, false, EscrowableTokenCRDT.class).getValue();
         stub1.endTxn();
 
         Thread.sleep(1000);
         stub2.beginTxn();
-        ShareableLock typeDC2 = stub2.get(new CRDTIdentifier(table, "" + key), false, EscrowableTokenCRDT.class)
-                .getValue();
+        ShareableLock typeDC2 = stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
         stub2.endTxn();
 
         assertEquals(typeDC1, typeDC2);
+    }
 
+    @Test
+    public void testTransferenceSameType() throws SwiftException, InterruptedException {
+        CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+        initKey(stub1, id, "DC_A");
+        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+        resources.add(new LockReservation("DC_B", id, ShareableLock.ALLOW));
+        stub2.beginTxn(resources);
+        stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
+        stub2.endTxn();
+    }
+
+    @Test
+    public void testTransferenceDifferentType() throws SwiftException, InterruptedException {
+        CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+        initKey(stub1, id, "DC_A");
+        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+        resources.add(new LockReservation("DC_B", id, ShareableLock.FORBID));
+        stub2.beginTxn(resources);
+        ShareableLock newType = stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
+        System.out.println(newType);
+        stub2.endTxn();
+        System.out.println("FINISHED COMMIT");
+        assertEquals(ShareableLock.FORBID, newType);
+    }
+
+    @Test
+    public void testTransferenceTwoTypes() throws SwiftException, InterruptedException {
+        CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+        initKey(stub1, id, "DC_A");
+
+        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+        resources.add(new LockReservation("DC_B", id, ShareableLock.ALLOW));
+        stub2.beginTxn(resources);
+        ShareableLock firstType = stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
+        System.out.println(firstType);
+        stub2.endTxn();
+
+        resources = new LinkedList<ResourceRequest<?>>();
+        resources.add(new LockReservation("DC_B", id, ShareableLock.FORBID));
+        stub2.beginTxn(resources);
+        ShareableLock secondType = stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
+        System.out.println(secondType);
+        stub2.endTxn();
+
+        assertEquals(ShareableLock.ALLOW, firstType);
+        assertEquals(ShareableLock.FORBID, secondType);
     }
 
 }

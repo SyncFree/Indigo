@@ -1,6 +1,7 @@
 package swift.indigo.proto;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 
 import swift.clocks.Timestamp;
@@ -26,6 +27,12 @@ public class AcquireResourcesRequest extends ClientRequest implements Comparable
         super(clientId);
         this.clientTs = cltTimestamp;
         this.requests = resources;
+    }
+
+    public AcquireResourcesRequest(AcquireResourcesRequest other) {
+        super(other.clientId);
+        this.clientTs = other.clientTs;
+        this.requests = new HashSet<ResourceRequest<?>>(other.requests);
     }
 
     @Override
@@ -60,8 +67,8 @@ public class AcquireResourcesRequest extends ClientRequest implements Comparable
         Iterator<ResourceRequest<?>> it = requests.iterator();
         Iterator<ResourceRequest<?>> otherIt = other.requests.iterator();
         int diff = 0;
-        ResourceRequest<?> elem1 = null, elem2 = null;
         while (diff == 0) {
+            ResourceRequest<?> elem1 = null, elem2 = null;
             while (it.hasNext()) {
                 elem1 = it.next();
                 if (elem1 instanceof LockReservation) {
@@ -74,10 +81,12 @@ public class AcquireResourcesRequest extends ClientRequest implements Comparable
                     break;
                 }
             }
-        }
-        if (elem1 != null && elem2 != null) {
-            diff = ((LockReservation) elem1).getResource().ordinal()
-                    - ((LockReservation) elem2).getResource().ordinal();
+
+            if (elem1 != null && elem2 != null) {
+                diff = ((LockReservation) elem1).getResource().ordinal()
+                        - ((LockReservation) elem2).getResource().ordinal();
+            } else
+                break;
         }
         if (diff == 0)
             return getClientId().compareTo(other.getClientId());

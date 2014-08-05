@@ -14,4 +14,5 @@ public enum ShareableLock {
     public boolean isCompatible(ShareableLock resource) {
         return this.equals(resource) && !this.equals(EXCLUSIVE_ALLOW);
     }
+
 }

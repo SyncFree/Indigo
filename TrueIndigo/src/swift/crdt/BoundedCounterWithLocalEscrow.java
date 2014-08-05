@@ -1,6 +1,10 @@
 package swift.crdt;
 
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 
 import swift.api.CRDTIdentifier;
@@ -10,6 +14,7 @@ import swift.indigo.Resource;
 import swift.indigo.ResourceDecorator;
 import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
+import swift.utils.Pair;
 
 /**
  * By design this class returns the values of the original Resource minus the
@@ -21,6 +26,14 @@ import swift.indigo.TRANSFER_STATUS;
  */
 public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCounterWithLocalEscrow, Integer> implements
         ConsumableResource<Integer> {
+
+    private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
+
+        @Override
+        public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {
+            return o2.getSecond() - o1.getSecond();
+        }
+    };
 
     private Set<ResourceRequest<Integer>> activeRequests;
     private String localId;
@@ -75,10 +88,6 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
     public TRANSFER_STATUS transferOwnership(String fromId, String toId, ResourceRequest<Integer> request) {
         if (checkRequest(fromId, request)) {
             TRANSFER_STATUS success = super.transferOwnership(fromId, toId, request);
-            if (success != TRANSFER_STATUS.SUCCESS) {
-                System.err.println("BUG -  SHOULD SUCCEED - REMOVE THIS MESSAGE");
-                System.exit(0);
-            }
             return success;
         }
         return TRANSFER_STATUS.FAIL;
@@ -168,6 +177,18 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
             out += req.getResource();
         }
         return out + "";
+    }
+
+    @Override
+    public Queue<Pair<String, Integer>> preferenceList() {
+        PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1,
+                DEFAUT_PREFERENCE_LIST);
+        Collection<String> owners = super.getAllResourceOwners();
+
+        for (String site : owners) {
+            preferenceList.add(new Pair<String, Integer>(site, getSiteResource(site)));
+        }
+        return preferenceList;
     }
 
 }

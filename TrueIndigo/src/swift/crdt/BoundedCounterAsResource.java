@@ -1,5 +1,7 @@
 package swift.crdt;
 
+import java.util.Collection;
+
 import swift.api.CRDTIdentifier;
 import swift.api.TxnHandle;
 import swift.clocks.CausalityClock;
@@ -133,4 +135,10 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
             counter.applyDec((BoundedCounterDecrement) req);
         }
     }
+
+    @Override
+    public Collection<String> getAllResourceOwners() {
+        return counter.permissions.keySet();
+    }
+
 }

@@ -127,7 +127,8 @@ public class AcquireResourcesReply {
     }
 
     public String toString() {
-        return (status.equals(AcquireReply.YES) ? ("YES " + Arrays.asList(requests) + "  " + cltTimestamp) : ("NO"));
+        return (status.equals(AcquireReply.YES) ? ("YES " + ((requests != null) ? Arrays.asList(requests) : "") + "  " + cltTimestamp)
+                : ("NO"));
     }
 
     public ResourceRequest<?>[] getResourcesRequest() {

@@ -1,6 +1,10 @@
 package swift.indigo;
 
+import java.util.Collection;
+import java.util.Queue;
+
 import swift.api.CRDTIdentifier;
+import swift.utils.Pair;
 
 public interface Resource<T> {
 
@@ -21,5 +25,9 @@ public interface Resource<T> {
     boolean checkRequest(String ownerId, ResourceRequest<T> request);
 
     boolean isOwner(String siteId);
+
+    public Queue<Pair<String, T>> preferenceList();
+
+    Collection<String> getAllResourceOwners();
 
 }

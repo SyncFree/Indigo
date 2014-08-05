@@ -12,9 +12,18 @@ public class TransferResourcesRequest extends AcquireResourcesRequest {
 
     private String destinationId;
 
+    public TransferResourcesRequest() {
+
+    }
+
     public TransferResourcesRequest(String requesterId, String destinationId, Timestamp cltTimestamp,
             Collection<ResourceRequest<?>> resources) {
         super(requesterId, cltTimestamp, resources);
+        this.destinationId = destinationId;
+    }
+
+    public TransferResourcesRequest(String destinationId, AcquireResourcesRequest request) {
+        super(request);
         this.destinationId = destinationId;
     }
 
@@ -25,7 +34,8 @@ public class TransferResourcesRequest extends AcquireResourcesRequest {
     }
 
     public String toString() {
-        return String.format("Wanted ... %s --> %s", super.requests.toString());
+        return String.format("Transfer request to: %s, TS:%s ----> %s", destinationId, super.clientTs,
+                super.requests.toString());
     }
 
     public String getDestination() {

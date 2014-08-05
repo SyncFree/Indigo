@@ -32,11 +32,10 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
     private Queue<ClientRequest> incomingRequests;
 
     // Outgoing requests
-    private PriorityQueue<TransferResourcesRequest> transferRequestsQueue;
+    private transient PriorityQueue<TransferResourcesRequest> transferRequestsQueue;
 
     private boolean active;
 
-    private Map<String, Endpoint> endpoints;
     private Service stub;
 
     private Map<Timestamp, AcquireResourcesReply> replies = new ConcurrentHashMap<Timestamp, AcquireResourcesReply>();
@@ -51,36 +50,35 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
         this.incomingRequests = new LinkedList<ClientRequest>();
 
         this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, transferRequestsQueue);
-        this.endpoints = endpoints;
         this.stub = sequencer.stub;
 
         this.sequencer = sequencer;
         this.active = true;
 
+        ResourceManagerNode monitor = this;
+
         new Thread(new Runnable() {
 
             @Override
             public void run() {
-                synchronized (this) {
-                    while (active) {
-                        if (incomingRequests.size() > 0) {
-                            ClientRequest request = incomingRequests.remove();
-                            if (request instanceof RequestWithReply) {
-                                RequestWithReply rwr = ((RequestWithReply) request);
-                                processWithReply(rwr.getHandle(), (AcquireResourcesRequest) rwr.getRequest());
-                            } else {
-                                if (request instanceof TransferResourcesRequest) {
-                                    process((TransferResourcesRequest) request);
-                                } else {
-                                    process((ReleaseResourcesRequest) request);
-                                }
-                            }
+                while (active) {
+                    if (incomingRequests.size() > 0) {
+                        ClientRequest request = incomingRequests.remove();
+                        if (request instanceof RequestWithReply) {
+                            RequestWithReply rwr = ((RequestWithReply) request);
+                            processWithReply(rwr.getHandle(), (AcquireResourcesRequest) rwr.getRequest());
                         } else {
-                            try {
-                                Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
+                            if (request instanceof TransferResourcesRequest) {
+                                process((TransferResourcesRequest) request);
+                            } else {
+                                process((ReleaseResourcesRequest) request);
                             }
+                        }
+                    } else {
+                        try {
+                            Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -94,7 +92,13 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
             public void run() {
                 while (active) {
                     if (transferRequestsQueue.size() > 0) {
-                        TransferResourcesRequest request = transferRequestsQueue.remove();
+                        TransferResourcesRequest request = null;
+                        synchronized (monitor) {
+                            if (transferRequestsQueue.size() > 0) {
+                                request = transferRequestsQueue.remove();
+                            } else
+                                continue;
+                        }
                         Endpoint endpoint = endpoints.get(request.getDestination());
                         stub.send(endpoint, request);
                     } else {
@@ -120,7 +124,10 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
     public synchronized void process(TransferResourcesRequest request) {
         if (logger.isLoggable(Level.INFO))
             logger.info("Processing TransferResourcesRequest" + request);
-        manager.transferResources(request);
+        TRANSFER_STATUS reply = manager.transferResources(request);
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("Finished TransferResourcesRequest: " + request + " " + reply);
+        }
     }
 
     public synchronized void process(ReleaseResourcesRequest request) {
@@ -133,25 +140,32 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
             replies.remove(ts);
             manager.releaseResources(alr);
         }
+        if (logger.isLoggable(Level.INFO))
+            logger.info("Finished ReleaseResourcesRequest" + request);
     }
 
-    public synchronized void processWithReply(Envelope conn, AcquireResourcesRequest request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Processing AcquireResourcesRequest" + request);
-
-        AcquireResourcesReply reply = checkAlreadyProcessed(request);
-        reply = null;
-        // Handle repeated messages
-        if (reply == null) {
-            if (request.getRequests().size() > 0) {
-                reply = manager.acquireResources(request);
-                if (reply.acquiredStatus().equals(AcquireReply.YES))
-                    replies.put(request.getClientTs(), reply);
-            } else {
-                conn.reply(new AcquireResourcesReply(AcquireReply.YES, sequencer.clocks.currentClockCopy()));
+    public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
+        AcquireResourcesReply reply;
+        synchronized (this) {
+            if (logger.isLoggable(Level.INFO))
+                logger.info("Processing AcquireResourcesRequest " + request);
+            reply = checkAlreadyProcessed(request);
+            reply = null;
+            // Handle repeated messages
+            if (reply == null) {
+                if (request.getRequests().size() > 0) {
+                    reply = manager.acquireResources(request);
+                    if (reply.acquiredStatus().equals(AcquireReply.YES))
+                        replies.put(request.getClientTs(), reply);
+                } else {
+                    reply = new AcquireResourcesReply(AcquireReply.YES, sequencer.clocks.currentClockCopy());
+                }
             }
+            if (logger.isLoggable(Level.INFO))
+                logger.info("Finished AcquireResourcesRequest reply " + reply);
 
         }
+        System.out.println("Manager reply to client " + reply);
         conn.reply(reply);
     }
 
@@ -173,12 +187,12 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
     }
 
     @Override
-    public synchronized void onReceive(Envelope conn, TransferResourcesRequest request) {
+    public void onReceive(Envelope conn, TransferResourcesRequest request) {
         incomingRequests.add(request);
     }
 
     @Override
-    public synchronized void onReceive(Envelope conn, ReleaseResourcesRequest request) {
+    public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
         // process(request);
         incomingRequests.add(request);
     }

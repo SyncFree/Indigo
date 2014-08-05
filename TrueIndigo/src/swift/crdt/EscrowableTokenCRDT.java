@@ -16,10 +16,14 @@
  *****************************************************************************/
 package swift.crdt;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -31,6 +35,7 @@ import swift.crdt.core.BaseCRDT;
 import swift.indigo.Resource;
 import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
+import swift.utils.Pair;
 
 public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implements Resource<ShareableLock> {
     private static Logger Log = Logger.getLogger(EscrowableTokenCRDT.class.getName());
@@ -45,10 +50,6 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
     }
 
     public EscrowableTokenCRDT(CRDTIdentifier id) {
-        this(id, null);
-    }
-
-    public EscrowableTokenCRDT(CRDTIdentifier id, String owner) {
         super(id);
         this.type = ShareableLock.ALLOW;
         this.owners = new HashMap<String, Set<TripleTimestamp>>();
@@ -201,4 +202,19 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
     public boolean isReservable() {
         return true;
     }
+
+    @Override
+    public Queue<Pair<String, ShareableLock>> preferenceList() {
+        List<Pair<String, ShareableLock>> list = new LinkedList<>();
+        for (String entry : owners.keySet()) {
+            list.add(new Pair<String, ShareableLock>(entry, type));
+        }
+        return (Queue<Pair<String, ShareableLock>>) list;
+    }
+
+    @Override
+    public Collection<String> getAllResourceOwners() {
+        return owners.keySet();
+    }
+
 }

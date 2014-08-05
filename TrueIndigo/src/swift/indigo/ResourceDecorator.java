@@ -1,5 +1,7 @@
 package swift.indigo;
 
+import java.util.Collection;
+
 import swift.api.CRDTIdentifier;
 import swift.exceptions.IncompatibleTypeException;
 
@@ -53,5 +55,9 @@ public abstract class ResourceDecorator<V extends ResourceDecorator<V, T>, T> im
     @Override
     public boolean isReservable() {
         return originalResource.isReservable();
+    }
+
+    public Collection<String> getAllResourceOwners() {
+        return originalResource.getAllResourceOwners();
     }
 }

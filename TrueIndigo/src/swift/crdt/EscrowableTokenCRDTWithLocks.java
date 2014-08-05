@@ -1,6 +1,7 @@
 package swift.crdt;
 
 import java.util.HashSet;
+import java.util.Queue;
 import java.util.Set;
 
 import swift.api.CRDTIdentifier;
@@ -9,6 +10,7 @@ import swift.indigo.Resource;
 import swift.indigo.ResourceDecorator;
 import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
+import swift.utils.Pair;
 
 /**
  * By design this class returns the values of the original Resource minus the
@@ -112,6 +114,11 @@ public class EscrowableTokenCRDTWithLocks extends ResourceDecorator<EscrowableTo
             System.out.println("ERROR release did not remove a resource " + req_i);
             System.exit(0);
         }
+    }
+
+    @Override
+    public Queue<Pair<String, ShareableLock>> preferenceList() {
+        return token.preferenceList();
     }
 
 }
