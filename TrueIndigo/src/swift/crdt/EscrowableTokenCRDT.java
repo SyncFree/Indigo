@@ -135,9 +135,16 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	protected void applySharedLockUpdate(EscrowableLockUpdate op) {
 		Log.info("SharedLockOwnershipUpdate: " + op);
 		// Check if the pre-condition of updateOwnership is still valid
+		if (op.justRelease()) {
+			owners.remove(op.ownerId());
+			return;
+		}
+
 		if (!canUpdateSharedLock(op.ownerId(), op.getType()))
 			throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
 
+		// TODO: Does underlying layer ensures only once? Otherwise needs to
+		// check that the current TS << Request TS. The same for JustRelease
 		if (op.isTransfer())
 			owners.remove(op.ownerId());
 
@@ -147,10 +154,10 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 		if (tsRequester == null) {
 			tsRequester = new HashSet<TripleTimestamp>();
 			owners.put(op.requesterId(), tsRequester);
-        }
+
 			tsRequester.add(op.getTimestamp());
 		}
-
+	}
 	public void setTxnHandle(TxnHandle handle) {
 		super.txn = handle;
 	}

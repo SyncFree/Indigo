@@ -8,26 +8,32 @@ import swift.utils.Pair;
 
 public interface Resource<T> {
 
-    void initialize(String ownerId, ResourceRequest<T> request);
+	void initialize(String ownerId, ResourceRequest<T> request);
 
-    TRANSFER_STATUS transferOwnership(String fromId, String toId, ResourceRequest<T> request);
+	TRANSFER_STATUS transferOwnership(String fromId, String toId, ResourceRequest<T> request);
 
-    void apply(String siteId, ResourceRequest<T> req);
+	void apply(String siteId, ResourceRequest<T> req);
 
-    CRDTIdentifier getUID();
+	CRDTIdentifier getUID();
 
-    T getCurrentResource();
+	T getCurrentResource();
 
-    T getSiteResource(String siteId);
+	T getSiteResource(String siteId);
 
-    boolean isReservable();
+	boolean isReservable();
 
-    boolean checkRequest(String ownerId, ResourceRequest<T> request);
+	boolean checkRequest(String ownerId, ResourceRequest<T> request);
 
-    boolean isOwner(String siteId);
+	boolean isOwner(String siteId);
 
-    public Queue<Pair<String, T>> preferenceList();
+	public Queue<Pair<String, T>> preferenceList();
 
-    Collection<String> getAllResourceOwners();
+	public Queue<Pair<String, T>> preferenceList(String excludeSiteId);
+
+	Collection<String> getAllResourceOwners();
+
+	boolean isSingleOwner(String siteId);
+
+	boolean releaseShare(String ownerId);
 
 }
