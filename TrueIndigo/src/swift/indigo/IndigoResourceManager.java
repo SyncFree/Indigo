@@ -86,7 +86,7 @@ final public class IndigoResourceManager {
 	public boolean releaseResources(AcquireResourcesReply alr) {
 		boolean ok = true;
 		try {
-            alr.lockStuff();
+			// alr.lockStuff();
 			int cacheInt;
 			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
 				if (req_i instanceof LockReservation) {
@@ -131,7 +131,7 @@ final public class IndigoResourceManager {
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 		} finally {
-            alr.unlockStuff();
+			// alr.unlockStuff();
 		}
 		return ok || true; // TODO: handle cases for timestamps that do not
 							// involve
@@ -143,13 +143,12 @@ final public class IndigoResourceManager {
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 
 		AcquireResourcesRequest modifiedRequest = preProcessRequest(request);
-
-        lockTable();
 		// Only set this variable to true if request fails (no effect on the
 		// client)
 		boolean mustUpdate = false;
 		CausalityClock snapshot = storage.getCurrentClock();
 		try {
+			lockTable();
 			storage.beginTxn(request.getClientTs());
 
 			// Test resource's availability
@@ -288,7 +287,7 @@ final public class IndigoResourceManager {
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
 		try {
-            lockTable();
+			// request.lockStuff();
 			boolean updated = false;
 			storage.beginTxn(null);
 			for (ResourceRequest<?> req_i : request.getRequests()) {
@@ -320,7 +319,7 @@ final public class IndigoResourceManager {
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		} finally {
-            request.unlockStuff();
+			// request.unlockStuff();
 		}
 		return TRANSFER_STATUS.FAIL;
 	}
@@ -332,11 +331,11 @@ final public class IndigoResourceManager {
 		if (!resource.checkRequest(request.getRequesterId(), (ResourceRequest<T>) request)) {
 			ResourceRequest request_policy = transferPolicy(request, resource);
 			if (request_policy != null) {
-                request.lockStuff();
+				// request.lockStuff();
 				resource = storage.getResource(request);
 				TRANSFER_STATUS transferred = resource.transferOwnership(sequencer.siteId, request.getRequesterId(),
 						request_policy);
-                request.unlockStuff();
+				// request.unlockStuff();
 
 				if (!request.equals(request_policy) && transferred.equals(TRANSFER_STATUS.SUCCESS)) {
 					result = TRANSFER_STATUS.PARTIAL;
