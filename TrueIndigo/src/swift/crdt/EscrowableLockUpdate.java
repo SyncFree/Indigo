@@ -21,52 +21,64 @@ import swift.crdt.core.CRDTUpdate;
 
 public class EscrowableLockUpdate implements CRDTUpdate<EscrowableTokenCRDT> {
 
-    private ShareableLock type;
-    private String ownerId;
-    private String requesterId;
-    private boolean isTransfer;
-    private TripleTimestamp timestamp;
+	private ShareableLock type;
+	private String ownerId;
+	private String requesterId;
+	private boolean isTransfer, justRelease;
+	private TripleTimestamp timestamp;
 
-    // required for kryo
-    public EscrowableLockUpdate() {
-    }
+	// required for kryo
+	public EscrowableLockUpdate() {
+	}
 
-    public EscrowableLockUpdate(String ownerId, String requesterId, ShareableLock type, TripleTimestamp timestamp,
-            boolean isTransfer) {
-        this.type = type;
-        this.ownerId = ownerId;
-        this.timestamp = timestamp;
-        this.requesterId = requesterId;
-        this.isTransfer = isTransfer;
-    }
+	public EscrowableLockUpdate(String ownerId, String requesterId, ShareableLock type, TripleTimestamp timestamp,
+			boolean isTransfer) {
+		this.type = type;
+		this.ownerId = ownerId;
+		this.timestamp = timestamp;
+		this.requesterId = requesterId;
+		this.isTransfer = isTransfer;
+	}
 
-    @Override
-    public void applyTo(EscrowableTokenCRDT crdt) {
-        crdt.applySharedLockUpdate(this);
-    }
+	public EscrowableLockUpdate(String ownerId, TripleTimestamp timestamp, boolean justRelease) {
+		this.ownerId = ownerId;
+		this.requesterId = ownerId;
+		this.timestamp = timestamp;
+		this.justRelease = justRelease;
+		this.type = ShareableLock.EXCLUSIVE_ALLOW;
+	}
 
-    public ShareableLock getType() {
-        return type;
-    }
+	@Override
+	public void applyTo(EscrowableTokenCRDT crdt) {
+		crdt.applySharedLockUpdate(this);
+	}
 
-    public TripleTimestamp getTimestamp() {
-        return timestamp;
-    }
+	public ShareableLock getType() {
+		return type;
+	}
 
-    public String ownerId() {
-        return ownerId == null ? "?" : ownerId;
-    }
+	public TripleTimestamp getTimestamp() {
+		return timestamp;
+	}
 
-    public String requesterId() {
-        return requesterId;
-    }
+	public String ownerId() {
+		return ownerId == null ? "?" : ownerId;
+	}
 
-    public boolean isTransfer() {
-        return isTransfer;
-    }
+	public String requesterId() {
+		return requesterId;
+	}
 
-    public String toString() {
+	public boolean isTransfer() {
+		return isTransfer;
+	}
+
+	public String toString() {
         return String.format("<%s, %s, %s, %s : %s>", type, ownerId, requesterId, timestamp, isTransfer ? "Transfer"
-                : "Sharing");
-    }
+				: "Sharing");
+	}
+
+	public boolean justRelease() {
+		return justRelease;
+	}
 }
