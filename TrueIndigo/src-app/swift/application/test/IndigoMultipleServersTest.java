@@ -3,7 +3,6 @@ package swift.application.test;
 import static org.junit.Assert.assertEquals;
 import static sys.Context.Networking;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -15,8 +14,6 @@ import swift.crdt.EscrowableTokenCRDT;
 import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoSequencerAndResourceManager;
-import swift.indigo.IndigoServer;
 import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.RemoteIndigo;
@@ -30,30 +27,13 @@ public class IndigoMultipleServersTest {
 	static String table = "LOCK";
 	static char key = '@';
 
-	public static void startDC1Server(String siteId, int sequencerPort, int serverPort, int serverPort4Seq,
-			int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers, String[] otherServers) {
-
-		List<String> argsSeq = new LinkedList<String>();
-		argsSeq.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server",
-				"tcp://*:" + serverPort, "-sequencers"}));
-		argsSeq.addAll(Arrays.asList(otherSequencers));
-		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
-
-		List<String> argsServer = new LinkedList<String>();
-		argsServer.addAll(Arrays.asList(new String[]{"-url", "tcp://*:" + serverPort, "-sequencer",
-				"tcp://*:" + sequencerPort, "-url4seq", "" + serverPort4Seq, "-dht", "tcp://*:" + DHTPort, "-pubsub",
-				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
-		argsServer.addAll(Arrays.asList(otherServers));
-		IndigoServer.main(argsServer.toArray(new String[0]));
-	}
-
 	@Before
 	public void init2DC() {
 		if (!started) {
-			startDC1Server("DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{
+			TestsUtil.startDC1Server("DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{
 					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32002
 					+ "/DC_B"});
-			startDC1Server("DC_B", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{
+			TestsUtil.startDC1Server("DC_B", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{
 					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001
 					+ "/DC_A"});
 			started = true;
