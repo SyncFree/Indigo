@@ -29,6 +29,7 @@ import swift.dc.Defaults;
 import swift.dc.Sequencer;
 import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
+import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.InitializeResources;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
@@ -46,96 +47,100 @@ import sys.utils.Args;
  * 
  */
 public class IndigoSequencerAndResourceManager extends Sequencer implements ReservationsProtocolHandler {
-    private static Logger logger = Logger.getLogger(IndigoSequencerAndResourceManager.class.getName());
+	private static Logger logger = Logger.getLogger(IndigoSequencerAndResourceManager.class.getName());
 
-    ResourceManagerNode lockManagerNode;
-    List<String> dcNames;
+	ResourceManagerNode lockManagerNode;
+	List<String> dcNames;
 
-    IndigoSequencerAndResourceManager(String siteId, int port, List<String> servers, List<String> sequencers,
-            String sequencerShadow, boolean isBackup, Properties props, List<String> dcNames) {
-        // super(siteId, port, servers, sequencers, sequencerShadow, isBackup,
-        // props);
-        this.dcNames = dcNames;
-    }
+	IndigoSequencerAndResourceManager(String siteId, int port, List<String> servers, List<String> sequencers,
+			String sequencerShadow, boolean isBackup, Properties props, List<String> dcNames) {
+		// super(siteId, port, servers, sequencers, sequencerShadow, isBackup,
+		// props);
+		this.dcNames = dcNames;
+	}
 
-    @Override
-    public void start() {
-        super.start();
-        Map<String, Endpoint> endpoints = new HashMap<String, Endpoint>();
-        Args.subList("-sequencers").forEach(str -> {
-            endpoints.put(new Url(str).siteId(), Networking.resolve(str, Defaults.SEQUENCER_URL));
-        });
+	@Override
+	public void start() {
+		super.start();
+		Map<String, Endpoint> endpoints = new HashMap<String, Endpoint>();
+		Args.subList("-sequencers").forEach(str -> {
+			endpoints.put(new Url(str).siteId(), Networking.resolve(str, Defaults.SEQUENCER_URL));
+		});
 
-        Endpoint surrogate = Networking.resolve(Args.valueOf("-server", Defaults.SERVER_URL4SEQUENCERS));
-        lockManagerNode = new ResourceManagerNode(this, surrogate, endpoints);
-    }
+		Endpoint surrogate = Networking.resolve(Args.valueOf("-server", Defaults.SERVER_URL4SEQUENCERS));
+		lockManagerNode = new ResourceManagerNode(this, surrogate, endpoints);
+	}
 
-    @Override
-    public void onReceive(final Envelope conn, final GenerateTimestampRequest request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("OVERRIDE sequencer super method ");
-        conn.reply(new GenerateTimestampReply(request.getCltTimestamp(), super.clocks.newTimestamp()));
-    }
+	@Override
+	public void onReceive(final Envelope conn, final GenerateTimestampRequest request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("OVERRIDE sequencer super method ");
+		conn.reply(new GenerateTimestampReply(request.getCltTimestamp(), super.clocks.newTimestamp()));
+	}
 
-    @Override
-    public void onReceive(final Envelope conn, final CommitTimestampRequest request) {
-        // RPC Handle is null, since this should not reply EVER to the client
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Commit timestamp " + request.getTimestamp());
-        super.onReceive(conn, request);
-        lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
-    }
+	@Override
+	public void onReceive(final Envelope conn, final CommitTimestampRequest request) {
+		// RPC Handle is null, since this should not reply EVER to the client
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Commit timestamp " + request.getTimestamp());
+		super.onReceive(conn, request);
+		// Only do release on local-DC commit messages and if it used locks
+		if (request.getCommitUpdatesRequest() instanceof IndigoCommitRequest) {
+			if (((IndigoCommitRequest) request.getCommitUpdatesRequest()).withLocks())
+				lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
+		}
+	}
 
-    @Override
-    public void onReceive(Envelope conn, AcquireResourcesRequest request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Got AcquireResourcesRequest for request: " + request);
-        lockManagerNode.onReceive(conn, request);
-    }
+	@Override
+	public void onReceive(Envelope conn, AcquireResourcesRequest request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Got AcquireResourcesRequest for request: " + request);
+		lockManagerNode.onReceive(conn, request);
+	}
 
-    @Override
-    public void onReceive(Envelope conn, AcquireResourcesReply request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Got AcquireResourcesReply:" + request);
-        lockManagerNode.onReceive(null, request);
-    }
+	@Override
+	public void onReceive(Envelope conn, AcquireResourcesReply request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Got AcquireResourcesReply:" + request);
+		lockManagerNode.onReceive(null, request);
+	}
 
-    @Override
-    public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Got ReleaseResourcesRequest:" + request);
-        lockManagerNode.onReceive(conn, request);
-    }
+	@Override
+	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Got ReleaseResourcesRequest:" + request);
+		lockManagerNode.onReceive(conn, request);
+	}
 
-    public void onReceive(Envelope conn, final TransferResourcesRequest request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Got TransferResourcesRequest:" + request);
-        lockManagerNode.onReceive(conn, request);
-    }
+	public void onReceive(Envelope conn, final TransferResourcesRequest request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Got TransferResourcesRequest:" + request);
+		lockManagerNode.onReceive(conn, request);
+	}
 
-    public void onReceive(Envelope conn, final InitializeResources request) {
-        if (logger.isLoggable(Level.INFO))
-            logger.info("Got InitializeResources:" + request);
-        lockManagerNode.onReceive(conn, request);
-    }
+	public void onReceive(Envelope conn, final InitializeResources request) {
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Got InitializeResources:" + request);
+		lockManagerNode.onReceive(conn, request);
+	}
 
-    public static void main(String[] args) {
-        Args.use(args);
+	public static void main(String[] args) {
+		Args.use(args);
 
-        int port = Args.valueOf("-port", -1);
-        String siteId = Args.valueOf("-name", "X");
-        boolean isBackup = Args.valueOf("-backup", false);
+		int port = Args.valueOf("-port", -1);
+		String siteId = Args.valueOf("-name", "X");
+		boolean isBackup = Args.valueOf("-backup", false);
 
-        List<String> servers = Args.subList("-servers");
-        List<String> sequencers = Args.subList("-sequencers");
-        String sequencerShadow = Args.valueOf("-sequencerShadow", null);
+		List<String> servers = Args.subList("-servers");
+		List<String> sequencers = Args.subList("-sequencers");
+		String sequencerShadow = Args.valueOf("-sequencerShadow", null);
 
-        List<String> dcNames = Args.subList("-names");
+		List<String> dcNames = Args.subList("-names");
 
-        Properties props = new Properties();
+		Properties props = new Properties();
 
-        new IndigoSequencerAndResourceManager(siteId, port, servers, sequencers, sequencerShadow, isBackup, props,
-                dcNames).start();
-    }
+		new IndigoSequencerAndResourceManager(siteId, port, servers, sequencers, sequencerShadow, isBackup, props,
+				dcNames).start();
+	}
 
 }

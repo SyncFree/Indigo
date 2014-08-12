@@ -109,12 +109,6 @@ final public class IndigoResourceManager {
 						int storageInt = resource.getCurrentResource();
 						resource = (ConsumableResource) updateLocalInfo(resource);
 
-						// System.out.println(req_i.getResourceId() +
-						// " Value from cache before release: " + cacheInt
-						// + " active: " + ((BoundedCounterWithLocalEscrow)
-						// cachedResource).getActiveresources()
-						// + " value from storage" + storageInt);
-
 					} catch (VersionNotFoundException e) {
 						logger.warning("Version exception but continues");
 					}
@@ -148,7 +142,7 @@ final public class IndigoResourceManager {
 		boolean mustUpdate = false;
 		CausalityClock snapshot = storage.getCurrentClock();
 		try {
-			lockTable();
+			// lockTable();
 			storage.beginTxn(request.getClientTs());
 
 			// Test resource's availability
@@ -174,7 +168,6 @@ final public class IndigoResourceManager {
 				// If a resource cannot be satisfied, free it locally.
 				// This is necessary to make the token converge
 				if (!satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
-					System.out.println("Release local permissions");
 					resource.releaseShare(sequencer.siteId);
 					satisfies = resource.checkRequest(sequencer.siteId, req);
 					mustUpdate = true;
@@ -215,7 +208,7 @@ final public class IndigoResourceManager {
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 		} finally {
-			unlockTable();
+			// unlockTable();
 		}
 		return generateDenyMessage(unsatified, snapshot);
 	}
@@ -279,11 +272,6 @@ final public class IndigoResourceManager {
 	}
 
 	TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
-		for (ResourceRequest<?> l : request.getRequests()) {
-			if (((ShareableLock) l.getResource()).equals(ShareableLock.FORBID)) {
-				System.out.println("aqui t");
-			}
-		}
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
 		try {
@@ -401,8 +389,9 @@ final public class IndigoResourceManager {
 		Map<String, List<ResourceRequest<?>>> requestsBySite = new HashMap<String, List<ResourceRequest<?>>>();
 		for (ResourceRequest<?> req_i : req.getRequests()) {
 			Resource resource = cache.get(req_i.getResourceId());
-			if (logger.isLoggable(Level.INFO))
-				logger.info("Checking permissions for " + resource + " and request " + req);
+			// if (logger.isLoggable(Level.INFO))
+			// logger.info("Checking permissions for " + resource +
+			// " and request " + req);
 			if (!resource.checkRequest(sequencer.siteId, req_i)) {
 				Queue<Pair<String, ?>> pref = resource.preferenceList(sequencer.siteId);
 				LinkedList<Pair<String, ResourceRequest<?>>> contactList = new LinkedList<Pair<String, ResourceRequest<?>>>();

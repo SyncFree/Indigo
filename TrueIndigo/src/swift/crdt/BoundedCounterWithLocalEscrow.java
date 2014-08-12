@@ -24,7 +24,8 @@ import swift.utils.Pair;
  * 
  * @param <V>
  */
-public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCounterWithLocalEscrow, Integer> implements
+public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCounterWithLocalEscrow, Integer>
+		implements
 			ConsumableResource<Integer> {
 
 	private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
@@ -72,15 +73,20 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 
 	@Override
 	public boolean consume(String ownerId, ResourceRequest<Integer> req) {
+		// Double check
 		if (checkRequest(ownerId, req)) {
+			//
+			// System.out.println("Going to put active" + req + " on " +
+			// activeRequests);
 			// if (activeRequests.contains(req)) {
-			// System.out
-			// .println("Attention - Consecutive requests by the same client without the first being freed - needs UID to distinguish between them");
-			// System.exit(0);
+			// System.out.println("Request is already active");
+
 			// }
 			activeRequests.add(req);
 			return true;
 		}
+		System.out.println("Should never execute");
+		System.exit(0);
 		return false;
 	}
 
@@ -168,7 +174,7 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 
 	@Override
 	public String toString() {
-		return getCurrentResource() + "";
+		return getCurrentResource() + " ACTIVE: " + activeRequests;
 	}
 
 	public String getActiveresources() {

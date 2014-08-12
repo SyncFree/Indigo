@@ -1,5 +1,6 @@
 package swift.indigo;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -31,6 +32,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	// Incoming requests
 	private Queue<ClientRequest> incomingRequests;
 
+	private Map<Timestamp, ClientRequest> beingProcessed;
+
 	// Outgoing requests
 	private transient PriorityQueue<TransferResourcesRequest> transferRequestsQueue;
 
@@ -50,6 +53,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		// TODO: Add ordering function
 		transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
 		this.incomingRequests = new LinkedList<ClientRequest>();
+		this.beingProcessed = new HashMap<Timestamp, ClientRequest>();
 
 		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, transferRequestsQueue);
 		this.stub = sequencer.stub;
@@ -64,7 +68,10 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			public void run() {
 				while (active) {
 					if (incomingRequests.size() > 0) {
-						ClientRequest request = incomingRequests.remove();
+						ClientRequest request;
+						synchronized (monitor) {
+							request = incomingRequests.remove();
+						}
 						if (request instanceof RequestWithReply) {
 							RequestWithReply rwr = ((RequestWithReply) request);
 							processWithReply(rwr.getHandle(), (AcquireResourcesRequest) rwr.getRequest());
@@ -118,59 +125,69 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	}
 
-	public synchronized void process(TransferResourcesRequest request) {
-		if (logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
-		TRANSFER_STATUS reply = manager.transferResources(request);
-		if (logger.isLoggable(Level.INFO)) {
-			logger.info("SITE: " + sequencer.siteId + " Finished TransferResourcesRequest: " + request + " Reply: "
-					+ reply);
+	public void process(TransferResourcesRequest request) {
+		synchronized (monitor) {
+			if (logger.isLoggable(Level.INFO))
+				logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
+			TRANSFER_STATUS reply = manager.transferResources(request);
+			if (logger.isLoggable(Level.INFO)) {
+				logger.info("SITE: " + sequencer.siteId + " Finished TransferResourcesRequest: " + request + " Reply: "
+						+ reply);
+			}
 		}
 	}
 
-	public synchronized void process(ReleaseResourcesRequest request) {
-		if (logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest" + request);
+	public void process(ReleaseResourcesRequest request) {
+		synchronized (monitor) {
+			if (logger.isLoggable(Level.INFO))
+				logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest " + request);
 
-		Timestamp ts = request.getClientTs();
-		AcquireResourcesReply alr = replies.get(ts);
-		if (alr != null) {
-			replies.remove(ts);
-			manager.releaseResources(alr);
+			Timestamp ts = request.getClientTs();
+			AcquireResourcesReply alr = replies.get(ts);
+			if (alr != null && !alr.isReleased()) {
+				// replies.remove(ts);
+				alr.setReleased();
+				if (alr.acquiredResources()) {
+					manager.releaseResources(alr);
+				} else {
+					logger.warning("SITE: " + sequencer.siteId + " Trying to release but did not get resources "
+							+ request);
+				}
+			}
+			if (logger.isLoggable(Level.INFO))
+				logger.info("SITE: " + sequencer.siteId + " Finished ReleaseResourcesRequest" + request);
 		}
-		if (logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Finished ReleaseResourcesRequest" + request);
 	}
 
 	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
-		AcquireResourcesReply reply;
+		AcquireResourcesReply reply = null;
 		synchronized (monitor) {
+			beingProcessed.put(request.getClientTs(), request);
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
 			reply = checkAlreadyProcessed(request);
-			reply = null;
 			// Handle repeated messages
 			if (reply == null) {
 				if (request.getRequests().size() > 0) {
 					reply = manager.acquireResources(request);
-					if (reply.acquiredStatus().equals(AcquireReply.YES))
+					if (reply.acquiredStatus().equals(AcquireReply.YES)) {
 						replies.put(request.getClientTs(), reply);
+					}
 				} else {
-					reply = new AcquireResourcesReply(AcquireReply.YES, sequencer.clocks.currentClockCopy());
+					reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 				}
+			} else {
+				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
 			}
+
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Finished AcquireResourcesRequest " + request + " Reply: "
 						+ reply);
 
+			beingProcessed.remove(request.getClientTs());
 		}
-		if (logger.isLoggable(Level.INFO))
-			logger.info(sequencer.siteId + " Send reply to " + conn.sender() + ": " + reply);
 		conn.reply(reply);
-		if (logger.isLoggable(Level.INFO))
-			logger.info(sequencer.siteId + " Sent reply to " + conn.sender() + ": " + reply);
 	}
-
 	/**
 	 * Message handlers
 	 */
@@ -178,24 +195,38 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	@Override
 	public void onReceive(Envelope conn, AcquireResourcesRequest request) {
 		RequestWithReply requestWR = new RequestWithReply(conn, request);
-		if (!incomingRequests.contains(requestWR)) {
-			incomingRequests.add(requestWR);
+		AcquireResourcesReply reply = null;
+
+		if (request.getRequests().size() == 0) {
+			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			if (logger.isLoggable(Level.INFO))
-				logger.info("SITE: " + sequencer.siteId + " Duplicate request " + request);
-			conn.reply(new AcquireResourcesReply(AcquireReply.NO, sequencer.clocks.currentClockCopy()));
+			synchronized (monitor) {
+				if (!incomingRequests.contains(requestWR) && !beingProcessed.containsKey(request.getClientTs())
+						&& !replies.containsKey(request.getClientTs())) {
+					incomingRequests.add(requestWR);
+				} else {
+					if (logger.isLoggable(Level.INFO))
+						logger.info(sequencer.siteId + " Received an already processed message: " + request);
+					reply = new AcquireResourcesReply(AcquireReply.NO, sequencer.clocks.currentClockCopy());
+				}
+			}
 		}
+		if (reply != null)
+			conn.reply(reply);
 
 	}
-
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
-		incomingRequests.add(request);
+		synchronized (monitor) {
+			incomingRequests.add(request);
+		}
 	}
 
 	@Override
 	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
-		incomingRequests.add(request);
+		synchronized (monitor) {
+			incomingRequests.add(request);
+		}
 	}
 
 	@Override
@@ -213,7 +244,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (reply != null && logger.isLoggable(Level.INFO))
 			logger.info("SITE: " + sequencer.siteId + " Reply from cache: " + reply);
 
-		if (reply != null && reply.matches(request.getClientTs()))
+		if (reply != null)
 			return reply;
 		return null;
 	}
