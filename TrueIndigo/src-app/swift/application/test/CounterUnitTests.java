@@ -5,8 +5,10 @@ import static sys.Context.Networking;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -16,215 +18,234 @@ import swift.api.CRDTIdentifier;
 import swift.crdt.BoundedCounterAsResource;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
-import swift.indigo.Defaults;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoSequencerAndResourceManager;
-import swift.indigo.IndigoServer;
 import swift.indigo.ResourceRequest;
+import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
 
 public class CounterUnitTests {
 
-    static Indigo stub1, stub2;
-    static String hostname = "X";
-    static String serversAdresses = "localhost";
-    static String table = "COUNTER";
-    static char key = 'A';
+	static Indigo stub11, stub12;
+	static String serversAdresses = "localhost";
+	static String table = "COUNTER";
+	static char key = '@';
 
-    @Before
-    public void init() throws InterruptedException, SwiftException {
-        key++;
-        if (stub1 == null) {
-            IndigoSequencerAndResourceManager.main(new String[] { "-name", hostname, "-severs", serversAdresses });
-            IndigoServer.main(new String[0]);
-            Thread.sleep(1000);
-            stub1 = RemoteIndigo.getInstance(Networking.resolve("localhost", Defaults.REMOTE_INDIGO_URL));
-            stub2 = RemoteIndigo.getInstance(Networking.resolve("localhost", Defaults.REMOTE_INDIGO_URL));
-        }
+	static Random random = new Random();
 
-        initKey(stub1);
-    }
+	static String DC_A = "DC_A";
+	static String DC_B = "DC_B";
+	private boolean started;
 
-    public void initKey(Indigo stub) throws SwiftException {
-        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-        resources.add(new CounterReservation(hostname, new CRDTIdentifier(table, "" + key), 0));
+	@Before
+	public void init1DC() {
+		if (!started) {
+			TestsUtil.startDC1Server(DC_A, 31001, 32001, 33001, 34001, 35001, 36001, new String[]{"tcp://*:" + 31001
+					+ "/" + DC_A + "/"}, new String[]{});
+			started = true;
 
-        stub.beginTxn(resources);
-        stub.endTxn();
-        stub.beginTxn();
-        stub.get(new CRDTIdentifier(table, "" + key), false, BoundedCounterAsResource.class);
-        stub.endTxn();
+			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
+			stub12 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
+		}
+	}
 
-    }
+	@Before
+	public void init() throws InterruptedException, SwiftException {
+		key++;
+		init1DC();
+		initKey(stub11, DC_A);
+	}
 
-    @Test
-    public void incrementAndRead() throws SwiftException {
-        increment("" + key, 10, stub1);
-        compareValue("" + key, 10, stub1);
-    }
+	public void initKey(Indigo stub, String siteId) throws SwiftException {
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation(siteId, new CRDTIdentifier(table, "" + key), 0));
 
-    @Test
-    public void twoIncrementAndRead() throws SwiftException {
-        increment("" + key, 10, stub1);
-        increment("" + key, 10, stub1);
-        compareValue("" + key, 20, stub1);
-    }
+		stub.beginTxn(resources);
+		stub.endTxn();
+		stub.beginTxn();
+		stub.get(new CRDTIdentifier(table, "" + key), false, BoundedCounterAsResource.class);
+		stub.endTxn();
 
-    @Test
-    public void decrementAborts() throws SwiftException, InterruptedException {
-        increment("" + key, 10, stub1);
-        assertEquals(true, decrement("" + key, 10, stub1));
-        Thread.sleep(5000);
-        assertEquals(false, decrement("" + key, 10, stub1));
-    }
+	}
 
-    @Test
-    public void decrementStillAborts() throws SwiftException {
-        increment("" + key, 9, stub1);
-        assertEquals(false, decrement("" + key, 10, stub1));
-    }
+	@Test
+	public void incrementAndRead() throws SwiftException {
+		increment("" + key, 10, stub11, DC_A);
+		compareValue("" + key, 10, stub11);
+	}
 
-    @Test
-    public void decrementSucceeds() throws SwiftException {
-        increment("" + key, 10, stub1);
-        assertEquals(true, decrement("" + key, 10, stub1));
-    }
+	@Test
+	public void twoIncrementAndRead() throws SwiftException {
+		increment("" + key, 10, stub11, DC_A);
+		increment("" + key, 10, stub11, DC_A);
+		compareValue("" + key, 20, stub11);
+	}
+	@Test
+	public void decrementAborts() throws SwiftException, InterruptedException {
+		increment("" + key, 10, stub11, DC_A);
+		assertEquals(true, decrement("" + key, 10, stub11, DC_A));
+		Thread.sleep(5000);
+		assertEquals(false, decrement("" + key, 10, stub11, DC_A));
+	}
 
-    @Test
-    public void decrementCycle() throws SwiftException {
-        int count = 50;
-        increment("" + key, count, stub1);
-        for (int i = 0; i < count; i++) {
-            decrement("" + key, 1, stub1);
-            System.out.println(getValue("" + key, stub1));
-        }
-        compareValue("" + key, 0, stub1);
-    }
+	@Test
+	public void decrementStillAborts() throws SwiftException {
+		increment("" + key, 9, stub11, DC_A);
+		assertEquals(false, decrement("" + key, 10, stub11, DC_A));
+	}
 
-    @Test
-    public void decrementCycleTwotThreads() throws SwiftException, InterruptedException, BrokenBarrierException {
-        int count = 50;
-        increment("" + key, count, stub1);
-        Semaphore sem = new Semaphore(2);
-        sem.acquire(2);
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    for (int i = 0; i < count / 2; i++) {
-                        decrement("" + key, 1, stub1);
-                        System.out.println(getValue("" + key, stub1));
-                    }
-                    sem.release();
-                } catch (SwiftException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
+	@Test
+	public void decrementSucceeds() throws SwiftException {
+		increment("" + key, 10, stub11, DC_A);
+		assertEquals(true, decrement("" + key, 10, stub11, DC_A));
+	}
 
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    for (int i = 0; i < count / 2; i++) {
-                        decrement("" + key, 1, stub2);
-                        // System.out.println(getValue("" + key, stub2));
-                    }
-                    sem.release();
-                } catch (SwiftException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
+	@Test
+	public void decrementCycle1Threads1DC() throws SwiftException, InterruptedException, BrokenBarrierException {
+		decrementCycleNThreads1DC(100, 1);
+	}
 
-        sem.acquire();
-        Thread.sleep(1000);
-        compareValue("" + key, 0, stub1);
+	@Test
+	public void decrementCycle2Threads1DC() throws SwiftException, InterruptedException, BrokenBarrierException {
+		decrementCycleNThreads1DC(200, 2);
+	}
 
-    }
+	@Test
+	public void decrementCycle10Threads1DC() throws SwiftException, InterruptedException, BrokenBarrierException {
+		decrementCycleNThreads1DC(1000, 10);
+	}
 
-    @Test
-    public void waitAndSucceed() throws SwiftException, InterruptedException {
-        increment("" + key, 10, stub1);
+	@Test
+	public void decrementCycle100Threads1DC() throws SwiftException, InterruptedException, BrokenBarrierException {
+		decrementCycleNThreads1DC(10000, 100);
+	}
 
-        new Thread(new Runnable() {
+	public void decrementCycleNThreads1DC(int initValue, int nThreads) throws SwiftException, InterruptedException,
+			BrokenBarrierException {
+		int count = initValue;
+		final AtomicInteger sum = new AtomicInteger();
+		increment("" + key, count, stub11, DC_A);
+		Semaphore sem = new Semaphore(nThreads);
+		sem.acquire(nThreads);
+		for (int i = 0; i < nThreads; i++) {
+			final Indigo stub = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
 
-            @Override
-            public void run() {
-                try {
-                    decrement("" + key, 10, stub1);
-                    System.out.println("Decrement and sleep");
-                    Thread.sleep(500);
-                    increment("" + key, 10, stub1);
-                    System.out.println("First thread increments and finish");
-                } catch (SwiftException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+			new Thread(new Runnable() {
+				public void run() {
+					int i = 0;
+					try {
+						for (;; i++) {
+							if (getValue("" + key, stub) > 0) {
+								decrement("" + key, 1, stub, DC_A);
+								Thread.sleep(random.nextInt(200));
+							} else {
+								break;
+							}
+						}
+					} catch (IndigoImpossibleExcpetion e) {
+					} catch (SwiftException e) {
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} finally {
+						sum.addAndGet(i);
+						sem.release();
+					}
+				}
+			}).start();
+		}
 
-            }
-        }).start();
+		Thread.sleep(2000);
+		sem.acquire(nThreads);
+		Thread.sleep(1000);
+		compareValue("" + key, 0, stub11);
+		assertEquals(count, sum.get());
+	}
 
-        Thread.sleep(500);
+	@Test
+	public void waitAndSucceed() throws SwiftException, InterruptedException {
+		increment("" + key, 10, stub11, DC_A);
 
-        new Thread(new Runnable() {
+		new Thread(new Runnable() {
 
-            @Override
-            public void run() {
-                try {
-                    decrement("" + key, 8, stub2);
-                    System.out.println("Second thread succeeded");
-                } catch (SwiftException e) {
-                    e.printStackTrace();
-                }
+			@Override
+			public void run() {
+				try {
+					decrement("" + key, 10, stub11, DC_A);
+					System.out.println("Decrement and sleep");
+					Thread.sleep(500);
+					increment("" + key, 10, stub11, DC_A);
+					System.out.println("First thread increments and finish");
+				} catch (SwiftException e) {
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 
-            }
-        }).start();
+			}
+		}).start();
 
-        Thread.sleep(5000000);
-    }
+		Thread.sleep(500);
 
-    public void increment(String key, int units, Indigo stub) throws SwiftException {
-        stub.beginTxn();
-        BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-        x.increment(units, hostname);
-        stub.endTxn();
+		new Thread(new Runnable() {
 
-    }
+			@Override
+			public void run() {
+				try {
+					decrement("" + key, 8, stub12, DC_A);
+					System.out.println("Second thread succeeded");
+				} catch (SwiftException e) {
+					e.printStackTrace();
+				}
 
-    public boolean decrement(String key, int units, Indigo stub) throws SwiftException {
-        List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-        resources.add(new CounterReservation(hostname, new CRDTIdentifier(table, key), units));
+			}
+		}).start();
 
-        stub.beginTxn(resources);
-        BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+		Thread.sleep(2000);
+	}
 
-        boolean result = x.decrement(units, hostname);
+	@Test
+	public void simpleTestTransfer() throws SwiftException {
 
-        stub.endTxn();
-        return result;
+	}
 
-    }
+	public void increment(String key, int units, Indigo stub, String siteId) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+		x.increment(units, siteId);
+		stub.endTxn();
 
-    public void compareValue(String key, int expected, Indigo stub) throws SwiftException {
-        stub.beginTxn();
-        BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+	}
 
-        assertEquals((Integer) expected, x.getValue());
+	public boolean decrement(String key, int units, Indigo stub, String siteId) throws SwiftException {
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation(siteId, new CRDTIdentifier(table, key), units));
 
-        stub.endTxn();
+		stub.beginTxn(resources);
+		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
 
-    }
+		boolean result = x.decrement(units, siteId);
 
-    public int getValue(String key, Indigo stub) throws SwiftException {
-        stub.beginTxn();
-        BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-        stub.endTxn();
-        return x.getValue();
-    }
+		stub.endTxn();
+		return result;
+	}
 
-    @After
-    public void close() {
-        // Should Stop the nodes.
-    }
+	public void compareValue(String key, int expected, Indigo stub) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+		assertEquals((Integer) expected, x.getValue());
+		stub.endTxn();
+	}
+
+	public int getValue(String key, Indigo stub) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
+		stub.endTxn();
+		return x.getValue();
+	}
+
+	@After
+	public void close() {
+		// Should Stop the nodes.
+	}
 
 }
