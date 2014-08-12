@@ -8,40 +8,40 @@ import sys.net.api.MessageHandler;
 
 public class ReleaseResourcesRequest extends ClientRequest {
 
-    private Timestamp clientTs;
-    private long serial;
+	private Timestamp clientTs;
+	private long serial;
 
-    public ReleaseResourcesRequest() {
-        super();
-    }
+	public ReleaseResourcesRequest() {
+		super();
+	}
 
-    public ReleaseResourcesRequest(Timestamp clientTs) {
-        super();
-        this.clientTs = clientTs;
-    }
+	public ReleaseResourcesRequest(Timestamp clientTs) {
+		super();
+		this.clientTs = clientTs;
+	}
 
-    public ReleaseResourcesRequest(long serial, String clientId, Timestamp clientTs) {
-        super(clientId);
-        this.clientTs = clientTs;
-        this.serial = serial;
-    }
+	public ReleaseResourcesRequest(long serial, String clientId, Timestamp clientTs) {
+		super(clientId);
+		this.clientTs = clientTs;
+		this.serial = serial;
+	}
 
-    @Override
-    public void deliverTo(Envelope conn, MessageHandler handler) {
-        ((ReservationsProtocolHandler) handler).onReceive(conn, this);
+	@Override
+	public void deliverTo(Envelope conn, MessageHandler handler) {
+		((ReservationsProtocolHandler) handler).onReceive(conn, this);
 
-    }
+	}
 
-    public Timestamp getClientTs() {
-        return clientTs;
-    }
+	public Timestamp getClientTs() {
+		return clientTs;
+	}
 
-    public String toString() {
-        return String.format("%s)", clientTs);
-    }
+	public String toString() {
+		return String.format("Release: %s)", clientTs);
+	}
 
-    public long serial() {
-        return serial;
-    }
+	public long serial() {
+		return serial;
+	}
 
 }

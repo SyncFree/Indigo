@@ -16,110 +16,116 @@ import sys.utils.Threading;
 
 public class AcquireResourcesRequest extends ClientRequest implements Comparable<AcquireResourcesRequest> {
 
-    Timestamp clientTs;
-    Collection<ResourceRequest<?>> requests;
+	Timestamp clientTs;
+	Collection<ResourceRequest<?>> requests;
 
-    public AcquireResourcesRequest() {
+	public AcquireResourcesRequest() {
 
-    }
+	}
 
-    public AcquireResourcesRequest(String clientId, Timestamp cltTimestamp, Collection<ResourceRequest<?>> resources) {
-        super(clientId);
-        this.clientTs = cltTimestamp;
-        this.requests = resources;
-    }
+	public AcquireResourcesRequest(String clientId, Timestamp cltTimestamp, Collection<ResourceRequest<?>> resources) {
+		super(clientId);
+		this.clientTs = cltTimestamp;
+		this.requests = resources;
+	}
 
-    public AcquireResourcesRequest(AcquireResourcesRequest other) {
-        super(other.clientId);
-        this.clientTs = other.clientTs;
-        this.requests = new HashSet<ResourceRequest<?>>(other.requests);
-    }
+	public AcquireResourcesRequest(AcquireResourcesRequest other) {
+		super(other.clientId);
+		this.clientTs = other.clientTs;
+		this.requests = new HashSet<ResourceRequest<?>>(other.requests);
+	}
 
-    @Override
-    public void deliverTo(Envelope handle, MessageHandler handler) {
-        ((ReservationsProtocolHandler) handler).onReceive(handle, this);
-    }
+	@Override
+	public void deliverTo(Envelope handle, MessageHandler handler) {
+		((ReservationsProtocolHandler) handler).onReceive(handle, this);
+	}
 
-    public Timestamp getClientTs() {
-        return clientTs;
-    }
+	public Timestamp getClientTs() {
+		return clientTs;
+	}
 
-    public Collection<ResourceRequest<?>> getRequests() {
-        return requests;
-    }
+	public Collection<ResourceRequest<?>> getRequests() {
+		return requests;
+	}
 
-    public int hashCode() {
-        return requests.hashCode() ^ getClientId().hashCode();
-    }
+	public int hashCode() {
+		return requests.hashCode() ^ getClientId().hashCode();
+	}
 
-    public boolean equals(Object other) {
-        return other != null && equals((AcquireResourcesRequest) other);
-    }
+	public boolean equals(Object other) {
+		return other != null && equals((AcquireResourcesRequest) other);
+	}
 
-    public boolean equals(AcquireResourcesRequest other) {
-        return getClientId().equals(other.getClientId()) && requests.equals(other.requests);
-    }
+	public boolean equals(AcquireResourcesRequest other) {
+		// FIXME: Only compares that the client timestamp is the same? -- Seems to be working
+		return getClientId().equals(other.getClientId())/*
+														 * &&
+														 * requests.equals(other
+														 * .requests)
+														 */;
+	}
 
-    // TODO: Must make sure that this function is able to compare locks and
-    // counters... right now i'm not sure if it is does.
-    @Override
-    public int compareTo(AcquireResourcesRequest other) {
-        Iterator<ResourceRequest<?>> it = requests.iterator();
-        Iterator<ResourceRequest<?>> otherIt = other.requests.iterator();
-        int diff = 0;
-        while (diff == 0) {
-            ResourceRequest<?> elem1 = null, elem2 = null;
-            while (it.hasNext()) {
-                elem1 = it.next();
-                if (elem1 instanceof LockReservation) {
-                    break;
-                }
-            }
-            while (otherIt.hasNext()) {
-                elem2 = otherIt.next();
-                if (elem2 instanceof LockReservation) {
-                    break;
-                }
-            }
+	// TODO: Must test more the combination of locks and counters
+	@Override
+	public int compareTo(AcquireResourcesRequest other) {
+		Iterator<ResourceRequest<?>> it = requests.iterator();
+		Iterator<ResourceRequest<?>> otherIt = other.requests.iterator();
+		int diff = 0;
+		while (diff == 0) {
+			ResourceRequest<?> elem1 = null, elem2 = null;
+			while (it.hasNext()) {
+				ResourceRequest<?> next = it.next();
+				if (next instanceof LockReservation) {
+					elem1 = next;
+					break;
+				}
+			}
+			while (otherIt.hasNext()) {
+				ResourceRequest<?> next = otherIt.next();
+				if (elem2 instanceof LockReservation) {
+					elem2 = next;
+					break;
+				}
+			}
 
-            if (elem1 != null && elem2 != null) {
-                diff = ((LockReservation) elem1).getResource().ordinal()
-                        - ((LockReservation) elem2).getResource().ordinal();
-            } else
-                break;
-        }
-        if (diff == 0)
-            return getClientId().compareTo(other.getClientId());
-        else
-            return diff;
-    }
+			if (elem1 != null && elem2 != null) {
+				diff = ((LockReservation) elem1).getResource().ordinal()
+						- ((LockReservation) elem2).getResource().ordinal();
+			} else
+				break;
+		}
+		if (diff == 0)
+			return getClientId().compareTo(other.getClientId());
+		else
+			return diff;
+	}
 
-    public String toString() {
-        String resourcesAsString = requests.toString();
-        return String.format("%s, %s : %s)", clientTs, getClientId(), resourcesAsString);
-    }
+	public String toString() {
+		String resourcesAsString = requests.toString();
+		return String.format("%s, %s : %s)", clientTs, getClientId(), resourcesAsString);
+	}
 
-    public void lockStuff() {
-        Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-        // // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-        // for (Lock i : locks)
-        // Threading.lock(i.id());
-        // for (CounterReservation i : counters)
-        // Threading.lock(i.getId());
-        // // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-    }
+	public void lockStuff() {
+		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
+		// // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+		// for (Lock i : locks)
+		// Threading.lock(i.id());
+		// for (CounterReservation i : counters)
+		// Threading.lock(i.getId());
+		// // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+	}
 
-    public void unlockStuff() {
-        Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-        // for (Lock i : locks)
-        // Threading.unlock(i.id());
-        // for (CounterReservation i : counters)
-        // Threading.unlock(i.getId());
-        // // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
-        // // Arrays.asList(counters));
-    }
+	public void unlockStuff() {
+		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
+		// for (Lock i : locks)
+		// Threading.unlock(i.id());
+		// for (CounterReservation i : counters)
+		// Threading.unlock(i.getId());
+		// // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
+		// // Arrays.asList(counters));
+	}
 
 }
 

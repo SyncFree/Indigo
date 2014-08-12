@@ -6,7 +6,7 @@ import swift.api.SwiftScout;
 import swift.api.SwiftSession;
 import swift.api.TxnHandle;
 import swift.crdt.core.CachePolicy;
-import swift.exceptions.NetworkException;
+import swift.exceptions.SwiftException;
 import swift.indigo.Defaults;
 import swift.indigo.remote.RemoteIndigo;
 import sys.net.api.Endpoint;
@@ -33,7 +33,8 @@ public class SwiftClient implements SwiftSession {
 	}
 
 	@Override
-	public TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly) throws NetworkException {
+	public TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly)
+			throws SwiftException {
 		indigo.beginTxn();
 		return indigo.getTxnHandle();
 	}

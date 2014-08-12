@@ -28,19 +28,16 @@ import sys.net.api.MessageHandler;
  * @author preguica, smduarte
  */
 public class CommitTimestampRequest implements Message {
-	Timestamp timestamp;
-	Timestamp cltTimestamp;
-
 	public long rtClock;
 
 	transient Envelope source;
+	private CommitUpdatesRequest request;
 
 	public CommitTimestampRequest() {
 	}
 
-	public CommitTimestampRequest(Timestamp timestamp, Timestamp cltTimestamp) {
-		this.timestamp = timestamp;
-		this.cltTimestamp = cltTimestamp;
+	public CommitTimestampRequest(CommitUpdatesRequest req) {
+		this.request = req;
 	}
 
 	public long latency() {
@@ -59,14 +56,14 @@ public class CommitTimestampRequest implements Message {
 	 * @return the timestamp previously received from the server
 	 */
 	public Timestamp getTimestamp() {
-		return timestamp;
+		return request.timestamp;
 	}
 
 	/**
 	 * @return the timestamp of the client
 	 */
 	public Timestamp getCltTimestamp() {
-		return cltTimestamp;
+		return request.cltTimestamp;
 	}
 
 	@Override
@@ -75,6 +72,11 @@ public class CommitTimestampRequest implements Message {
 	}
 
 	public String toString() {
-		return Long.toString(timestamp.getCounter());
+		return Long.toString(request.timestamp.getCounter());
 	}
+
+	public CommitUpdatesRequest getCommitUpdatesRequest() {
+		return request;
+	}
+
 }

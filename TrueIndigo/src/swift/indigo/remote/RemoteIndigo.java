@@ -20,6 +20,7 @@ import swift.crdt.core.ManagedCRDT;
 import swift.crdt.core.TxnStatus;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.indigo.AbstractTxHandle;
@@ -38,152 +39,155 @@ import sys.net.api.Service;
 import sys.utils.Threading;
 
 public class RemoteIndigo implements Indigo {
-    private static Logger Log = Logger.getLogger(RemoteIndigo.class.getName());
+	private static Logger Log = Logger.getLogger(RemoteIndigo.class.getName());
 
-    final Endpoint server;
-    final Service stub;
+	final Endpoint server;
+	final Service stub;
 
-    final String stubId;
-    final ReturnableTimestampSourceDecorator<Timestamp> tsSource;
+	final String stubId;
+	final ReturnableTimestampSourceDecorator<Timestamp> tsSource;
 
-    _TxnHandle handle;
+	_TxnHandle handle;
 
-    public static Indigo getInstance(Endpoint server) {
-        return new RemoteIndigo(server);
-    }
+	public static Indigo getInstance(Endpoint server) {
+		return new RemoteIndigo(server);
+	}
 
-    public static Indigo getInstance(String server) {
-        return new RemoteIndigo(Networking.resolve(server));
-    }
+	public static Indigo getInstance(String server) {
+		return new RemoteIndigo(Networking.resolve(server));
+	}
 
-    RemoteIndigo(Endpoint server) {
-        this.server = server;
-        this.stub = Networking.stub();
-        this.stubId = this.stub.localEndpoint().url();
-        this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
-    }
+	RemoteIndigo(Endpoint server) {
+		this.server = server;
+		this.stub = Networking.stub();
+		this.stubId = this.stub.localEndpoint().url();
+		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
+	}
 
-    public TxnHandle getTxnHandle() {
-        return handle;
-    }
+	public TxnHandle getTxnHandle() {
+		return handle;
+	}
 
-    public void beginTxn() {
-        beginTxn(new HashSet<ResourceRequest<?>>());
-    }
+	public void beginTxn() throws SwiftException {
+		beginTxn(new HashSet<ResourceRequest<?>>());
+	}
 
-    @Override
-    public void beginTxn(Collection<ResourceRequest<?>> resources) {
-        Timestamp txnTimestamp = tsSource.generateNew();
-        AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
+	@Override
+	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
+		Timestamp txnTimestamp = tsSource.generateNew();
+		AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
 
-        for (ResourceRequest<?> res : resources) {
-            res.setClientTs(txnTimestamp);
-        }
+		for (ResourceRequest<?> res : resources) {
+			res.setClientTs(txnTimestamp);
+		}
 
-        for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
-            AcquireResourcesReply reply = stub.request(server, request);
-            if (reply != null && reply.acquiredResources()) {
-                handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-                break;
-            } else
-                Threading.sleep(delay);
-        }
-    }
+		for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
+			AcquireResourcesReply reply = stub.request(server, request);
+			if (reply != null && reply.acquiredResources() || resources.size() == 0) {
+				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
+				break;
+			} else if (reply.isImpossible()) {
+				throw new IndigoImpossibleExcpetion();
+			} else {
+				Threading.sleep(delay);
+			}
+		}
+	}
+	public void endTxn() {
+		if (handle != null)
+			handle.commit();
+		handle = null;
+	}
 
-    public void endTxn() {
-        if (handle != null)
-            handle.commit();
-        handle = null;
-    }
+	public void abortTxn() {
+		if (handle != null)
+			handle.rollback();
+		handle = null;
+	}
 
-    public void abortTxn() {
-        if (handle != null)
-            handle.rollback();
-        handle = null;
-    }
+	public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
+			VersionNotFoundException, NetworkException {
+		return get(id, false, null);
+	}
 
-    public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
-        return get(id, false, null);
-    }
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+			NoSuchObjectException, VersionNotFoundException, NetworkException {
+		return (V) handle.get(id, create, classOfV);
+	}
 
-    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
-        return (V) handle.get(id, create, classOfV);
-    }
+	class _TxnHandle extends AbstractTxHandle {
+		final long serial;
 
-    class _TxnHandle extends AbstractTxHandle {
-        final long serial;
+		boolean withLocks;
+		Timestamp timestamp;
 
-        boolean withLocks;
-        Timestamp timestamp;
+		_TxnHandle(AcquireResourcesReply reply, Timestamp cltTimestamp, boolean withLocks) {
+			super(reply.getSnapshot(), cltTimestamp);
+			this.withLocks = withLocks;
+			this.timestamp = reply.timestamp();
 
-        _TxnHandle(AcquireResourcesReply reply, Timestamp cltTimestamp, boolean withLocks) {
-            super(reply.getSnapshot(), cltTimestamp);
-            this.withLocks = withLocks;
-            this.timestamp = reply.timestamp();
+			for (CRDTObjectUpdatesGroup<?> i : reply.operations())
+				super.ops.put(i.getTargetUID(), i);
 
-            for (CRDTObjectUpdatesGroup<?> i : reply.operations())
-                super.ops.put(i.getTargetUID(), i);
+			this.serial = reply.serial();
+		}
 
-            this.serial = reply.serial();
-        }
+		public void rollback() {
+			if (withLocks)
+				stub.send(server, new ReleaseResourcesRequest(serial, stubId, cltTimestamp));
+			else
+				stub.send(server, new DiscardSnapshotRequest(serial, stubId, cltTimestamp));
 
-        public void rollback() {
-            if (withLocks)
-                stub.send(server, new ReleaseResourcesRequest(serial, stubId, cltTimestamp));
-            else
-                stub.send(server, new DiscardSnapshotRequest(serial, stubId, cltTimestamp));
+			tsSource.returnLastTimestamp();
+		}
 
-            tsSource.returnLastTimestamp();
-        }
+		@Override
+		public void commit() {
 
-        @Override
-        public void commit() {
+			List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
-            List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
+			if (!updates.isEmpty()) {
+				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot,
+						updates, withLocks);
+				req.setTimestamp(timestamp);
 
-            if (!updates.isEmpty()) {
-                final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates);
-                req.setTimestamp(timestamp);
+				final Semaphore semaphore = new Semaphore(0);
+				stub.asyncRequest(
+						server,
+						req,
+						(CommitUpdatesReply reply) -> {
+							if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
+								Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : "
+										+ reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
 
-                final Semaphore semaphore = new Semaphore(0);
-                stub.asyncRequest(
-                        server,
-                        req,
-                        (CommitUpdatesReply reply) -> {
-                            if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
-                                Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : "
-                                        + reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
+							semaphore.release();
+						});
+				semaphore.acquireUninterruptibly();
+				super.status = TxnStatus.COMMITTED_GLOBAL;
+			} else {
+				super.status = TxnStatus.COMMITTED_LOCAL;
+				rollback();
+			}
+		}
 
-                            semaphore.release();
-                        });
-                semaphore.acquireUninterruptibly();
-                super.status = TxnStatus.COMMITTED_GLOBAL;
-            } else {
-                super.status = TxnStatus.COMMITTED_LOCAL;
-                rollback();
-            }
-        }
+		@Override
+		@SuppressWarnings({"unchecked"})
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
+				boolean create, Class<V> classOfV) {
 
-        @Override
-        @SuppressWarnings({ "unchecked" })
-        protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
-                boolean create, Class<V> classOfV) {
+			FetchObjectVersionRequest req = new FetchObjectVersionRequest(stubId, uid, version, false);
 
-            FetchObjectVersionRequest req = new FetchObjectVersionRequest(stubId, uid, version, false);
-
-            FetchObjectVersionReply reply = stub.request(server, req);
-            if (reply != null) {
-                if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OK) {
-                    return (ManagedCRDT<V>) reply.getCrdt();
-                }
-                if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND) {
-                    return createCRDT(uid, snapshot, classOfV);
-                }
-            }
-            throw new RuntimeException("Unexpected Error while fetching: " + uid);
-        }
-    }
+			FetchObjectVersionReply reply = stub.request(server, req);
+			if (reply != null) {
+				if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OK) {
+					return (ManagedCRDT<V>) reply.getCrdt();
+				}
+				if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND) {
+					return createCRDT(uid, snapshot, classOfV);
+				}
+			}
+			throw new RuntimeException("Unexpected Error while fetching: " + uid);
+		}
+	}
 
 }

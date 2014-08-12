@@ -16,8 +16,10 @@
  *****************************************************************************/
 package swift.api;
 
+import swift.client.SwiftClient;
 import swift.crdt.core.CachePolicy;
 import swift.exceptions.NetworkException;
+import swift.exceptions.SwiftException;
 
 /**
  * API for the Swift system, a client session that can issue transactions. A
@@ -51,7 +53,8 @@ public interface SwiftSession {
 	 *             when strict cachePolicy is selected and the store does not
 	 *             reply
 	 */
-	TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly) throws NetworkException;
+	TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly)
+			throws NetworkException, SwiftException;
 
 	// WISHME: in order to support disconnected operations w/client partial
 	// replication, extend API to start transaction and prefetch/update some

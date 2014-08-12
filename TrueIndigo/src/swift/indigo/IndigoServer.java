@@ -42,12 +42,12 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.indigo.proto.AcquireResourcesReply;
-import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.FetchObjectReply;
 import swift.indigo.proto.FetchObjectRequest;
 import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigoServer;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
@@ -62,254 +62,247 @@ import sys.utils.Timings;
  * @author smduarte
  */
 public class IndigoServer extends Server {
-    AtomicLong snapshots = new AtomicLong(0L);
+	AtomicLong snapshots = new AtomicLong(0L);
 
-    static Logger logger = Logger.getLogger(IndigoServer.class.getName());
+	static Logger logger = Logger.getLogger(IndigoServer.class.getName());
 
-    final boolean emulateWeakConsistency;
-    final boolean emulateRedBlueConsistency;
+	final boolean emulateWeakConsistency;
+	final boolean emulateRedBlueConsistency;
 
-    Endpoint lockManager;
-    AtomicInteger stubCounter = new AtomicInteger(0);
+	Endpoint lockManager;
+	AtomicInteger stubCounter = new AtomicInteger(0);
 
-    RemoteIndigoServer rindigo;
+	RemoteIndigoServer rindigo;
 
-    IndigoServer() {
-        this.lockManager = super.sequencer;
-        this.rindigo = new RemoteIndigoServer(lockManager, this);
+	IndigoServer() {
+		this.lockManager = super.sequencer;
+		this.rindigo = new RemoteIndigoServer(lockManager, this);
 
-        this.emulateWeakConsistency = Args.contains("-weak") || true;
-        this.emulateRedBlueConsistency = Args.contains("-redblue") && !emulateWeakConsistency;
-    }
+		this.emulateWeakConsistency = Args.contains("-weak") || true;
+		this.emulateRedBlueConsistency = Args.contains("-redblue") && !emulateWeakConsistency;
+	}
 
-    public long registerSnapshot(CausalityClock snapshot) {
-        super.clocks.updateCurrentClock(snapshot);
-        long serial = snapshots.incrementAndGet();
-        Snapshots.register(serial, snapshot);
-        return serial;
-    }
+	public long registerSnapshot(CausalityClock snapshot) {
+		super.clocks.updateCurrentClock(snapshot);
+		long serial = snapshots.incrementAndGet();
+		Snapshots.register(serial, snapshot);
+		return serial;
+	}
 
-    public void disposeSnapshot(long serial) {
-        Snapshots.free(serial);
-        super.dataServer.updatePruneClock(Snapshots.safeSnapshot());
-    }
+	public void disposeSnapshot(long serial) {
+		Snapshots.free(serial);
+		super.dataServer.updatePruneClock(Snapshots.safeSnapshot());
+	}
 
-    public void onReceive(Envelope src, FetchObjectRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("FetchObjectRequest client = " + request.getClientId() + " id: " + request.getUid());
-        }
+	public void onReceive(Envelope src, FetchObjectRequest request) {
+		if (logger.isLoggable(Level.INFO)) {
+			logger.info("FetchObjectRequest client = " + request.getClientId() + " id: " + request.getUid());
+		}
 
-        if (request.hasSubscription())
-            getSession(request.getClientId()).subscribe(request.getUid());
+		if (request.hasSubscription())
+			getSession(request.getClientId()).subscribe(request.getUid());
 
-        ManagedCRDT<?> crdt = getCRDT(request.getUid(), null, request.getClientId());
-        src.reply(new FetchObjectReply(crdt));
-    }
+		ManagedCRDT<?> crdt = getCRDT(request.getUid(), null, request.getClientId());
+		src.reply(new FetchObjectReply(crdt));
+	}
 
-    protected Indigo getIndigoInstance() {
-        return new IndigoStubImpl(this);
-    }
+	protected Indigo getIndigoInstance() {
+		return new IndigoStubImpl(this);
+	}
 
-    public static void main(String[] args) {
-        Args.use(args);
-        new IndigoServer();
-    }
+	public static void main(String[] args) {
+		Args.use(args);
+		new IndigoServer();
+	}
 
-    class IndigoStubImpl implements Indigo {
+	class IndigoStubImpl implements Indigo {
 
-        _TxnHandle handle;
-        final IndigoServer server;
+		_TxnHandle handle;
+		final IndigoServer server;
 
-        final Service stub;
-        final ReturnableTimestampSourceDecorator<Timestamp> tsSource;
+		final Service stub;
+		final ReturnableTimestampSourceDecorator<Timestamp> tsSource;
 
-        String stubId;
-        ClientSession session;
+		String stubId;
+		ClientSession session;
 
-        IndigoStubImpl(IndigoServer server) {
-            this.server = server;
-            this.stub = server.endpoint4clts;
-            this.stubId = server.serverId + "_" + stubCounter.incrementAndGet();
-            this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
-            this.session = server.getSession(stubId);
-        }
-        public String toString() {
-            return "indigo-" + stubId;
-        }
+		IndigoStubImpl(IndigoServer server) {
+			this.server = server;
+			this.stub = server.endpoint4clts;
+			this.stubId = server.serverId + "_" + stubCounter.incrementAndGet();
+			this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
+			this.session = server.getSession(stubId);
+		}
+		public String toString() {
+			return "indigo-" + stubId;
+		}
 
-        public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
-                VersionNotFoundException, NetworkException {
-            return get(id, false, null);
-        }
+		public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
+				VersionNotFoundException, NetworkException {
+			return get(id, false, null);
+		}
 
-        public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-                throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-            return (V) handle.get(id, create, classOfV);
-        }
+		public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+			return (V) handle.get(id, create, classOfV);
+		}
 
-        public void beginTxn() {
-            beginTxn(new HashSet<ResourceRequest<?>>());
-        }
+		public void beginTxn() throws IndigoImpossibleExcpetion {
+			beginTxn(new HashSet<ResourceRequest<?>>());
+		}
 
-        public void beginTxn(Collection<ResourceRequest<?>> resources) {
-            try {
-                Timestamp txnTimestamp = tsSource.generateNew();
+		public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
+			try {
+				Timestamp txnTimestamp = tsSource.generateNew();
 
-                if (emulateWeakConsistency) {
-                    handle = new _TxnHandle(txnTimestamp);
-                    return;
-                }
+				if (emulateWeakConsistency) {
+					handle = new _TxnHandle(txnTimestamp);
+					return;
+				}
 
-                for (ResourceRequest<?> req : resources) {
-                    req.setClientTs(txnTimestamp);
-                }
+				for (ResourceRequest<?> req : resources) {
+					req.setClientTs(txnTimestamp);
+				}
 
-                if (resources.size() > 0) {
-                    AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
-                    boolean retry = false;
-                    for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
-                        AcquireResourcesReply reply = stub.request(lockManager, request);
-                        if (reply.acquiredStatus() == AcquireReply.YES) {
-                            if (retry) {
-                                logger.info("Retry success!! " + request);
-                            }
-                            handle = new _TxnHandle(reply, txnTimestamp);
-                            break;
-                        } else if (reply.acquiredStatus() == AcquireReply.IMPOSSIBLE) {
-                            logger.info("IMPOSSIBLE to get resources, but waits " + request);
-                            retry = true;
-                            Threading.sleep(delay);
-                        } else {
-                            logger.info("Couldn't get resources, but available. " + request);
-                            retry = true;
-                            Threading.sleep(delay);
-                        }
-                    }
-                } else
-                    handle = new _TxnHandle(txnTimestamp);
-            } finally {
-            }
-        }
+				if (resources.size() > 0) {
+					AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
+					for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
+						AcquireResourcesReply reply = stub.request(lockManager, request);
+						if (reply != null && reply.acquiredResources() || resources.size() == 0) {
+							handle = new _TxnHandle(reply, txnTimestamp);
+							break;
+						} else if (reply.isImpossible()) {
+							throw new IndigoImpossibleExcpetion();
+						} else {
+							Threading.sleep(delay);
+						}
 
-        public void endTxn() {
-            handle.commit();
-            disposeSnapshot(handle.serial);
-            handle = null;
-        }
+					}
+				} else
+					handle = new _TxnHandle(txnTimestamp);
+			} finally {
+			}
+		}
 
-        public void abortTxn() {
-            Thread.dumpStack();
-            handle.rollback();
-            disposeSnapshot(handle.serial);
-            handle = null;
-        }
+		public void endTxn() {
+			handle.commit();
+			disposeSnapshot(handle.serial);
+			handle = null;
+		}
 
-        class _TxnHandle extends AbstractTxHandle {
-            final long serial;
+		public void abortTxn() {
+			Thread.dumpStack();
+			handle.rollback();
+			disposeSnapshot(handle.serial);
+			handle = null;
+		}
 
-            boolean withLocks;
-            Timestamp timestamp;
+		class _TxnHandle extends AbstractTxHandle {
+			final long serial;
 
-            _TxnHandle(AcquireResourcesReply reply, Timestamp cltTimestamp) {
-                super(reply.getSnapshot(), cltTimestamp);
-                this.timestamp = reply.timestamp();
-                this.withLocks = true;
+			boolean withLocks;
+			Timestamp timestamp;
 
-                for (CRDTObjectUpdatesGroup<?> i : reply.operations())
-                    super.ops.put(i.getTargetUID(), i);
+			_TxnHandle(AcquireResourcesReply reply, Timestamp cltTimestamp) {
+				super(reply.getSnapshot(), cltTimestamp);
+				this.timestamp = reply.timestamp();
+				this.withLocks = true;
 
-                Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
-            }
+				for (CRDTObjectUpdatesGroup<?> i : reply.operations())
+					super.ops.put(i.getTargetUID(), i);
 
-            _TxnHandle(Timestamp cltTimestamp) {
-                super(server.clocks.clientClockCopy(), cltTimestamp);
-                this.withLocks = false;
+				Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
+			}
 
-                Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
-            }
+			_TxnHandle(Timestamp cltTimestamp) {
+				super(server.clocks.clientClockCopy(), cltTimestamp);
+				this.withLocks = false;
 
-            public void rollback() {
-                if (withLocks)
-                    stub.send(lockManager, new ReleaseResourcesRequest(serial, stubId, cltTimestamp()));
+				Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
+			}
 
-                tsSource.returnLastTimestamp();
+			public void rollback() {
+				if (withLocks)
+					stub.send(lockManager, new ReleaseResourcesRequest(serial, stubId, cltTimestamp()));
 
-            }
+				tsSource.returnLastTimestamp();
 
-            @Override
-            public void commit() {
-                try {
-                    if (isReadOnly())
-                        rollback();
-                    else {
-                        List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
-                        groups.addAll(ops.values());
+			}
 
-                        final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp(),
-                                snapshot, groups);
+			@Override
+			public void commit() {
+				try {
+					if (isReadOnly()) {
+						rollback();
+					} else {
+						List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
+						groups.addAll(ops.values());
 
-                        if (groups.isEmpty()) {
-                            rollback();
-                            return;
-                        }
-                        if (timestamp == null) {
-                            server.prepareAndDoCommit(session, req);
-                        } else {
-                            req.setTimestamp(timestamp);
-                            server.doOneCommit(session, req);
-                        }
-                    }
-                } finally {
-                }
-            }
+						final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp(),
+								snapshot, groups, withLocks);
 
-            @SuppressWarnings("unchecked")
-            @Override
-            protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
-                    boolean create, Class<V> classOfV) {
-                try {
-                    Timings.mark();
-                    ManagedCRDT<V> res = (ManagedCRDT<V>) server.getCRDT(id, version, stubId);
-                    if (res == null && create)
-                        res = createCRDT(id, server.clocks.currentClockCopy(), classOfV);
-                    return res;
-                } finally {
-                    Timings.sample("get " + id);
-                }
-            }
-        }
-    }
+						if (groups.isEmpty()) {
+							rollback();
+							return;
+						}
+						if (timestamp == null) {
+							server.prepareAndDoCommit(session, req);
+						} else {
+							req.setTimestamp(timestamp);
+							server.doOneCommit(session, req);
+						}
+					}
+				} finally {
+				}
+			}
+
+			@SuppressWarnings("unchecked")
+			@Override
+			protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
+					boolean create, Class<V> classOfV) {
+				try {
+					Timings.mark();
+					ManagedCRDT<V> res = (ManagedCRDT<V>) server.getCRDT(id, version, stubId);
+					if (res == null && create)
+						res = createCRDT(id, server.clocks.currentClockCopy(), classOfV);
+					return res;
+				} finally {
+					Timings.sample("get " + id);
+				}
+			}
+		}
+	}
 }
 
 class Snapshots {
 
-    static void register(long serial, CausalityClock cc) {
-        synchronized (serials) {
-            serials.put(serial, cc);
-        }
-    }
+	static void register(long serial, CausalityClock cc) {
+		synchronized (serials) {
+			serials.put(serial, cc);
+		}
+	}
 
-    static CausalityClock safeSnapshot() {
-        synchronized (serials) {
-            // System.out.println("------------------------>$$$$$$$$$$$" + last
-            // + "/" + serials.size());
-            if (serials.isEmpty())
-                return last;
-            else {
-                last = serials.get(serials.firstKey());
-                return last;
-            }
-        }
-    }
+	static CausalityClock safeSnapshot() {
+		synchronized (serials) {
+			// System.out.println("------------------------>$$$$$$$$$$$" + last
+			// + "/" + serials.size());
+			if (serials.isEmpty())
+				return last;
+			else {
+				last = serials.get(serials.firstKey());
+				return last;
+			}
+		}
+	}
 
-    static void free(long serial) {
-        synchronized (serials) {
-            CausalityClock cc = serials.remove(serial);
-            if (serials.isEmpty() && cc != null)
-                last = cc;
-        }
-    }
+	static void free(long serial) {
+		synchronized (serials) {
+			CausalityClock cc = serials.remove(serial);
+			if (serials.isEmpty() && cc != null)
+				last = cc;
+		}
+	}
 
-    static CausalityClock last = ClockFactory.newClock();
-    static SortedMap<Long, CausalityClock> serials = new TreeMap<Long, CausalityClock>();
+	static CausalityClock last = ClockFactory.newClock();
+	static SortedMap<Long, CausalityClock> serials = new TreeMap<Long, CausalityClock>();
 }

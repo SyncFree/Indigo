@@ -48,11 +48,10 @@ public class CounterReservation implements ResourceRequest<Integer> {
 	}
 
 	public String toString() {
-		return "{" + resourceId + ", " + resource + "}";
+		return "{" + resourceId + ", " + resource + ", " + requesterId + ", " + ts + "}";
 	}
-
 	public int hashCode() {
-		return resourceId.hashCode() + requesterId.hashCode() + resource + ts.hashCode();
+		return ts.hashCode();
 
 	}
 
