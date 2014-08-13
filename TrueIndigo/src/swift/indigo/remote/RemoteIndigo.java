@@ -49,6 +49,8 @@ public class RemoteIndigo implements Indigo {
 
 	_TxnHandle handle;
 
+	// private Timestamp lastTSWithGrantedLocks;
+
 	public static Indigo getInstance(Endpoint server) {
 		return new RemoteIndigo(server);
 	}
@@ -75,16 +77,23 @@ public class RemoteIndigo implements Indigo {
 	@Override
 	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
 		Timestamp txnTimestamp = tsSource.generateNew();
+		// while (txnTimestamp.equals(lastTSWithGrantedLocks)) {
+		// Log.warning("Repeated Timestamp " + lastTSWithGrantedLocks);
+		// txnTimestamp = tsSource.generateNewForced();
+		// }
+
 		AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
 
 		for (ResourceRequest<?> res : resources) {
 			res.setClientTs(txnTimestamp);
 		}
 
-		for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
+		for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
 			AcquireResourcesReply reply = stub.request(server, request);
 			if (reply != null && reply.acquiredResources() || resources.size() == 0) {
 				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
+				// if (resources.size() != 0)
+				// lastTSWithGrantedLocks = txnTimestamp;
 				break;
 			} else if (reply.isImpossible()) {
 				throw new IndigoImpossibleExcpetion();
@@ -156,6 +165,8 @@ public class RemoteIndigo implements Indigo {
 						server,
 						req,
 						(CommitUpdatesReply reply) -> {
+							// System.out.println("Received Reply for: " +
+							// cltTimestamp);
 							if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
 								Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : "
 										+ reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
