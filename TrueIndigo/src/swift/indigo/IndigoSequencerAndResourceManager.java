@@ -73,8 +73,6 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 
 	@Override
 	public void onReceive(final Envelope conn, final GenerateTimestampRequest request) {
-		if (logger.isLoggable(Level.INFO))
-			logger.info("OVERRIDE sequencer super method ");
 		conn.reply(new GenerateTimestampReply(request.getCltTimestamp(), super.clocks.newTimestamp()));
 	}
 

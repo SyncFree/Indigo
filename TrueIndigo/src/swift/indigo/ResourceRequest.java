@@ -4,16 +4,16 @@ import swift.api.CRDTIdentifier;
 import swift.clocks.Timestamp;
 
 public interface ResourceRequest<T> extends Comparable<ResourceRequest<T>> {
-    public T getResource();
+	public T getResource();
 
-    public CRDTIdentifier getResourceId();
+	public CRDTIdentifier getResourceId();
 
-    public String getRequesterId();
+	public String getRequesterId();
 
-    public void lockStuff();
+	public void lockStuff();
 
-    public void unlockStuff();
+	public void unlockStuff();
 
-    void setClientTs(Timestamp ts);
+	void setClientTs(Timestamp ts);
 
 }

@@ -23,6 +23,8 @@ import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
 
+import static swift.application.test.TestsUtil.*;
+
 public class CounterUnitTests {
 
 	static Indigo stub11, stub12;
@@ -69,34 +71,38 @@ public class CounterUnitTests {
 
 	@Test
 	public void incrementAndRead() throws SwiftException {
-		increment("" + key, 10, stub11, DC_A);
-		compareValue("" + key, 10, stub11);
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 10, stub11, DC_A);
+		compareValue(id, 10, stub11);
 	}
-
 	@Test
 	public void twoIncrementAndRead() throws SwiftException {
-		increment("" + key, 10, stub11, DC_A);
-		increment("" + key, 10, stub11, DC_A);
-		compareValue("" + key, 20, stub11);
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 10, stub11, DC_A);
+		increment(id, 10, stub11, DC_A);
+		compareValue(id, 20, stub11);
 	}
 	@Test
 	public void decrementAborts() throws SwiftException, InterruptedException {
-		increment("" + key, 10, stub11, DC_A);
-		assertEquals(true, decrement("" + key, 10, stub11, DC_A));
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 10, stub11, DC_A);
+		assertEquals(true, decrement(id, 10, stub11, DC_A));
 		Thread.sleep(5000);
-		assertEquals(false, decrement("" + key, 10, stub11, DC_A));
+		assertEquals(false, decrement(id, 10, stub11, DC_A));
 	}
 
 	@Test
 	public void decrementStillAborts() throws SwiftException {
-		increment("" + key, 9, stub11, DC_A);
-		assertEquals(false, decrement("" + key, 10, stub11, DC_A));
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 9, stub11, DC_A);
+		assertEquals(false, decrement(id, 10, stub11, DC_A));
 	}
 
 	@Test
 	public void decrementSucceeds() throws SwiftException {
-		increment("" + key, 10, stub11, DC_A);
-		assertEquals(true, decrement("" + key, 10, stub11, DC_A));
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 10, stub11, DC_A);
+		assertEquals(true, decrement(id, 10, stub11, DC_A));
 	}
 
 	@Test
@@ -123,7 +129,8 @@ public class CounterUnitTests {
 			BrokenBarrierException {
 		int count = initValue;
 		final AtomicInteger sum = new AtomicInteger();
-		increment("" + key, count, stub11, DC_A);
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, count, stub11, DC_A);
 		Semaphore sem = new Semaphore(nThreads);
 		sem.acquire(nThreads);
 		for (int i = 0; i < nThreads; i++) {
@@ -134,8 +141,8 @@ public class CounterUnitTests {
 					int i = 0;
 					try {
 						for (;; i++) {
-							if (getValue("" + key, stub) > 0) {
-								decrement("" + key, 1, stub, DC_A);
+							if (getValue(id, stub) > 0) {
+								decrement(id, 1, stub, DC_A);
 								Thread.sleep(random.nextInt(200));
 							} else {
 								break;
@@ -157,23 +164,24 @@ public class CounterUnitTests {
 		Thread.sleep(2000);
 		sem.acquire(nThreads);
 		Thread.sleep(1000);
-		compareValue("" + key, 0, stub11);
+		compareValue(id, 0, stub11);
 		assertEquals(count, sum.get());
 	}
 
 	@Test
 	public void waitAndSucceed() throws SwiftException, InterruptedException {
-		increment("" + key, 10, stub11, DC_A);
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 10, stub11, DC_A);
 
 		new Thread(new Runnable() {
 
 			@Override
 			public void run() {
 				try {
-					decrement("" + key, 10, stub11, DC_A);
+					decrement(id, 10, stub11, DC_A);
 					System.out.println("Decrement and sleep");
 					Thread.sleep(500);
-					increment("" + key, 10, stub11, DC_A);
+					increment(id, 10, stub11, DC_A);
 					System.out.println("First thread increments and finish");
 				} catch (SwiftException e) {
 					e.printStackTrace();
@@ -191,7 +199,7 @@ public class CounterUnitTests {
 			@Override
 			public void run() {
 				try {
-					decrement("" + key, 8, stub12, DC_A);
+					decrement(id, 8, stub12, DC_A);
 					System.out.println("Second thread succeeded");
 				} catch (SwiftException e) {
 					e.printStackTrace();
@@ -206,41 +214,6 @@ public class CounterUnitTests {
 	@Test
 	public void simpleTestTransfer() throws SwiftException {
 
-	}
-
-	public void increment(String key, int units, Indigo stub, String siteId) throws SwiftException {
-		stub.beginTxn();
-		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-		x.increment(units, siteId);
-		stub.endTxn();
-
-	}
-
-	public boolean decrement(String key, int units, Indigo stub, String siteId) throws SwiftException {
-		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new CounterReservation(siteId, new CRDTIdentifier(table, key), units));
-
-		stub.beginTxn(resources);
-		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-
-		boolean result = x.decrement(units, siteId);
-
-		stub.endTxn();
-		return result;
-	}
-
-	public void compareValue(String key, int expected, Indigo stub) throws SwiftException {
-		stub.beginTxn();
-		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-		assertEquals((Integer) expected, x.getValue());
-		stub.endTxn();
-	}
-
-	public int getValue(String key, Indigo stub) throws SwiftException {
-		stub.beginTxn();
-		BoundedCounterAsResource x = stub.get(new CRDTIdentifier(table, key), false, BoundedCounterAsResource.class);
-		stub.endTxn();
-		return x.getValue();
 	}
 
 	@After

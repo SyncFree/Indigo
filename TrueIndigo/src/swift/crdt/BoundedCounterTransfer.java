@@ -4,47 +4,50 @@ import swift.crdt.core.CRDTUpdate;
 
 public class BoundedCounterTransfer<T extends BoundedCounterCRDT<T>> implements CRDTUpdate<T> {
 
-    private String originId, targetId;
-    private int amount;
+	private String originId, targetId;
+	private int amount;
 
-    public BoundedCounterTransfer() {
+	public BoundedCounterTransfer() {
 
-    }
+	}
 
-    public BoundedCounterTransfer(String originId, String targetId, int amount) {
-        this.originId = originId;
-        this.targetId = targetId;
-        this.amount = amount;
-    }
+	public BoundedCounterTransfer(String originId, String targetId, int amount) {
+		this.originId = originId;
+		this.targetId = targetId;
+		this.amount = amount;
+	}
 
-    @Override
-    public void applyTo(T crdt) {
-        crdt.applyTransfer(this);
+	@Override
+	public void applyTo(T crdt) {
+		crdt.applyTransfer(this);
 
-    }
+	}
 
-    protected String getOriginId() {
-        return originId;
-    }
+	protected String getOriginId() {
+		return originId;
+	}
 
-    protected void setOriginId(String originId) {
-        this.originId = originId;
-    }
+	protected void setOriginId(String originId) {
+		this.originId = originId;
+	}
 
-    protected String getTargetId() {
-        return targetId;
-    }
+	protected String getTargetId() {
+		return targetId;
+	}
 
-    protected void setTargetId(String targetId) {
-        this.targetId = targetId;
-    }
+	protected void setTargetId(String targetId) {
+		this.targetId = targetId;
+	}
 
-    protected int getAmount() {
-        return amount;
-    }
+	protected int getAmount() {
+		return amount;
+	}
 
-    protected void setAmount(int amount) {
-        this.amount = amount;
-    }
+	protected void setAmount(int amount) {
+		this.amount = amount;
+	}
 
+	public String toString() {
+		return String.format("Transfer %d from: %s to %s ", originId, targetId, amount);
+	}
 }

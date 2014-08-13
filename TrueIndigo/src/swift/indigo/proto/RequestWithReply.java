@@ -1,52 +1,65 @@
 package swift.indigo.proto;
 
+import swift.indigo.IndigoOperation;
+import swift.indigo.ResourceManagerNode;
 import swift.proto.ClientRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
-public class RequestWithReply extends ClientRequest {
+public class RequestWithReply extends ClientRequest implements IndigoOperation {
 
-    private Envelope handle;
-    private ClientRequest request;
+	private Envelope handle;
+	private ClientRequest request;
 
-    public RequestWithReply(Envelope handle, ClientRequest request) {
-        this.request = request;
-        this.handle = handle;
-    }
+	public RequestWithReply(Envelope handle, ClientRequest request) {
+		this.request = request;
+		this.handle = handle;
+	}
 
-    public ClientRequest getRequest() {
-        return request;
-    }
+	public ClientRequest getRequest() {
+		return request;
+	}
 
-    public void setRequest(ClientRequest request) {
-        this.request = request;
-    }
+	public void setRequest(ClientRequest request) {
+		this.request = request;
+	}
 
-    @Override
-    public void deliverTo(Envelope handle, MessageHandler handler) {
-        System.out.println("NOT IMPLEMENTED");
-        System.exit(0);
+	@Override
+	public void deliverTo(Envelope handle, MessageHandler handler) {
+		System.out.println("NOT IMPLEMENTED");
+		System.exit(0);
 
-    }
+	}
 
-    public Envelope getHandle() {
-        return handle;
-    }
+	public Envelope getHandle() {
+		return handle;
+	}
 
-    public void setHandle(Envelope handle) {
-        this.handle = handle;
-    }
+	public void setHandle(Envelope handle) {
+		this.handle = handle;
+	}
 
-    @Override
-    public boolean equals(Object o) {
-        if (o instanceof RequestWithReply) {
-            if (this.request.equals(((RequestWithReply) o).request))
-                return true;
-        }
-        return false;
-    }
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof RequestWithReply) {
+			if (this.request.equals(((RequestWithReply) o).request))
+				return true;
+		}
+		return false;
+	}
 
-    public String toString() {
-        return "RequestWithReply: " + request;
-    }
+	public String toString() {
+		return "RequestWithReply: " + request;
+	}
+
+	@Override
+	public void deliverTo(ResourceManagerNode node) {
+		if (request instanceof AcquireResourcesRequest)
+			node.processWithReply(handle, (AcquireResourcesRequest) request);
+		else {
+			System.out.println("NOT EXPECTED MESSAGE TYPE");
+			System.exit(0);
+		}
+	}
+
 }

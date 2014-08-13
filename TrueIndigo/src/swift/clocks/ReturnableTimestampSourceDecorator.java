@@ -33,6 +33,11 @@ public class ReturnableTimestampSourceDecorator<T extends Timestamp> implements 
 		this.origSource = origSource;
 	}
 
+	public T generateNewForced() {
+		lastTimestampReturned = false;
+		return generateNew();
+	}
+
 	@Override
 	public T generateNew() {
 		if (lastTimestampReturned) {

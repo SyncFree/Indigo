@@ -1,7 +1,5 @@
 package swift.indigo.proto;
 
-import static swift.indigo.IndigoResourceManager.sortedRequests;
-
 import java.util.Collection;
 import java.util.Collections;
 
@@ -25,7 +23,7 @@ public class AcquireResourcesReply {
 	protected Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
 	protected AcquireReply status;
 
-	transient ResourceRequest<?>[] requests;
+	transient Collection<ResourceRequest<?>> requests;
 	// transient boolean[] durable;
 	transient Timestamp cltTimestamp;
 
@@ -54,10 +52,11 @@ public class AcquireResourcesReply {
 		this.timestamp = timestamp;
 		this.cltTimestamp = cltTimestamp;
 		this.objectUpdateGroups = objectUpdateGroups;
-		this.requests = sortedRequests(requests);
+		// FIXME: Why this? -- probably jsut a mistake
+		// this.requests = sortedRequests(requests);
+		this.requests = requests;
 		// this.durable = new boolean[this.requests.length];
 	}
-
 	// Used for weak consistency emulation...
 	public AcquireResourcesReply(long serial, CausalityClock currentClockEstimate) {
 		this.serial = serial;
@@ -124,7 +123,7 @@ public class AcquireResourcesReply {
 	public String toString() {
 		return "STATUS " + status + " C_TS: " + cltTimestamp;
 	}
-	public ResourceRequest<?>[] getResourcesRequest() {
+	public Collection<ResourceRequest<?>> getResourcesRequest() {
 		return requests;
 	}
 

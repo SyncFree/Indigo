@@ -1,11 +1,14 @@
 package swift.indigo;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,12 +28,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 50;
 
+	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
+
 	private static Logger logger = Logger.getLogger(ResourceManagerNode.class.getName());
 
 	private IndigoResourceManager manager;
 
 	// Incoming requests
-	private Queue<ClientRequest> incomingRequests;
+	private Queue<IndigoOperation> incomingRequestsQueue;
 
 	private Map<Timestamp, ClientRequest> beingProcessed;
 
@@ -45,21 +50,32 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private IndigoSequencerAndResourceManager sequencer;
 
-	private ResourceManagerNode monitor = this;
+	private ResourceManagerNode thisManager = this;
+
+	private Set<TransferResourcesRequest> duplicateTransfers;
+
+	private Queue<TransferResourcesRequest> incomingTransfers;
 
 	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			final Map<String, Endpoint> endpoints) {
 
-		// TODO: Add ordering function
-		transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
-		this.incomingRequests = new LinkedList<ClientRequest>();
-		this.beingProcessed = new HashMap<Timestamp, ClientRequest>();
+		// Outgoing transfers queue
+		Queue<TransferResourcesRequest> outgoingMessages = new LinkedList<>();
 
-		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, transferRequestsQueue);
+		// TODO: Add ordering function
+		this.transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
+		this.incomingRequestsQueue = new LinkedList<IndigoOperation>();
+		this.beingProcessed = new HashMap<Timestamp, ClientRequest>();
+		this.incomingTransfers = new LinkedList<TransferResourcesRequest>();
+		this.duplicateTransfers = new HashSet<TransferResourcesRequest>();
+		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
 		this.stub = sequencer.stub;
 
 		this.sequencer = sequencer;
 		this.active = true;
+
+		final SimpleMessageBalacing messageBalancing = new SimpleMessageBalacing(DEFAULT_REQUEST_TRANSFER_RATIO,
+				incomingRequestsQueue, transferRequestsQueue);
 
 		// Incoming requests processor thread
 		new Thread(new Runnable() {
@@ -67,21 +83,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			@Override
 			public void run() {
 				while (active) {
-					if (incomingRequests.size() > 0) {
-						ClientRequest request;
-						synchronized (monitor) {
-							request = incomingRequests.remove();
-						}
-						if (request instanceof RequestWithReply) {
-							RequestWithReply rwr = ((RequestWithReply) request);
-							processWithReply(rwr.getHandle(), (AcquireResourcesRequest) rwr.getRequest());
-						} else {
-							if (request instanceof TransferResourcesRequest) {
-								process((TransferResourcesRequest) request);
-							} else {
-								process((ReleaseResourcesRequest) request);
-							}
-						}
+					IndigoOperation request;
+					synchronized (thisManager) {
+						// System.out.println(sequencer.siteId + " QUEUE: "
+						// + incomingRequests);
+						request = messageBalancing.nextOp();
+					}
+					if (request != null) {
+						request.deliverTo(thisManager);
 					} else {
 						try {
 							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
@@ -89,6 +98,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 							e.printStackTrace();
 						}
 					}
+
 				}
 			}
 
@@ -100,11 +110,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			@Override
 			public void run() {
 				while (active) {
-					if (transferRequestsQueue.size() > 0) {
+					if (outgoingMessages.size() > 0) {
 						TransferResourcesRequest request = null;
-						synchronized (monitor) {
-							if (transferRequestsQueue.size() > 0) {
-								request = transferRequestsQueue.remove();
+						synchronized (thisManager) {
+							if (outgoingMessages.size() > 0) {
+								request = outgoingMessages.remove();
 							} else
 								continue;
 						}
@@ -124,12 +134,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}).start();
 
 	}
-
 	public void process(TransferResourcesRequest request) {
-		synchronized (monitor) {
+		synchronized (thisManager) {
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
 			TRANSFER_STATUS reply = manager.transferResources(request);
+			if (reply.hasTransferred()) {
+				duplicateTransfers.add(request);
+			}
 			if (logger.isLoggable(Level.INFO)) {
 				logger.info("SITE: " + sequencer.siteId + " Finished TransferResourcesRequest: " + request + " Reply: "
 						+ reply);
@@ -138,7 +150,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	}
 
 	public void process(ReleaseResourcesRequest request) {
-		synchronized (monitor) {
+		synchronized (thisManager) {
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest " + request);
 
@@ -161,7 +173,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
 		AcquireResourcesReply reply = null;
-		synchronized (monitor) {
+		synchronized (thisManager) {
 			beingProcessed.put(request.getClientTs(), request);
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
@@ -200,14 +212,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (request.getRequests().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			synchronized (monitor) {
-				if (!incomingRequests.contains(requestWR) && !beingProcessed.containsKey(request.getClientTs())
+			synchronized (thisManager) {
+				if (!incomingRequestsQueue.contains(requestWR) && !beingProcessed.containsKey(request.getClientTs())
 						&& !replies.containsKey(request.getClientTs())) {
-					incomingRequests.add(requestWR);
+					incomingRequestsQueue.add(requestWR);
 				} else {
 					if (logger.isLoggable(Level.INFO))
 						logger.info(sequencer.siteId + " Received an already processed message: " + request);
-					reply = new AcquireResourcesReply(AcquireReply.NO, sequencer.clocks.currentClockCopy());
+					reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
 				}
 			}
 		}
@@ -217,15 +229,18 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	}
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
-		synchronized (monitor) {
-			incomingRequests.add(request);
+		incomingTransfers.add(request);
+		synchronized (thisManager) {
+			if (!duplicateTransfers.contains(request)) {
+				transferRequestsQueue.add(request);
+			}
 		}
 	}
 
 	@Override
 	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
-		synchronized (monitor) {
-			incomingRequests.add(request);
+		synchronized (thisManager) {
+			incomingRequestsQueue.add(request);
 		}
 	}
 
@@ -249,4 +264,56 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		return null;
 	}
 
+}
+
+class SimpleMessageBalacing {
+
+	enum OPType {
+		TRANSFER, REQUEST
+	};
+
+	private AtomicInteger transfers;
+	private AtomicInteger requests;
+	private final int ratio;
+
+	private Queue<IndigoOperation> requestQueue;
+	private Queue<TransferResourcesRequest> transferQueue;
+
+	public SimpleMessageBalacing(int requestTransferRatio, Queue<IndigoOperation> requestQueue,
+			Queue<TransferResourcesRequest> transferQueue) {
+		this.ratio = requestTransferRatio;
+		this.requestQueue = requestQueue;
+		this.transferQueue = transferQueue;
+		this.requests = new AtomicInteger();
+		this.transfers = new AtomicInteger();
+	}
+
+	private void registerOp(OPType op) {
+		int count;
+		switch (op) {
+			case TRANSFER :
+				count = transfers.incrementAndGet();
+				transfers.set(0);
+				break;
+			case REQUEST :
+				count = requests.incrementAndGet();
+				if (count == ratio)
+					requests.set(0);
+				break;
+		}
+	}
+
+	public synchronized IndigoOperation nextOp() {
+		int nRequests = requests.get();
+		int nTransfers = transfers.get();
+		if (requestQueue.size() > 0 && (nRequests - nTransfers <= ratio || transferQueue.size() == 0)) {
+			registerOp(OPType.REQUEST);
+			return requestQueue.remove();
+		} else if (transferQueue.size() > 0) {
+			registerOp(OPType.TRANSFER);
+			return transferQueue.remove();
+		} else
+			return null;
+
+	}
 }

@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
-import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,7 +31,6 @@ import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.utils.Pair;
 import sys.net.api.Endpoint;
-import sys.utils.Threading;
 
 final public class IndigoResourceManager {
 	private static Logger logger = Logger.getLogger(IndigoResourceManager.class.getName());
@@ -41,7 +38,8 @@ final public class IndigoResourceManager {
 	final String resourceMgrId;
 	final public static String LOCKS_TABLE = "/indigo/locks";
 
-	private final Map<Resource<?>, SortedSet<AcquireResourcesRequest>> pending;
+	// private final Map<Resource<?>, SortedSet<AcquireResourcesRequest>>
+	// pending;
 
 	private final StorageHelper storage;
 	private final IndigoSequencerAndResourceManager sequencer;
@@ -51,6 +49,8 @@ final public class IndigoResourceManager {
 	private transient Queue<TransferResourcesRequest> transferQueue;
 
 	private boolean isMaster;
+
+	private int transferSeqNumber;
 
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
@@ -69,7 +69,8 @@ final public class IndigoResourceManager {
 		this.storage = new StorageHelper(sequencer, surrogate, resourceMgrId, isMaster);
 
 		this.cache = new HashMap<CRDTIdentifier, Resource<?>>();
-		this.pending = new ConcurrentHashMap<Resource<?>, SortedSet<AcquireResourcesRequest>>();
+		// this.pending = new ConcurrentHashMap<Resource<?>,
+		// SortedSet<AcquireResourcesRequest>>();
 
 		// this.pendingWrites = new HashMap<CRDTIdentifier, Map<Timestamp,
 		// Integer>>();
@@ -83,7 +84,7 @@ final public class IndigoResourceManager {
 
 	// This release modifies soft-state exclusively. If we want to support
 	// durability this must be different
-	public boolean releaseResources(AcquireResourcesReply alr) {
+	protected boolean releaseResources(AcquireResourcesReply alr) {
 		boolean ok = true;
 		try {
 			// alr.lockStuff();
@@ -258,18 +259,19 @@ final public class IndigoResourceManager {
 		return new AcquireResourcesReply(impossible ? AcquireReply.IMPOSSIBLE : AcquireReply.NO, snapshot);
 	}
 
-	void checkPendingRequest(ResourceRequest<?> request) {
-		SortedSet<AcquireResourcesRequest> pendingReqs = pending.remove(request);
-		if (pendingReqs != null)
-			for (AcquireResourcesRequest i : pendingReqs) {
-				TRANSFER_STATUS result = transferResources(i);
-				if (logger.isLoggable(Level.INFO))
-					logger.info("Check Pending: Transfer Resources: " + i + " Result: " + result);
-				// TODO: Why stop here?
-				// if (request.type.isExclusive())
-				// break;
-			}
-	}
+	// void checkPendingRequest(ResourceRequest<?> request) {
+	// SortedSet<AcquireResourcesRequest> pendingReqs = pending.remove(request);
+	// if (pendingReqs != null)
+	// for (AcquireResourcesRequest i : pendingReqs) {
+	// TRANSFER_STATUS result = transferResources(i);
+	// if (logger.isLoggable(Level.INFO))
+	// logger.info("Check Pending: Transfer Resources: " + i + " Result: " +
+	// result);
+	// // TODO: Why stop here?
+	// // if (request.type.isExclusive())
+	// // break;
+	// }
+	// }
 
 	TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
 		boolean allSuccess = true;
@@ -315,7 +317,8 @@ final public class IndigoResourceManager {
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, Resource<T> resource)
 			throws SwiftException {
 		TRANSFER_STATUS result = TRANSFER_STATUS.FAIL;
-		// Try to transfer or mutate lock
+		// If requests can be satisfied with the local state, do not transfer...
+		// update is on the way
 		if (!resource.checkRequest(request.getRequesterId(), (ResourceRequest<T>) request)) {
 			ResourceRequest request_policy = transferPolicy(request, resource);
 			if (request_policy != null) {
@@ -332,7 +335,9 @@ final public class IndigoResourceManager {
 				}
 			}
 		}
-		// Transference failed - release the lock if it is not a single owner
+		// Transference failed - release the lock if it is not a single owner.
+		// Do this if multiple requests from the same source arrive... This may
+		// need to be improved... maybe improve duplicates filtering??
 		if (result.equals(TRANSFER_STATUS.FAIL)) {
 			if (!resource.isSingleOwner(sequencer.siteId)) {
 				resource.releaseShare(sequencer.siteId);
@@ -340,16 +345,16 @@ final public class IndigoResourceManager {
 		}
 		return result;
 	}
-
 	// Checks what requests will be transferred
+	// TODO: Provisioning for counters
 	private ResourceRequest<?> transferPolicy(ResourceRequest<?> request, Resource<?> resource) {
 		// All requests
 		return request;
 	}
 
 	/**
-	 * Verifies if the request is repeated. Checks what requests can be
-	 * satisfied with the local available information.
+	 * Checks what requests can be satisfied with the local available
+	 * information.
 	 * 
 	 * @param request
 	 *            the requested resources
@@ -396,7 +401,7 @@ final public class IndigoResourceManager {
 				Queue<Pair<String, ?>> pref = resource.preferenceList(sequencer.siteId);
 				LinkedList<Pair<String, ResourceRequest<?>>> contactList = new LinkedList<Pair<String, ResourceRequest<?>>>();
 				// TODO: ups... shortcut. Must abstract this and can make it
-				// more elaborate.
+				// more elegant.
 				if (resource instanceof BoundedCounterWithLocalEscrow && pref.size() > 0) {
 					contactList.add(new Pair<String, ResourceRequest<?>>(pref.peek().getFirst(), req_i));
 				}
@@ -430,24 +435,27 @@ final public class IndigoResourceManager {
 		LinkedList<TransferResourcesRequest> returnList = new LinkedList<TransferResourcesRequest>();
 		for (Entry<String, List<ResourceRequest<?>>> request : requestsBySite.entrySet()) {
 			returnList.add(new TransferResourcesRequest(sequencer.siteId, request.getKey(), requestId, request
-					.getValue()));
+					.getValue(), transferSeqNumber++));
 		}
 		if (returnList.size() > 0 && logger.isLoggable(Level.INFO)) {
 			logger.info("Will get permissions from: " + returnList);
 		}
 		return returnList;
 	}
-	private void lockTable() {
-		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-	}
 
-	private void unlockTable() {
-		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-	}
+	// private void lockTable() {
+	// Threading.lock(IndigoResourceManager.LOCKS_TABLE);
+	// }
+	//
+	// private void unlockTable() {
+	// Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
+	// }
 
-	public static ResourceRequest<?>[] sortedRequests(Collection<ResourceRequest<?>> requests) {
-		int size = requests.size();
-		return size == 0 ? new ResourceRequest[0] : new TreeSet<ResourceRequest<?>>(requests)
-				.toArray(new ResourceRequest[size]);
-	}
+	// public static ResourceRequest<?>[]
+	// sortedRequests(Collection<ResourceRequest<?>> requests) {
+	// int size = requests.size();
+	// return size == 0 ? new ResourceRequest[0] : new
+	// TreeSet<ResourceRequest<?>>(requests)
+	// .toArray(new ResourceRequest[size]);
+	// }
 }

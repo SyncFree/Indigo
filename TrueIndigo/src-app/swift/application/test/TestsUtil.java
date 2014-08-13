@@ -1,11 +1,19 @@
 package swift.application.test;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.api.CRDTIdentifier;
+import swift.crdt.BoundedCounterAsResource;
+import swift.exceptions.SwiftException;
+import swift.indigo.CounterReservation;
+import swift.indigo.Indigo;
 import swift.indigo.IndigoSequencerAndResourceManager;
 import swift.indigo.IndigoServer;
+import swift.indigo.ResourceRequest;
 
 public class TestsUtil {
 
@@ -24,6 +32,40 @@ public class TestsUtil {
 				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
 		argsServer.addAll(Arrays.asList(otherServers));
 		IndigoServer.main(argsServer.toArray(new String[0]));
+	}
+
+	public static void increment(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+		x.increment(units, siteId);
+		stub.endTxn();
+	}
+
+	public static boolean decrement(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation(siteId, id, units));
+
+		stub.beginTxn(resources);
+		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+
+		boolean result = x.decrement(units, siteId);
+
+		stub.endTxn();
+		return result;
+	}
+
+	public static int getValue(CRDTIdentifier id, Indigo stub) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+		stub.endTxn();
+		return x.getValue();
+	}
+
+	public static void compareValue(CRDTIdentifier id, int expected, Indigo stub) throws SwiftException {
+		stub.beginTxn();
+		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+		assertEquals((Integer) expected, x.getValue());
+		stub.endTxn();
 	}
 
 }

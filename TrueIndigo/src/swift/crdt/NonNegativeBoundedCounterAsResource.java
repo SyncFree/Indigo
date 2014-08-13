@@ -4,12 +4,12 @@ import swift.api.CRDTIdentifier;
 
 public class NonNegativeBoundedCounterAsResource extends BoundedCounterAsResource {
 
-    public NonNegativeBoundedCounterAsResource() {
-        super(new LowerBoundCounterCRDT());
-    }
+	public NonNegativeBoundedCounterAsResource() {
+		super();
+	}
 
-    public NonNegativeBoundedCounterAsResource(CRDTIdentifier identifier) {
-        super(new LowerBoundCounterCRDT(identifier));
-    }
+	public NonNegativeBoundedCounterAsResource(CRDTIdentifier identifier) {
+		super(identifier, new LowerBoundCounterCRDT(identifier));
+	}
 
 }

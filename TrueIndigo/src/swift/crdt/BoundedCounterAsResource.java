@@ -10,7 +10,8 @@ import swift.indigo.CounterReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
 
-public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterAsResource> implements
+public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterAsResource>
+		implements
 			ConsumableResource<Integer> {
 
 	private BoundedCounterCRDT<LowerBoundCounterCRDT> counter;
@@ -19,8 +20,8 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 		super();
 	}
 
-	public BoundedCounterAsResource(LowerBoundCounterCRDT counter) {
-		super();
+	public BoundedCounterAsResource(CRDTIdentifier identifier, BoundedCounterCRDT<LowerBoundCounterCRDT> counter) {
+		super(identifier);
 		this.counter = counter;
 	}
 
@@ -46,7 +47,7 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 
 	@Override
 	public boolean checkRequest(String ownerId, ResourceRequest<Integer> request) {
-		return counter.availableSiteId(ownerId) > request.getResource();
+		return counter.availableSiteId(ownerId) >= request.getResource();
 	}
 
 	@Override
@@ -107,7 +108,7 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 
 	@Override
 	public BoundedCounterAsResource copy() {
-		return new BoundedCounterAsResource(counter.copy());
+		return new BoundedCounterAsResource(id, counter.copy());
 	}
 
 	@Override
@@ -118,6 +119,11 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 	@Override
 	protected void applyDec(BoundedCounterDecrement<BoundedCounterAsResource> decUpdate) {
 		counter.applyDec((BoundedCounterDecrement) decUpdate);
+	}
+
+	@Override
+	protected void applyTransfer(BoundedCounterTransfer<BoundedCounterAsResource> transferUpdate) {
+		counter.applyTransfer((BoundedCounterTransfer) transferUpdate);
 	}
 
 	@Override

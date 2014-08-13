@@ -36,10 +36,14 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 
 	public BoundedCounterCRDT(CRDTIdentifier id) {
 		super(id);
+		this.permissions = new HashMap<String, Map<String, Integer>>();
+		this.delta = new HashMap<String, Integer>();
 	}
 
 	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
 		super(id, txn, clock);
+		this.permissions = new HashMap<String, Map<String, Integer>>();
+		this.delta = new HashMap<String, Integer>();
 	}
 
 	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal,
@@ -138,7 +142,7 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 		return preferenceList;
 	}
 
-	public void applyTransfer(BoundedCounterTransfer<T> transferUpdate) {
+	protected void applyTransfer(BoundedCounterTransfer<T> transferUpdate) {
 		checkExistsPermissionPair(transferUpdate.getOriginId(), transferUpdate.getTargetId());
 		Map<String, Integer> targetPermissions = permissions.get(transferUpdate.getOriginId());
 		targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId())

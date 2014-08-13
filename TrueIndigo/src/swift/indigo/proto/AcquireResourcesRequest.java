@@ -57,7 +57,8 @@ public class AcquireResourcesRequest extends ClientRequest implements Comparable
 	}
 
 	public boolean equals(AcquireResourcesRequest other) {
-		// FIXME: Only compares that the client timestamp is the same? -- Seems to be working
+		// FIXME: Only compares that the client timestamp is the same? -- Seems
+		// to be working
 		return getClientId().equals(other.getClientId())/*
 														 * &&
 														 * requests.equals(other
