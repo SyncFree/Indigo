@@ -14,6 +14,7 @@ import swift.indigo.Indigo;
 import swift.indigo.IndigoSequencerAndResourceManager;
 import swift.indigo.IndigoServer;
 import swift.indigo.ResourceRequest;
+import swift.indigo.remote.IndigoImpossibleExcpetion;
 
 public class TestsUtil {
 
@@ -44,16 +45,19 @@ public class TestsUtil {
 	public static boolean decrement(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 		resources.add(new CounterReservation(siteId, id, units));
+		boolean result;
+		try {
+			stub.beginTxn(resources);
+			BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
 
-		stub.beginTxn(resources);
-		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
-
-		boolean result = x.decrement(units, siteId);
-
-		stub.endTxn();
+			result = x.decrement(units, siteId);
+		} catch (IndigoImpossibleExcpetion e) {
+			result = false;
+		} finally {
+			stub.endTxn();
+		}
 		return result;
 	}
-
 	public static int getValue(CRDTIdentifier id, Indigo stub) throws SwiftException {
 		stub.beginTxn();
 		BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);

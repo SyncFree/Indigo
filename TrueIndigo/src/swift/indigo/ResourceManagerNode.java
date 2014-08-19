@@ -17,7 +17,6 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.ReleaseResourcesRequest;
-import swift.indigo.proto.RequestWithReply;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.proto.ClientRequest;
 import sys.net.api.Endpoint;
@@ -171,7 +170,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}
 	}
 
-	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
+	public void processWithReply(Envelope conn, IndigoOperation indigoRequest) {
+		// Throws exception if it receives another type of message
+		AcquireResourcesRequest request = (AcquireResourcesRequest) indigoRequest;
 		AcquireResourcesReply reply = null;
 		synchronized (thisManager) {
 			beingProcessed.put(request.getClientTs(), request);
@@ -206,16 +207,16 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	@Override
 	public void onReceive(Envelope conn, AcquireResourcesRequest request) {
-		RequestWithReply requestWR = new RequestWithReply(conn, request);
+		request.setHandler(conn);
 		AcquireResourcesReply reply = null;
 
 		if (request.getRequests().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
 			synchronized (thisManager) {
-				if (!incomingRequestsQueue.contains(requestWR) && !beingProcessed.containsKey(request.getClientTs())
+				if (!incomingRequestsQueue.contains(request) && !beingProcessed.containsKey(request.getClientTs())
 						&& !replies.containsKey(request.getClientTs())) {
-					incomingRequestsQueue.add(requestWR);
+					incomingRequestsQueue.add(request);
 				} else {
 					if (logger.isLoggable(Level.INFO))
 						logger.info(sequencer.siteId + " Received an already processed message: " + request);
