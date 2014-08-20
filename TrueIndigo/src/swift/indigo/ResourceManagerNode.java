@@ -18,7 +18,6 @@ import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
-import swift.proto.ClientRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
 import sys.net.api.Service;
@@ -36,8 +35,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	// Incoming requests
 	private Queue<IndigoOperation> incomingRequestsQueue;
 
-	private Map<Timestamp, ClientRequest> beingProcessed;
-
 	// Outgoing requests
 	private transient PriorityQueue<TransferResourcesRequest> transferRequestsQueue;
 
@@ -51,9 +48,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private ResourceManagerNode thisManager = this;
 
-	private Set<TransferResourcesRequest> duplicateTransfers;
+	private Set<IndigoOperation> waitingIndex;
 
-	private Queue<TransferResourcesRequest> incomingTransfers;
+	private Map<Timestamp, IndigoOperation> alreadyProcessedTransfers;
 
 	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			final Map<String, Endpoint> endpoints) {
@@ -61,12 +58,16 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		// Outgoing transfers queue
 		Queue<TransferResourcesRequest> outgoingMessages = new LinkedList<>();
 
-		// TODO: Add ordering function
+		// Incoming transfer requests are ordered by priority: promotes
+		// exclusive_lock operations
+		// and messages with smaller requests (size of requests was not tested)
 		this.transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
+		// Incoming messages are ordered by FIFO order
 		this.incomingRequestsQueue = new LinkedList<IndigoOperation>();
-		this.beingProcessed = new HashMap<Timestamp, ClientRequest>();
-		this.incomingTransfers = new LinkedList<TransferResourcesRequest>();
-		this.duplicateTransfers = new HashSet<TransferResourcesRequest>();
+
+		this.waitingIndex = new HashSet<IndigoOperation>();
+		this.alreadyProcessedTransfers = new HashMap<Timestamp, IndigoOperation>();
+
 		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
 		this.stub = sequencer.stub;
 
@@ -84,8 +85,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				while (active) {
 					IndigoOperation request;
 					synchronized (thisManager) {
-						// System.out.println(sequencer.siteId + " QUEUE: "
-						// + incomingRequests);
 						request = messageBalancing.nextOp();
 					}
 					if (request != null) {
@@ -139,7 +138,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
 			TRANSFER_STATUS reply = manager.transferResources(request);
 			if (reply.hasTransferred()) {
-				duplicateTransfers.add(request);
+				alreadyProcessedTransfers.put(request.getClientTs(), request);
+				waitingIndex.remove(request);
 			}
 			if (logger.isLoggable(Level.INFO)) {
 				logger.info("SITE: " + sequencer.siteId + " Finished TransferResourcesRequest: " + request + " Reply: "
@@ -154,12 +154,13 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest " + request);
 
 			Timestamp ts = request.getClientTs();
-			AcquireResourcesReply alr = replies.get(ts);
-			if (alr != null && !alr.isReleased()) {
+			AcquireResourcesReply arr = replies.get(ts);
+			if (arr != null && !arr.isReleased()) {
 				// replies.remove(ts);
-				alr.setReleased();
-				if (alr.acquiredResources()) {
-					manager.releaseResources(alr);
+				arr.setReleased();
+				waitingIndex.remove(request);
+				if (arr.acquiredResources()) {
+					manager.releaseResources(arr);
 				} else {
 					logger.warning("SITE: " + sequencer.siteId + " Trying to release but did not get resources "
 							+ request);
@@ -170,34 +171,26 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}
 	}
 
-	public void processWithReply(Envelope conn, IndigoOperation indigoRequest) {
-		// Throws exception if it receives another type of message
-		AcquireResourcesRequest request = (AcquireResourcesRequest) indigoRequest;
+	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
 		AcquireResourcesReply reply = null;
 		synchronized (thisManager) {
-			beingProcessed.put(request.getClientTs(), request);
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
-			reply = checkAlreadyProcessed(request);
-			// Handle repeated messages
-			if (reply == null) {
-				if (request.getRequests().size() > 0) {
-					reply = manager.acquireResources(request);
-					if (reply.acquiredStatus().equals(AcquireReply.YES)) {
-						replies.put(request.getClientTs(), reply);
-					}
-				} else {
-					reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
-				}
-			} else {
-				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
-			}
 
+			// if (request.getRequests().size() > 0) {
+			reply = manager.acquireResources(request);
+			if (reply.acquiredStatus().equals(AcquireReply.YES)) {
+				replies.put(request.getClientTs(), reply);
+			}
+			// } else {
+			// reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES,
+			// sequencer.clocks.currentClockCopy());
+			// }
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Finished AcquireResourcesRequest " + request + " Reply: "
 						+ reply);
 
-			beingProcessed.remove(request.getClientTs());
+			waitingIndex.remove(request.getClientTs());
 		}
 		conn.reply(reply);
 	}
@@ -214,26 +207,35 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
 			synchronized (thisManager) {
-				if (!incomingRequestsQueue.contains(request) && !beingProcessed.containsKey(request.getClientTs())
-						&& !replies.containsKey(request.getClientTs())) {
-					incomingRequestsQueue.add(request);
-				} else {
+				if (isDuplicate(request)) {
 					if (logger.isLoggable(Level.INFO))
-						logger.info(sequencer.siteId + " Received an already processed message: " + request);
+						logger.info(sequencer.siteId + " Message is already enqueued: " + request);
 					reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
+				} else if (checkAcquireAlreadyProcessed(request) != null) {
+					if (logger.isLoggable(Level.INFO))
+						logger.info(sequencer.siteId + " Received an already processed message: " + request
+								+ " REPLY: " + replies.get(request.getClientTs()));
+					reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
+				} else {
+					incomingRequestsQueue.add(request);
 				}
+
 			}
 		}
 		if (reply != null)
 			conn.reply(reply);
-
 	}
+
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
-		incomingTransfers.add(request);
 		synchronized (thisManager) {
-			if (!duplicateTransfers.contains(request)) {
-				transferRequestsQueue.add(request);
+			// Check if the transference request for the client timestamp
+			// was already satisfied
+			if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
+				// Check if the message is duplicated
+				if (!isDuplicate(request)) {
+					transferRequestsQueue.add(request);
+				}
 			}
 		}
 	}
@@ -241,7 +243,12 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	@Override
 	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
 		synchronized (thisManager) {
-			incomingRequestsQueue.add(request);
+			AcquireResourcesReply reply = replies.get(request);
+			if (reply == null || !reply.isReleased()) {
+				if (!isDuplicate(request)) {
+					incomingRequestsQueue.add(request);
+				}
+			}
 		}
 	}
 
@@ -254,7 +261,15 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	 * Private methods
 	 */
 
-	private AcquireResourcesReply checkAlreadyProcessed(AcquireResourcesRequest request) {
+	// If messages is already enqueued for processing ignore new request
+	private boolean isDuplicate(IndigoOperation request) {
+		if (!waitingIndex.add(request))
+			return true;
+		else
+			return false;
+	}
+
+	private AcquireResourcesReply checkAcquireAlreadyProcessed(AcquireResourcesRequest request) {
 		AcquireResourcesReply reply = replies.get(request.getClientTs());
 
 		if (reply != null && logger.isLoggable(Level.INFO))
@@ -262,6 +277,25 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		if (reply != null)
 			return reply;
+		return null;
+	}
+
+}
+
+class FIFOClassQueue<T> {
+
+	Queue<Queue<T>> orderedByPriority;
+
+	public FIFOClassQueue(Queue<Queue<T>> orderedByPriority) {
+		this.orderedByPriority = orderedByPriority;
+	}
+
+	public synchronized T nextElement() {
+		for (Queue<T> queue : orderedByPriority) {
+			if (!queue.isEmpty()) {
+				return queue.remove();
+			}
+		}
 		return null;
 	}
 
