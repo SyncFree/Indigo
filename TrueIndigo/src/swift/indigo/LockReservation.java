@@ -60,8 +60,6 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 		return other != null && equals((LockReservation) other);
 	}
 
-	// ATTENTION: This assumes there is only two types of resources: locks and
-	// counters
 	@Override
 	public int compareTo(ResourceRequest<ShareableLock> o) {
 		if (o instanceof LockReservation) {
@@ -70,7 +68,7 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 			return cmp != 0 ? cmp : type.ordinal() - other.type.ordinal();
 		} else {
 			// LockReservation has more priority than any other resource type
-			return 1;
+			return -1;
 		}
 
 	}

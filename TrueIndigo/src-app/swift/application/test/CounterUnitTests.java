@@ -1,6 +1,10 @@
 package swift.application.test;
 
 import static org.junit.Assert.assertEquals;
+import static swift.application.test.TestsUtil.compareValue;
+import static swift.application.test.TestsUtil.decrement;
+import static swift.application.test.TestsUtil.getValue;
+import static swift.application.test.TestsUtil.increment;
 import static sys.Context.Networking;
 
 import java.util.LinkedList;
@@ -23,8 +27,6 @@ import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
 
-import static swift.application.test.TestsUtil.*;
-
 public class CounterUnitTests {
 
 	static Indigo stub11, stub12;
@@ -36,7 +38,7 @@ public class CounterUnitTests {
 
 	static String DC_A = "DC_A";
 	static String DC_B = "DC_B";
-	private boolean started;
+	static boolean started;
 
 	@Before
 	public void init1DC() {
@@ -138,11 +140,11 @@ public class CounterUnitTests {
 
 			new Thread(new Runnable() {
 				public void run() {
-					int i = 0;
 					try {
-						for (;; i++) {
+						for (;;) {
 							if (getValue(id, stub) > 0) {
-								decrement(id, 1, stub, DC_A);
+								if (decrement(id, 1, stub, DC_A))
+									sum.incrementAndGet();
 								Thread.sleep(random.nextInt(200));
 							} else {
 								break;
@@ -154,7 +156,6 @@ public class CounterUnitTests {
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} finally {
-						sum.addAndGet(i);
 						sem.release();
 					}
 				}
@@ -209,11 +210,6 @@ public class CounterUnitTests {
 		}).start();
 
 		Thread.sleep(2000);
-	}
-
-	@Test
-	public void simpleTestTransfer() throws SwiftException {
-
 	}
 
 	@After

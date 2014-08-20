@@ -68,10 +68,15 @@ public class CounterReservation implements ResourceRequest<Integer> {
 	@Override
 	public int compareTo(ResourceRequest<Integer> other) {
 		if (other instanceof CounterReservation) {
-			return resourceId.compareTo(((CounterReservation) other).resourceId);
+			int resouceComparison = resourceId.compareTo(((CounterReservation) other).resourceId);
+			if (resouceComparison == 0) {
+				return this.getResource() - other.getResource();
+			} else {
+				return resouceComparison;
+			}
 		} else {
 			// CounterReservation has less priority than any other resource type
-			return -1;
+			return 1;
 		}
 	}
 

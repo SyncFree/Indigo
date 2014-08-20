@@ -176,14 +176,14 @@ public class IndigoMultipleServersCounterTest {
 	@Test
 	public void exhaustRemoteDC10Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
 		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
-		increment(id, 1000, stub1, DC_A);
-
+		increment(id, 100, stub1, DC_A);
+		int NTHREADS = 10;
 		String dc = DC_B;
 
-		Semaphore sem = new Semaphore(10);
-		sem.acquire(10);
+		Semaphore sem = new Semaphore(NTHREADS);
+		sem.acquire(NTHREADS);
 
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < NTHREADS; i++) {
 			final Indigo stub = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36002/" + dc + "/"));
 			new Thread(new Runnable() {
 				public void run() {
@@ -207,7 +207,7 @@ public class IndigoMultipleServersCounterTest {
 				}
 			}).start();
 		}
-		sem.acquire(10);
+		sem.acquire(NTHREADS);
 		compareValue(id, 0, stub1);
 		compareValue(id, 0, stub2);
 	}
@@ -242,11 +242,12 @@ public class IndigoMultipleServersCounterTest {
 
 			new Thread(new Runnable() {
 				public void run() {
-					int i = 0;
 					try {
-						for (;; i++) {
+						for (;;) {
 							if (getValue(id, stub) > 0) {
-								decrement(id, 1, stub, dc);
+								if (decrement(id, 1, stub, dc)) {
+									sum.incrementAndGet();
+								}
 								System.out.println(dc + " decrement");
 								Thread.sleep(random.nextInt(200));
 							} else {
@@ -259,7 +260,6 @@ public class IndigoMultipleServersCounterTest {
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} finally {
-						sum.addAndGet(i);
 						sem.release();
 					}
 				}

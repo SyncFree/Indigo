@@ -39,8 +39,7 @@ public class TransferResourcesRequest extends AcquireResourcesRequest implements
 	}
 
 	public String toString() {
-		return String.format("Transfer request to: %s, TS:%s ----> %s", destinationId, super.clientTs,
-				super.requests.toString());
+		return String.format("Transfer: %s, TS:%s ----> %s", destinationId, super.clientTs, super.requests.toString());
 	}
 
 	public String getDestination() {
@@ -55,5 +54,23 @@ public class TransferResourcesRequest extends AcquireResourcesRequest implements
 	@Override
 	public void deliverTo(ResourceManagerNode node) {
 		node.process(this);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof TransferResourcesRequest) {
+			return this.compareTo((TransferResourcesRequest) other) == 0;
+		} else
+			return false;
+	}
+
+	@Override
+	public int compareTo(IndigoOperation o) {
+		if (o instanceof TransferResourcesRequest) {
+			return super.compareTo((AcquireResourcesRequest) o);
+		} else if (o instanceof AcquireResourcesRequest)
+			return -1;
+		else
+			return 1;
 	}
 }

@@ -51,4 +51,25 @@ public class ReleaseResourcesRequest extends ClientRequest implements IndigoOper
 		node.process(this);
 	}
 
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof ReleaseResourcesRequest) {
+			return this.compareTo((ReleaseResourcesRequest) other) == 0;
+		} else
+			return false;
+	}
+
+	// Release has the HighestPriority
+	@Override
+	public int compareTo(IndigoOperation o) {
+		if (o instanceof ReleaseResourcesRequest) {
+			return clientTs.compareTo(((ReleaseResourcesRequest) o).clientTs);
+		} else
+			return -1;
+	}
+
+	@Override
+	public int hashCode() {
+		return clientTs.hashCode();
+	}
 }
