@@ -3,11 +3,14 @@ package sys.utils;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.utils.Pair;
 
 public class Profiler {
+
+	protected static String DEFAULT_FIELD_SEPARATOR = "\t";
 
 	private static Map<Long, Pair<String, OperationStats>> ops;
 
@@ -25,9 +28,6 @@ public class Profiler {
 
 	public long startOp(String loggerName, String operationName) {
 		long opId = opIdGenerator.getAndIncrement();
-		if (!loggers.containsKey(loggerName)) {
-			loggers.put(loggerName, Logger.getLogger(loggerName));
-		}
 		ops.put(opId, new Pair<>(loggerName, new OperationStats(operationName, System.currentTimeMillis())));
 		return opId;
 	}
@@ -35,14 +35,10 @@ public class Profiler {
 	public void endOp(long opId, String... otherFields) {
 		Pair<String, OperationStats> op = ops.get(opId);
 		op.getSecond().endOperation(System.currentTimeMillis(), otherFields);
-		loggers.get(op.getFirst()).info(op.getSecond().toString());
-	}
-
-	public void printMessage(String loggerName, String message) {
-		if (!loggers.containsKey(loggerName)) {
-			loggers.put(loggerName, Logger.getLogger(loggerName));
+		Logger logger = getLogger(op.getFirst());
+		if (logger.isLoggable(Level.FINEST)) {
+			logger.finest(op.getSecond().toString());
 		}
-		loggers.get(loggerName).info(message);
 	}
 
 	public static Profiler getInstance() {
@@ -51,6 +47,28 @@ public class Profiler {
 		}
 		return instance;
 	}
+
+	public void printHeaderWithCustomFields(String loggerName, String... optionalFields) {
+		String headerString = "OP_NAME" + DEFAULT_FIELD_SEPARATOR + "START_TIME" + DEFAULT_FIELD_SEPARATOR + "END_TIME"
+				+ DEFAULT_FIELD_SEPARATOR + "DURATION";
+
+		if (optionalFields.length > 0) {
+			for (String field : optionalFields) {
+				headerString += DEFAULT_FIELD_SEPARATOR;
+				headerString += field;
+			}
+		}
+		Logger logger = getLogger(loggerName);
+		if (logger.isLoggable(Level.FINEST)) {
+			logger.finest(headerString);
+		}
+	}
+	private Logger getLogger(String loggerName) {
+		if (!loggers.containsKey(loggerName)) {
+			loggers.put(loggerName, Logger.getLogger(loggerName));
+		}
+		return loggers.get(loggerName);
+	}
 }
 
 class OperationStats {
@@ -58,8 +76,6 @@ class OperationStats {
 	private long endTimeMillis;
 	private String operationName;
 	private String[] otherFields;
-
-	private static String DEFAULT_FIELD_SEPARATOR = "\t";
 
 	public OperationStats(String operationName, long startTimeMillis) {
 		super();
@@ -75,17 +91,17 @@ class OperationStats {
 	public String toString() {
 		StringBuilder string = new StringBuilder();
 		string.append(operationName);
-		string.append(DEFAULT_FIELD_SEPARATOR);
+		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 		string.append(startTimeMillis);
-		string.append(DEFAULT_FIELD_SEPARATOR);
+		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 		string.append(endTimeMillis);
-		string.append(DEFAULT_FIELD_SEPARATOR);
+		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 		string.append(endTimeMillis - startTimeMillis);
 		if (otherFields.length > 0) {
-			string.append(DEFAULT_FIELD_SEPARATOR);
+			string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 			string.append(otherFields[0]);
 			for (int i = 1; i < otherFields.length; i++) {
-				string.append(DEFAULT_FIELD_SEPARATOR);
+				string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 				string.append(otherFields[i]);
 			}
 		}

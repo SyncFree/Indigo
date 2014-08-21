@@ -6,6 +6,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import swift.api.CRDT;
@@ -36,10 +39,14 @@ import swift.proto.FetchObjectVersionReply;
 import swift.proto.FetchObjectVersionRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Service;
+import sys.utils.Args;
+import sys.utils.Profiler;
 import sys.utils.Threading;
 
 public class RemoteIndigo implements Indigo {
 	private static Logger Log = Logger.getLogger(RemoteIndigo.class.getName());
+	private static Profiler profiler;
+	private static final String resultsLogName = "RemoteIndigoResults";
 
 	final Endpoint server;
 	final Service stub;
@@ -64,6 +71,35 @@ public class RemoteIndigo implements Indigo {
 		this.stub = Networking.stub();
 		this.stubId = this.stub.localEndpoint().url();
 		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
+		if (profiler == null) {
+			initializeProfiling(resultsLogName);
+		}
+	}
+
+	private void initializeProfiling(String resultsLogName) {
+		profiler = Profiler.getInstance();
+		Logger logger = Logger.getLogger(resultsLogName);
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-site_id", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/remote_indigo_results" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+			} catch (Exception e) {
+				Log.warning("Exception while generating log file");
+				System.exit(0);
+			}
+		}
+		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES", "TIMESTAMP");
 	}
 
 	public TxnHandle getTxnHandle() {
@@ -76,6 +112,7 @@ public class RemoteIndigo implements Indigo {
 
 	@Override
 	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
+		long opId = profiler.startOp(resultsLogName, "beginTxn");
 		Timestamp txnTimestamp = tsSource.generateNew();
 		// while (txnTimestamp.equals(lastTSWithGrantedLocks)) {
 		// Log.warning("Repeated Timestamp " + lastTSWithGrantedLocks);
@@ -88,16 +125,19 @@ public class RemoteIndigo implements Indigo {
 			res.setClientTs(txnTimestamp);
 		}
 
+		int retryCount = 0;
 		for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
 			AcquireResourcesReply reply = stub.request(server, request);
 			if (reply != null && reply.acquiredResources() || resources.size() == 0) {
 				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
+				profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp.toString());
 				// if (resources.size() != 0)
 				// lastTSWithGrantedLocks = txnTimestamp;
 				break;
 			} else if (reply.isImpossible()) {
 				throw new IndigoImpossibleExcpetion();
 			} else {
+				retryCount++;
 				Threading.sleep(delay);
 			}
 		}
