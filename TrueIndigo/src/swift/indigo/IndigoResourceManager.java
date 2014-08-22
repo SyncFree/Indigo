@@ -38,9 +38,6 @@ final public class IndigoResourceManager {
 	final String resourceMgrId;
 	final public static String LOCKS_TABLE = "/indigo/locks";
 
-	// private final Map<Resource<?>, SortedSet<AcquireResourcesRequest>>
-	// pending;
-
 	private final StorageHelper storage;
 	private final IndigoSequencerAndResourceManager sequencer;
 
@@ -55,7 +52,6 @@ final public class IndigoResourceManager {
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 
-		// TODO: ENSURE ORDERING!
 		this.transferQueue = transferQueue;
 		this.sequencer = sequencer;
 		this.resourceMgrId = sequencer.siteId + "-LockManager";
@@ -69,12 +65,6 @@ final public class IndigoResourceManager {
 		this.storage = new StorageHelper(sequencer, surrogate, resourceMgrId, isMaster);
 
 		this.cache = new HashMap<CRDTIdentifier, Resource<?>>();
-		// this.pending = new ConcurrentHashMap<Resource<?>,
-		// SortedSet<AcquireResourcesRequest>>();
-
-		// this.pendingWrites = new HashMap<CRDTIdentifier, Map<Timestamp,
-		// Integer>>();
-
 		logger.info("ENDPOINTS: " + endpoints);
 
 		this.storage.registerType(CounterReservation.class, NonNegativeBoundedCounterAsResource.class);
@@ -106,10 +96,7 @@ final public class IndigoResourceManager {
 					// decrement directly on the soft-state
 
 					try {
-						ConsumableResource<Integer> resource = (ConsumableResource<Integer>) storage.getResource(req_i);
-						int storageInt = resource.getCurrentResource();
-						resource = (ConsumableResource) updateLocalInfo(resource);
-
+						getResourceAndUpdateCache(req_i);
 					} catch (VersionNotFoundException e) {
 						logger.warning("Version exception but continues");
 					}
@@ -133,7 +120,7 @@ final public class IndigoResourceManager {
 							// locks...
 	}
 
-	AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
+	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 
@@ -150,20 +137,13 @@ final public class IndigoResourceManager {
 			Resource resource;
 			for (ResourceRequest<?> req : modifiedRequest.getRequests()) {
 				try {
-					resource = storage.getResource(req);
+					resource = getResourceAndUpdateCache(req);
+					System.out.println(sequencer.siteId + " Resource from storage " + resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("Didn't found requested version, will deny message and continue");
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
 
-				// This code is not actually being called, since the storage
-				// getCRDT operation throws an exception when it reads a value
-				// that does not exists
-				if (resource == null)
-					resource = storage.createResource(req);
-
-				// Updates local storage with the updates read from storage
-				resource = updateLocalInfo(resource);
 				boolean satisfies = resource.checkRequest(sequencer.siteId, req);
 
 				// If a resource cannot be satisfied, free it locally.
@@ -259,21 +239,9 @@ final public class IndigoResourceManager {
 		return new AcquireResourcesReply(impossible ? AcquireReply.IMPOSSIBLE : AcquireReply.NO, snapshot);
 	}
 
-	// void checkPendingRequest(ResourceRequest<?> request) {
-	// SortedSet<AcquireResourcesRequest> pendingReqs = pending.remove(request);
-	// if (pendingReqs != null)
-	// for (AcquireResourcesRequest i : pendingReqs) {
-	// TRANSFER_STATUS result = transferResources(i);
-	// if (logger.isLoggable(Level.INFO))
-	// logger.info("Check Pending: Transfer Resources: " + i + " Result: " +
-	// result);
-	// // TODO: Why stop here?
-	// // if (request.type.isExclusive())
-	// // break;
-	// }
-	// }
-
-	TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
+	// TODO:It seems that it does not block when no transference is executed
+	// It might be due to this transaction
+	protected TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
 		try {
@@ -281,8 +249,7 @@ final public class IndigoResourceManager {
 			boolean updated = false;
 			storage.beginTxn(null);
 			for (ResourceRequest<?> req_i : request.getRequests()) {
-				Resource<?> resource = storage.getResource(req_i);
-				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i, resource);
+				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i);
 				if (transferred.equals(TRANSFER_STATUS.FAIL)) {
 					allSuccess = false;
 				}
@@ -308,46 +275,95 @@ final public class IndigoResourceManager {
 
 		} catch (SwiftException e) {
 			e.printStackTrace();
+		} catch (IncompatibleTypeException e) {
+			e.printStackTrace();
 		} finally {
 			// request.unlockStuff();
 		}
 		return TRANSFER_STATUS.FAIL;
 	}
 
-	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, Resource<T> resource)
-			throws SwiftException {
+	private Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request) throws SwiftException,
+			IncompatibleTypeException {
+		Resource<?> resource = storage.getResource(request);
+		// Updates local storage with the updates read from storage
+		resource = updateLocalInfo(resource);
+		return resource;
+	}
+
+	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request) throws SwiftException,
+			IncompatibleTypeException {
+		Resource resource = getResourceAndUpdateCache(request);
 		TRANSFER_STATUS result = TRANSFER_STATUS.FAIL;
-		// If requests can be satisfied with the local state, do not transfer...
-		// update is on the way
+		// If requests can be satisfied at the caller according the local
+		// state, do not transfer... update is on the way
+		String requestMsg = "";
 		if (!resource.checkRequest(request.getRequesterId(), (ResourceRequest<T>) request)) {
 			ResourceRequest request_policy = transferPolicy(request, resource);
 			if (request_policy != null) {
+
+				if (request_policy.compareTo(request) == 0) {
+					requestMsg += "No transformation on the request ";
+				} else {
+					requestMsg += "Original request " + request + "; Transformed request: " + request_policy + " ";
+				}
+
 				// request.lockStuff();
-				resource = storage.getResource(request);
 				TRANSFER_STATUS transferred = resource.transferOwnership(sequencer.siteId, request.getRequesterId(),
 						request_policy);
 				// request.unlockStuff();
 
-				if (!request.equals(request_policy) && transferred.equals(TRANSFER_STATUS.SUCCESS)) {
-					result = TRANSFER_STATUS.PARTIAL;
-				} else if (transferred.equals(TRANSFER_STATUS.SUCCESS)) {
+				// If the request from the policy is less than the original, is
+				// just a partial request
+				if (request_policy.compareTo(request) >= 0 && transferred.equals(TRANSFER_STATUS.SUCCESS)) {
 					result = TRANSFER_STATUS.SUCCESS;
+				} else if (transferred.equals(TRANSFER_STATUS.SUCCESS)) {
+					result = TRANSFER_STATUS.PARTIAL;
 				}
+
+				// Transference failed - release the lock if it is not a single
+				// owner.
+				// This is implemented for locks, for counters it does not
+				// release any
+				// share.
+
+				if (result.equals(TRANSFER_STATUS.FAIL)) {
+					if (!resource.isSingleOwner(sequencer.siteId)) {
+						resource.releaseShare(sequencer.siteId);
+					}
+				}
+
+			} else {
+				requestMsg += "No resources available ";
 			}
 		}
-		// Transference failed - release the lock if it is not a single owner.
-		// Do this if multiple requests from the same source arrive... This may
-		// need to be improved... maybe improve duplicates filtering??
-		if (result.equals(TRANSFER_STATUS.FAIL)) {
-			if (!resource.isSingleOwner(sequencer.siteId)) {
-				resource.releaseShare(sequencer.siteId);
-			}
-		}
+
+		System.out.println(sequencer.siteId + " " + requestMsg + " " + result + " " + resource);
+		logger.info(requestMsg + " " + result);
 		return result;
 	}
-	// Checks what requests will be transferred
-	// TODO: Provisioning for counters
+	// For Locks retrieve the same request
+	// For counters retrieves half of the available resources. Returns null if
+	// is impossible to transfer anything
 	private ResourceRequest<?> transferPolicy(ResourceRequest<?> request, Resource<?> resource) {
+		if (request instanceof CounterReservation) {
+			CounterReservation counterReq = (CounterReservation) request;
+			int availableLocally = (int) resource.getCurrentResource();
+			int requested = counterReq.getResource();
+			// If request can be satisfied retrieve max(request ,
+			// half-permission)
+			if (((BoundedCounterWithLocalEscrow) resource).checkRequest(sequencer.siteId, counterReq))
+				request = new CounterReservation(request.getRequesterId(), request.getResourceId(), Math.max(
+						availableLocally / 2, requested));
+			else {
+				// If cannot be satisfied, transfer half of the available
+				if (availableLocally / 2 > 0)
+					request = new CounterReservation(request.getRequesterId(), request.getResourceId(),
+							availableLocally / 2);
+				else
+					request = null;
+			}
+		}
 		// All requests
 		return request;
 	}
