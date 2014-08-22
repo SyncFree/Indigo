@@ -214,7 +214,12 @@ public class IndigoMultipleServersCounterTest {
 
 	@Test
 	public void decrementCycle1Threads2DC() throws SwiftException, InterruptedException, BrokenBarrierException {
-		decrementCycleNThreads2DC(20, 1);
+		decrementCycleNThreads2DC(200, 1);
+	}
+
+	@Test
+	public void decrementCycle10Threads2DC() throws SwiftException, InterruptedException, BrokenBarrierException {
+		decrementCycleNThreads2DC(1000, 10);
 	}
 
 	public void decrementCycleNThreads2DC(int initValue, int nThreadsByDC) throws SwiftException, InterruptedException,

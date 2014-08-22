@@ -102,6 +102,22 @@ public class TestMessageOrdering {
 	}
 
 	@Test
+	public void testCounterCounterOrdering() {
+		IncrementalTimestampGenerator tsGenerator = new IncrementalTimestampGenerator("SITE");
+		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
+		Collection<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
+
+		resources1.add(new CounterReservation(new CRDTIdentifier(), 10));
+		resources2.add(new CounterReservation(new CRDTIdentifier(), 5));
+
+		Timestamp msg1TS = tsGenerator.generateNew();
+		AcquireResourcesRequest msg1 = new AcquireResourcesRequest("ID_A", msg1TS, resources1);
+		AcquireResourcesRequest msg2 = new AcquireResourcesRequest("ID_A", msg1TS, resources2);
+
+		assertEquals(true, msg2.compareTo(msg1) < 0);
+	}
+
+	@Test
 	public void testLockLockOrdering() {
 		IncrementalTimestampGenerator tsGenerator = new IncrementalTimestampGenerator("SITE");
 		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
