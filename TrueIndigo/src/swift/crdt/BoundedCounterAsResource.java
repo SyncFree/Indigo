@@ -158,4 +158,9 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 		return false;
 	}
 
+	@Override
+	public String toString() {
+		return counter.toString();
+	}
+
 }

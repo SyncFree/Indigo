@@ -174,7 +174,7 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 
 	@Override
 	public String toString() {
-		return getCurrentResource() + " ACTIVE: " + activeRequests;
+		return getCurrentResource() + " ACTIVE: " + activeRequests + " " + super.toString();
 	}
 
 	public String getActiveresources() {

@@ -64,4 +64,8 @@ public abstract class ResourceDecorator<V extends ResourceDecorator<V, T>, T> im
 	public boolean releaseShare(String ownerId) {
 		return originalResource.releaseShare(ownerId);
 	}
+
+	public String toString() {
+		return originalResource.toString();
+	}
 }

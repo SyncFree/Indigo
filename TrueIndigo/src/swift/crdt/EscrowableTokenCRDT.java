@@ -236,8 +236,9 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	}
 
 	/**
-	 * If node is the owner with lowest index ordering it does not release its
-	 * share to make sure there is one owner if everyone tries to release
+	 * Releases the token of ownerId, by transferring it to the lowest index
+	 * node. If node is the lowest index ordering it does not release its share
+	 * to make sure there is one owner if everyone tries to release
 	 */
 	@Override
 	public boolean releaseShare(String ownerId) {
