@@ -34,7 +34,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	// Incoming requests
 	private Queue<IndigoOperation> incomingRequestsQueue;
 
-	// Outgoing requests
 	private transient PriorityQueue<TransferResourcesRequest> transferRequestsQueue;
 
 	private boolean active;

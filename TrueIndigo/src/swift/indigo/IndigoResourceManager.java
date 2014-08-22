@@ -78,7 +78,6 @@ final public class IndigoResourceManager {
 		boolean ok = true;
 		try {
 			// alr.lockStuff();
-			int cacheInt;
 			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
 				if (req_i instanceof LockReservation) {
 					Resource<ShareableLock> resource = (Resource<ShareableLock>) cache.get(req_i.getResourceId());
@@ -87,7 +86,6 @@ final public class IndigoResourceManager {
 				if (req_i instanceof CounterReservation) {
 					ConsumableResource<Integer> cachedResource = (ConsumableResource<Integer>) cache.get(req_i
 							.getResourceId());
-					cacheInt = cachedResource.getCurrentResource();
 					((BoundedCounterWithLocalEscrow) cachedResource).release(sequencer.siteId, req_i);
 
 					// TODO: Warning this reads from storage, every time

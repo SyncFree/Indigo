@@ -176,7 +176,7 @@ public class IndigoMultipleServersCounterTest {
 	@Test
 	public void exhaustRemoteDC10Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
 		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
-		increment(id, 100, stub1, DC_A);
+		increment(id, 1000, stub1, DC_A);
 		int NTHREADS = 10;
 		String dc = DC_B;
 

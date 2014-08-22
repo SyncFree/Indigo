@@ -18,7 +18,7 @@ import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.RemoteIndigo;
 
-public class IndigoMultipleServersTest {
+public class IndigoMultipleServersLockTest {
 
 	static boolean started;
 	private static Indigo stub1;
