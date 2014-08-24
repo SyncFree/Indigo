@@ -19,10 +19,6 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 	LockReservation() {
 	}
 
-	public LockReservation(String resourceId, ShareableLock type) {
-		this("app", new CRDTIdentifier("/locks/", resourceId), type);
-	}
-
 	public LockReservation(String requesterId, CRDTIdentifier resourceId, ShareableLock type) {
 		this.requesterId = requesterId;
 		this.resourceId = resourceId;

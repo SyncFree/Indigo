@@ -19,7 +19,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import swift.api.CRDTIdentifier;
-import swift.crdt.BoundedCounterAsResource;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
@@ -62,11 +61,7 @@ public class CounterUnitTests {
 	public void initKey(Indigo stub, String siteId) throws SwiftException {
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 		resources.add(new CounterReservation(siteId, new CRDTIdentifier(table, "" + key), 0));
-
 		stub.beginTxn(resources);
-		stub.endTxn();
-		stub.beginTxn();
-		stub.get(new CRDTIdentifier(table, "" + key), false, BoundedCounterAsResource.class);
 		stub.endTxn();
 
 	}

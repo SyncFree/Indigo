@@ -1,6 +1,5 @@
 package swift.indigo;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 import swift.api.CRDT;
@@ -16,10 +15,6 @@ public interface Indigo {
 	public void beginTxn() throws SwiftException;
 
 	public void beginTxn(Collection<ResourceRequest<?>> resources) throws SwiftException;
-
-	default public void beginTxn(ResourceRequest<?>... resources) throws SwiftException {
-		this.beginTxn(Arrays.asList(resources));
-	}
 
 	public void endTxn();
 

@@ -65,9 +65,6 @@ public class IndigoMultipleServersCounterTest {
 		resources.add(new CounterReservation(owner, id, 0));
 		stub.beginTxn(resources);
 		stub.endTxn();
-		stub.beginTxn();
-		stub.endTxn();
-
 	}
 
 	public void increment(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {

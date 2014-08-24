@@ -53,8 +53,6 @@ public class IndigoMultipleServersLockTest {
 		resources.add(new LockReservation(owner, id, ShareableLock.ALLOW));
 		stub.beginTxn(resources);
 		stub.endTxn();
-		stub.beginTxn();
-		stub.endTxn();
 	}
 
 	@Test

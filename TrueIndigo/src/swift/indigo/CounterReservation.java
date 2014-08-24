@@ -19,10 +19,6 @@ public class CounterReservation implements ResourceRequest<Integer> {
 
 	}
 
-	public CounterReservation(CRDTIdentifier id, int amount) {
-		this("app", id, amount);
-	}
-
 	public CounterReservation(String requesterId, CRDTIdentifier id, int amount) {
 		this.requesterId = requesterId;
 		this.resourceId = id;

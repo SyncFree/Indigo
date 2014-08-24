@@ -57,8 +57,8 @@ public class TestMessageOrdering {
 		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
 		Collection<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
 
-		resources1.add(new CounterReservation(new CRDTIdentifier(), 10));
-		resources2.add(new CounterReservation(new CRDTIdentifier(), 10));
+		resources1.add(new CounterReservation("", new CRDTIdentifier(), 10));
+		resources2.add(new CounterReservation("", new CRDTIdentifier(), 10));
 
 		Timestamp msg1TS = tsGenerator.generateNew();
 		Timestamp msg2TS = tsGenerator.generateNew();
@@ -74,8 +74,8 @@ public class TestMessageOrdering {
 		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
 		Collection<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
 
-		resources1.add(new CounterReservation(new CRDTIdentifier(), 5));
-		resources2.add(new CounterReservation(new CRDTIdentifier(), 10));
+		resources1.add(new CounterReservation("", new CRDTIdentifier(), 5));
+		resources2.add(new CounterReservation("", new CRDTIdentifier(), 10));
 
 		Timestamp msg1TS = tsGenerator.generateNew();
 		Timestamp msg2TS = tsGenerator.generateNew();
@@ -91,7 +91,7 @@ public class TestMessageOrdering {
 		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
 		Collection<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
 
-		resources1.add(new CounterReservation(new CRDTIdentifier(), 5));
+		resources1.add(new CounterReservation("", new CRDTIdentifier(), 5));
 		resources2.add(new LockReservation("R2", new CRDTIdentifier(), ShareableLock.ALLOW));
 
 		Timestamp msg1TS = tsGenerator.generateNew();
@@ -107,8 +107,8 @@ public class TestMessageOrdering {
 		Collection<ResourceRequest<?>> resources1 = new LinkedList<ResourceRequest<?>>();
 		Collection<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
 
-		resources1.add(new CounterReservation(new CRDTIdentifier(), 10));
-		resources2.add(new CounterReservation(new CRDTIdentifier(), 5));
+		resources1.add(new CounterReservation("", new CRDTIdentifier(), 10));
+		resources2.add(new CounterReservation("", new CRDTIdentifier(), 5));
 
 		Timestamp msg1TS = tsGenerator.generateNew();
 		AcquireResourcesRequest msg1 = new AcquireResourcesRequest("ID_A", msg1TS, resources1);

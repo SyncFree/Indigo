@@ -97,7 +97,7 @@ class OperationStats {
 		string.append(endTimeMillis);
 		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 		string.append(endTimeMillis - startTimeMillis);
-		if (otherFields.length > 0) {
+		if (otherFields != null && otherFields.length > 0) {
 			string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 			string.append(otherFields[0]);
 			for (int i = 1; i < otherFields.length; i++) {
