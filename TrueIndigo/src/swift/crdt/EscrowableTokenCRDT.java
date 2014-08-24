@@ -52,7 +52,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 	public EscrowableTokenCRDT(CRDTIdentifier id) {
 		super(id);
-		this.type = ShareableLock.ALLOW;
+		this.type = ShareableLock.getDefault();
 		this.owners = new HashMap<String, Set<TripleTimestamp>>();
 	}
 
