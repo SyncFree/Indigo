@@ -60,4 +60,12 @@ public class NamingScheme {
 		return new CRDTIdentifier("tournament_counter", tournamentName);
 	}
 
+	public static CRDTIdentifier forTournamentLock(String tournamentName) {
+		return new CRDTIdentifier("tournament_lock", tournamentName);
+	}
+
+	public static CRDTIdentifier forPlayerLock(String playerName) {
+		return new CRDTIdentifier("player_lock", playerName);
+	}
+
 }

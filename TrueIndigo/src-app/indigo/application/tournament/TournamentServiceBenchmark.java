@@ -17,6 +17,7 @@
 package indigo.application.tournament;
 
 import static java.lang.System.exit;
+import static sys.Context.Networking;
 
 import java.util.Arrays;
 import java.util.List;
@@ -26,9 +27,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import swift.indigo.Defaults;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoAppServer;
 import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoServer;
 import swift.indigo.remote.RemoteIndigo;
 import sys.shepard.Shepard;
 import sys.utils.Args;
@@ -51,10 +53,10 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 	public void initDB(String[] args) {
 
-		final Indigo stub = RemoteIndigo.getInstance(Args.valueOf(args, "-server", "localhost"));
-		final String siteId = Args.valueOf(args, "-name", "X0");
+		final String siteId = Args.valueOf(args, "-name", "X");
+		final String surrogate = Args.valueOf(args, "-server", "localhost");
 
-		String sitesArg = Args.valueOf(args, "-partition", "0/1");
+		String sitesArg = Args.valueOf(args, "-partition", "1/1");
 		int numberOfSites = Integer.valueOf(sitesArg.split("/")[1]);
 
 		List<String> players = super.populateWorkloadFromConfig(numberOfSites);
@@ -69,6 +71,8 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 			final List<String> partition = players.subList(lo, Math.min(hi, players.size()));
 			threadPool.execute(new Runnable() {
 				public void run() {
+					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate,
+							Defaults.REMOTE_INDIGO_URL));
 					TournamentServiceBenchmark.super.initTournaments(stub, partition, counter, numOps, siteId);
 				}
 			});
@@ -82,13 +86,13 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 		// IO.redirect("stdout.txt", "stderr.txt");
 
-		final String siteId = Args.valueOf(args, "-name", "X0");
+		final String siteId = Args.valueOf(args, "-name", "X");
 		final String server = Args.valueOf(args, "-server", "localhost");
 
 		Log.info(IP.localHostname() + "/ starting...");
 
 		int concurrentSessions = Args.valueOf(args, "-threads", 1);
-		String partitions = Args.valueOf(args, "-partition", "0/1");
+		String partitions = Args.valueOf(args, "-partition", "1/1");
 		int site = Integer.valueOf(partitions.split("/")[0]);
 		int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
@@ -110,7 +114,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 		// Kick off all sessions, throughput is limited by
 		// concurrentSessions.
-		final ExecutorService threadPool = Executors.newFixedThreadPool(concurrentSessions, Threading.factory("App"));
+		final ExecutorService threadPool = Executors.newFixedThreadPool(concurrentSessions, Threading.factory("X"));
 
 		Log.info("Spawning session threads.");
 		for (int i = 0; i < concurrentSessions; i++) {
@@ -122,9 +126,9 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 					// Randomize startup to avoid clients running all at the
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(new Random().nextInt(1000));
-					Indigo stub = RemoteIndigo.getInstance(server);
-					TournamentServiceOps serviceClient = new TournamentServiceOps(stub, siteId);
-					TournamentServiceBenchmark.super.runClientSession(serviceClient, sessionId, commands, false);
+					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
+					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId),
+							sessionId, commands, false);
 				}
 			});
 		}
@@ -142,10 +146,10 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		TournamentServiceBenchmark instance = new TournamentServiceBenchmark();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X0"});
-			IndigoAppServer.main(new String[]{"localhost"});
+			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X"});
+			IndigoServer.main(new String[]{"-name", "X"});
 
-			args = new String[]{"-server", "localhost", "-name", "X0"};
+			args = new String[]{"-server", "localhost", "-name", "X", "-threads", "1"};
 
 			instance.initDB(args);
 			instance.doBenchmark(args);

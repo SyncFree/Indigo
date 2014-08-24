@@ -116,7 +116,6 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 					requestType.isExclusive());
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
-			Log.info("GAVE EXCLUSIVE OWNERSHIP TO: " + requesterId + "NOW: " + this);
 			return TRANSFER_STATUS.SUCCESS;
 		}
 

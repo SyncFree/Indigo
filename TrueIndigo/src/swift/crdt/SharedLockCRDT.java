@@ -55,7 +55,8 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
 		this.owners = new HashMap<String, Set<TripleTimestamp>>();
 	}
 
-	public SharedLockCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LockType type, Map<String, Set<TripleTimestamp>> owners) {
+	public SharedLockCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LockType type,
+			Map<String, Set<TripleTimestamp>> owners) {
 		super(id, txn, clock);
 		this.type = type;
 		this.owners = owners;
@@ -105,13 +106,14 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
 	}
 
 	public boolean updateOwnership(String ownerId, String requesterId, LockType requestType) {
-		Log.info(String.format("ownerId=%s requesterId=%s, requestType=%s, this=%s, canMudate=%s, canUpdate=%s", ownerId, requesterId, requestType, this, canMutateLock(ownerId), canUpdateOwnership(ownerId)));
+		Log.info(String.format("ownerId=%s requesterId=%s, requestType=%s, this=%s, canMudate=%s, canUpdate=%s",
+				ownerId, requesterId, requestType, this, canMutateLock(ownerId), canUpdateOwnership(ownerId)));
 
 		if (canMutateLock(ownerId)) {
-			SharedLockUpdate op = new SharedLockUpdate(ownerId, requesterId, requestType, nextTimestamp(), requestType.isExclusive());
+			SharedLockUpdate op = new SharedLockUpdate(ownerId, requesterId, requestType, nextTimestamp(),
+					requestType.isExclusive());
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
-			Log.info("GAVE EXCLUSIVE OWNERSHIP TO: " + requesterId + "NOW: " + this);
 			return true;
 		}
 
