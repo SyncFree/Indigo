@@ -25,7 +25,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import swift.crdt.AddWinsSetCRDT;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
 import swift.utils.Pair;
@@ -210,14 +209,14 @@ public class TournamentServiceApp {
 				String[] toks = line.split(";");
 				String[] tournament = toks[0].split("_");
 				int tournamentSite = Integer.parseInt(tournament[0]);
-				AddWinsSetCRDT<String> tournamentSet = client.addTournament(tournamentSite, tournament[1], maxPlayers);
+				client.addTournament(tournamentSite, tournament[1], maxPlayers);
 				String[] players = new String[toks.length - 1];
 				int playerSite = Integer.parseInt(toks[1].split("_")[0]);
 				for (int i = 1; i < toks.length; i++) {
 					String[] playerToks = toks[i].split("_");
 					players[i - 1] = playerToks[1];
 				}
-				client.addNewPlayersToTournament(players, playerSite, tournament[1], tournamentSet);
+				client.addNewPlayersToTournament(players, playerSite, tournament[1]);
 			}
 		} catch (Exception e1) {
 			e1.printStackTrace();
