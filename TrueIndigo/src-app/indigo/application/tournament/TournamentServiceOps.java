@@ -111,15 +111,17 @@ public class TournamentServiceOps {
 	protected void addNewPlayersToTournament(final String[] playerNames, final int tournamentSite,
 			final String tournamentName) throws SwiftException {
 		List<ResourceRequest<?>> resources = new LinkedList<>();
+
+		// If site is -1, player already exists in other site (TODO: check this)
 		if (tournamentSite != -1) {
 			for (String playerName : playerNames) {
 				resources.add(new LockReservation(siteId, NamingScheme.forPlayerLock(playerName), ShareableLock
 						.getDefault()));
 			}
-			stub.beginTxn(resources);
-			stub.endTxn();
+
 		}
-		stub.beginTxn();
+		stub.beginTxn(resources);
+
 		for (String playerName : playerNames) {
 			_addPlayer(tournamentSite, playerName);
 			AddWinsSetCRDT<String> tournament = (AddWinsSetCRDT<String>) stub.get(
@@ -136,8 +138,6 @@ public class TournamentServiceOps {
 		List<ResourceRequest<?>> resources = new LinkedList<>();
 		resources.add(new LockReservation(siteId, NamingScheme.forPlayerLock(playerName), ShareableLock.getDefault()));
 		stub.beginTxn(resources);
-		stub.endTxn();
-		stub.beginTxn();
 		_addPlayer(site, playerName);
 		stub.endTxn();
 	}
@@ -199,9 +199,6 @@ public class TournamentServiceOps {
 				.getDefault()));
 		resources.add(new CounterReservation(siteId, NamingScheme.forTournamentSize(tournamentName), 0));
 		stub.beginTxn(resources);
-		stub.endTxn();
-
-		stub.beginTxn();
 		_addTournament(tournamentSite, tournamentName, maxSize);
 		stub.endTxn();
 	}
@@ -209,12 +206,9 @@ public class TournamentServiceOps {
 	private void _addTournament(final int tournamentSite, final String tournamentName, final int maxSize)
 			throws SwiftException {
 		try {
-
 			AddWinsSetCRDT<String> tournamnetIndex = (AddWinsSetCRDT<String>) stub.get(
 					NamingScheme.forTournamentIndex(tournamentSite), true, AddWinsSetCRDT.class);
-
 			stub.get(NamingScheme.forTournament(tournamentName), true, AddWinsSetCRDT.class);
-
 			BoundedCounterAsResource tournamentCounter = stub.get(NamingScheme.forTournamentSize(tournamentName),
 					false, BoundedCounterAsResource.class);
 			tournamentCounter.increment(maxSize, siteId);

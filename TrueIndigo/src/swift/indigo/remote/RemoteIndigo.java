@@ -19,6 +19,7 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.ManagedCRDT;
 import swift.crdt.core.TxnStatus;
 import swift.exceptions.NetworkException;
@@ -175,8 +176,14 @@ public class RemoteIndigo implements Indigo {
 			this.withLocks = withLocks;
 			this.timestamp = reply.timestamp();
 
-			for (CRDTObjectUpdatesGroup<?> i : reply.operations())
+			for (CRDTObjectUpdatesGroup<?> i : reply.operations()) {
+				if (!cache.containsKey(i.getTargetUID())) {
+					ManagedCRDT crdt = new ManagedCRDT(i.getTargetUID(), i.getCreationState(), snapshot, false);
+					crdt.execute(i, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+					cache.put(i.getTargetUID(), crdt.getLatestVersion(this));
+				}
 				super.ops.put(i.getTargetUID(), i);
+			}
 
 			this.serial = reply.serial();
 		}

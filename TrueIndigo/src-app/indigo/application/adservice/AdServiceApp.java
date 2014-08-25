@@ -24,7 +24,6 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
 import sys.utils.Progress;
@@ -35,165 +34,148 @@ import sys.utils.Threading;
  * Executing IndigoAdService operations.
  */
 public class AdServiceApp {
-    private static Logger Log = Logger.getLogger(AdServiceApp.class.getName());
+	private static Logger Log = Logger.getLogger(AdServiceApp.class.getName());
 
-    protected int thinkTime;
-    protected int randomOps;
+	protected int thinkTime;
+	protected int randomOps;
 
-    protected PrintStream bufferedOutput;
+	protected PrintStream bufferedOutput;
 
-    private Properties props;
-    protected AtomicInteger commandsDone = new AtomicInteger(0);
-    protected AtomicInteger totalCommands = new AtomicInteger(0);
+	private Properties props;
+	protected AtomicInteger commandsDone = new AtomicInteger(0);
+	protected AtomicInteger totalCommands = new AtomicInteger(0);
 
-    int numAds;
-    int numCopies;
-    int maxViewCountAd;
-    int maxViewCountAdCopy;
-    boolean onlyGlobal;
+	int numAds;
+	int numCopies;
+	int maxViewCountAd;
+	int maxViewCountAdCopy;
+	boolean onlyGlobal;
 
-    public List<String> populateWorkloadFromConfig() {
+	public List<String> populateWorkloadFromConfig() {
 
-        bufferedOutput = new PrintStream(System.out, false);
+		bufferedOutput = new PrintStream(System.out, false);
 
-        props = Props.parseFile("indigo-adservice", bufferedOutput, "indigo-adservice-test.props");
+		props = Props.parseFile("indigo-adservice", bufferedOutput, "indigo-adservice-test.props");
 
-        numAds = Props.intValue(props, "adservice.numAds", 5);
-        numCopies = Props.intValue(props, "adservice.numCopies", 100);
-        maxViewCountAd = Props.intValue(props, "adservice.maxViewCountAd", 1000);
-        maxViewCountAdCopy = Props.intValue(props, "adservice.maxViewCountAdCopy", 1000);
-        randomOps = Props.intValue(props, "adservice.randomOps", 1);
-        thinkTime = Props.intValue(props, "adservice.thinkTime", 1000);
-        onlyGlobal = Props.boolValue(props, "adservice.onlyGlobal", true);
+		numAds = Props.intValue(props, "adservice.numAds", 5);
+		numCopies = Props.intValue(props, "adservice.numCopies", 100);
+		maxViewCountAd = Props.intValue(props, "adservice.maxViewCountAd", 1000);
+		maxViewCountAdCopy = Props.intValue(props, "adservice.maxViewCountAdCopy", 1000);
+		randomOps = Props.intValue(props, "adservice.randomOps", 1);
+		thinkTime = Props.intValue(props, "adservice.thinkTime", 1000);
+		onlyGlobal = Props.boolValue(props, "adservice.onlyGlobal", true);
 
-        return Workload.populate(numAds, numCopies, maxViewCountAd, maxViewCountAdCopy);
-    }
+		return Workload.populate(numAds, numCopies, maxViewCountAd, maxViewCountAdCopy);
+	}
 
-    public Workload getWorkloadFromConfig(int site, int numberOfSites) {
-        if (props == null)
-            populateWorkloadFromConfig();
+	public Workload getWorkloadFromConfig(int site, int numberOfSites) {
+		if (props == null)
+			populateWorkloadFromConfig();
 
-        return Workload.doMixed(site, randomOps, numberOfSites);
-    }
+		return Workload.doMixed(site, randomOps, numberOfSites);
+	}
 
-    void runClientSession(AdServiceOps serviceClient, final int sessionId, final Workload commands, boolean loop4Ever) {
+	void runClientSession(AdServiceOps serviceClient, final int sessionId, final Workload commands, boolean loop4Ever) {
 
-        totalCommands.addAndGet(commands.size());
-        final long sessionStartTime = System.currentTimeMillis();
-        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
-        bufferedOutput.println(initSessionLog);
-        if (sessionId == 0)
-            bufferedOutput.println("; sessionId,responseCode,copyValue,globalValue,execTime,endTime");
-        do
-            for (String cmdLine : commands) {
-                try {
-                    long txnStartTime = System.currentTimeMillis();
-                    Results res = runCommandLine(sessionId, serviceClient, cmdLine);
-                    res.setStartTime(txnStartTime).setSession(sessionId).logTo(bufferedOutput);
-                    Threading.sleep(thinkTime);
-                    commandsDone.incrementAndGet();
-                } catch (Exception x) {
-                    x.printStackTrace();
-                }
-            }
-        while (loop4Ever);
+		totalCommands.addAndGet(commands.size());
+		final long sessionStartTime = System.currentTimeMillis();
+		final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
+		bufferedOutput.println(initSessionLog);
+		if (sessionId == 0)
+			bufferedOutput.println("; sessionId,responseCode,copyValue,globalValue,execTime,endTime");
+		do
+			for (String cmdLine : commands) {
+				try {
+					long txnStartTime = System.currentTimeMillis();
+					Results res = runCommandLine(sessionId, serviceClient, cmdLine);
+					res.setStartTime(txnStartTime).setSession(sessionId).logTo(bufferedOutput);
+					Threading.sleep(thinkTime);
+					commandsDone.incrementAndGet();
+				} catch (Exception x) {
+					x.printStackTrace();
+				}
+			}
+		while (loop4Ever);
 
-        final long now = System.currentTimeMillis();
-        final long sessionExecTime = now - sessionStartTime;
-        bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
-        bufferedOutput.flush();
-    }
+		final long now = System.currentTimeMillis();
+		final long sessionExecTime = now - sessionStartTime;
+		bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
+		bufferedOutput.flush();
+	}
 
-    public Results runCommandLine(int sessionId, AdServiceOps adServiceClient, String cmdLine) {
-        String[] toks = cmdLine.split(";");
-        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
-        Results result = null;
-        switch (cmd) {
-        case VIEW_AD:
-            if (toks.length == 3) {
-                result = adServiceClient.viewAd(Integer.parseInt(toks[1]), Integer.parseInt(toks[2]), onlyGlobal);
-                break;
-            }
-        default:
-            Log.warning("Can't parse command line :" + cmdLine);
-            Log.warning("Exiting...");
-            System.exit(1);
-        }
-        return result;
-    }
+	public Results runCommandLine(int sessionId, AdServiceOps adServiceClient, String cmdLine) {
+		String[] toks = cmdLine.split(";");
+		final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+		Results result = null;
+		switch (cmd) {
+			case VIEW_AD :
+				if (toks.length == 3) {
+					result = adServiceClient.viewAd(Integer.parseInt(toks[1]), Integer.parseInt(toks[2]), onlyGlobal);
+					break;
+				}
+			default :
+				Log.warning("Can't parse command line :" + cmdLine);
+				Log.warning("Exiting...");
+				System.exit(1);
+		}
+		return result;
+	}
 
-    String progressMsg = "";
+	String progressMsg = "";
 
-    // Adds a set of ads to the system
-    public void initAds(Indigo stub, final List<String> ads, int numCopies, AtomicInteger counter, int total,
-            String siteId) {
-        try {
-            AdServiceOps client = new AdServiceOps(stub, siteId);
+	// Adds a set of ads to the system
+	public void initAds(Indigo stub, final List<String> ads, int numCopies, AtomicInteger counter, int total,
+			String siteId) {
+		try {
+			AdServiceOps client = new AdServiceOps(stub, siteId);
 
-            Collection<ResourceRequest<?>> adRequests = new LinkedList<ResourceRequest<?>>();
+			Collection<ResourceRequest<?>> adRequests = new LinkedList<ResourceRequest<?>>();
 
-            // Initialization is done manually... it could be done automatically
-            // through swiftcloud.
-            for (String ad : ads) {
-                String adname = ad.split(";")[1];
-                if (!ad.contains("_")) {
-                    adRequests.add(new CounterReservation(siteId, NamingScheme.forAd(adname), 0));
-                } else {
-                    adRequests.add(new CounterReservation(siteId, NamingScheme.forAdCopy(adname), 0));
-                }
+			int txnSize = 0;
+			// Create ADs
+			List<String> adsData = ads;
+			int copies = numCopies;
+			for (String line : adsData) {
+				if (copies == numCopies) {
+					client.addAd(line.split(";")[1]);
+					copies = 0;
+				} else {
+					String[] args = line.split(";");
+					client.addAdCopy(args[1]);
+					copies++;
+				}
 
-            }
+				if (txnSize >= 100) {
+					stub.endTxn();
+					stub.beginTxn();
+					txnSize = 0;
+				} else {
+					txnSize++;
+				}
+			}
+			System.err.printf("\rDone: %s", Progress.percentage(counter.incrementAndGet(), total));
+			stub.beginTxn();
+			for (String line : adsData) {
+				String[] lineSplit = line.split(";");
+				if (copies == numCopies) {
+					client.setAdInitialValue(lineSplit[1], Integer.parseInt(lineSplit[3]));
+					copies = 0;
+				} else {
+					client.setAdCopyInitialValue(lineSplit[1], Integer.parseInt(lineSplit[3]));
+					copies++;
+				}
 
-            stub.beginTxn(adRequests);
-            stub.endTxn();
-
-            stub.beginTxn();
-            int txnSize = 0;
-            // Create ADs
-            List<String> adsData = ads;
-            int copies = numCopies;
-            for (String line : adsData) {
-                if (copies == numCopies) {
-                    client.addAd(line.split(";")[1]);
-                    copies = 0;
-                } else {
-                    String[] args = line.split(";");
-                    client.addAdCopy(args[1], Integer.parseInt(args[1].split("_")[0]));
-                    copies++;
-                }
-
-                if (txnSize >= 100) {
-                    stub.endTxn();
-                    stub.beginTxn();
-                    txnSize = 0;
-                } else {
-                    txnSize++;
-                }
-            }
-            stub.endTxn();
-            System.err.printf("\rDone: %s", Progress.percentage(counter.incrementAndGet(), total));
-            stub.beginTxn();
-            for (String line : adsData) {
-                String[] lineSplit = line.split(";");
-                if (copies == numCopies) {
-                    client.setAdInitialValue(lineSplit[1], Integer.parseInt(lineSplit[3]));
-                    copies = 0;
-                } else {
-                    client.setAdCopyInitialValue(lineSplit[1], Integer.parseInt(lineSplit[3]));
-                    copies++;
-                }
-
-                if (txnSize >= 100) {
-                    stub.endTxn();
-                    stub.beginTxn();
-                    txnSize = 0;
-                } else {
-                    txnSize++;
-                }
-            }
-            stub.endTxn();
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
-    }
+				if (txnSize >= 100) {
+					stub.endTxn();
+					stub.beginTxn();
+					txnSize = 0;
+				} else {
+					txnSize++;
+				}
+			}
+			stub.endTxn();
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+	}
 }

@@ -59,30 +59,43 @@ public class AdServiceOps<E> {
 	@SuppressWarnings("unchecked")
 	void addAd(final String adTitle) {
 		try {
-			stub.get(NamingScheme.forAd(adTitle), true, BoundedCounterAsResource.class);
+			ResourceRequest<?> request = new CounterReservation(siteId, NamingScheme.forAd(adTitle), 0);
+			List<ResourceRequest<?>> resources = new LinkedList<>();
+			resources.add(request);
+			stub.beginTxn(resources);
+			stub.get(NamingScheme.forAd(adTitle), true, BoundedCounterAsResource.class).increment(0, siteId);
 			AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forAdIndex(), true,
 					AddWinsSetCRDT.class);
 			index.add(adTitle);
 			logger.info("Created AD: " + adTitle);
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.warning(e.getMessage());
+		} finally {
+			stub.endTxn();
 		}
 	}
-
 	// Populates the databases with Ads, and all permissions assigned to the
 	// local replica
 	@SuppressWarnings("unchecked")
-	void addAdCopy(final String adTitle, final int site) {
+	void addAdCopy(final String adTitle) {
 		try {
-			stub.get(NamingScheme.forAdCopy(adTitle), true, BoundedCounterAsResource.class);
-			AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forAdSiteIndex(site), true,
-					AddWinsSetCRDT.class);
+			ResourceRequest<?> request = new CounterReservation(siteId, NamingScheme.forAdCopy(adTitle), 0);
+			List<ResourceRequest<?>> resources = new LinkedList<>();
+			resources.add(request);
+			stub.beginTxn(resources);
+			stub.get(NamingScheme.forAdCopy(adTitle), true, BoundedCounterAsResource.class).increment(0, siteId);
+			AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) stub.get(
+					NamingScheme.forAdSiteIndex(Integer.parseInt(adTitle.split("_")[0])), true, AddWinsSetCRDT.class);
 			index.add(adTitle);
 			logger.info("Created AD Copy: " + adTitle);
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.warning(e.getMessage());
+		} finally {
+			stub.endTxn();
 		}
 	}
 
