@@ -88,7 +88,7 @@ public class AdServiceBenchmark extends AdServiceApp {
 		Log.info(IP.localHostname() + "/ starting...");
 
 		int concurrentSessions = Args.valueOf(args, "-threads", 1);
-		String partitions = Args.valueOf(args, "-partition", "0/1");
+		String partitions = Args.valueOf(args, "-partition", "1/1");
 		int site = Integer.valueOf(partitions.split("/")[0]);
 		int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
