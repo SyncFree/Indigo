@@ -73,7 +73,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 
 	@Override
 	public void onReceive(final Envelope conn, final GenerateTimestampRequest request) {
-		conn.reply(new GenerateTimestampReply(request.getCltTimestamp(), super.clocks.newTimestamp()));
+		conn.reply(new GenerateTimestampReply(super.clocks.newTimestamp(), request.getCltTimestamp()));
 	}
 
 	@Override
