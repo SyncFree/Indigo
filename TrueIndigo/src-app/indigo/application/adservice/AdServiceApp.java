@@ -17,15 +17,12 @@
 package indigo.application.adservice;
 
 import java.io.PrintStream;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import swift.indigo.Indigo;
-import swift.indigo.ResourceRequest;
 import sys.utils.Progress;
 import sys.utils.Props;
 import sys.utils.Threading;
@@ -129,9 +126,6 @@ public class AdServiceApp {
 		try {
 			AdServiceOps client = new AdServiceOps(stub, siteId);
 
-			Collection<ResourceRequest<?>> adRequests = new LinkedList<ResourceRequest<?>>();
-
-			int txnSize = 0;
 			// Create ADs
 			List<String> adsData = ads;
 			int copies = numCopies;
@@ -144,16 +138,11 @@ public class AdServiceApp {
 					client.addAdCopy(args[1]);
 					copies++;
 				}
-
-				if (txnSize >= 100) {
-					stub.endTxn();
-					stub.beginTxn();
-					txnSize = 0;
-				} else {
-					txnSize++;
-				}
 			}
+
 			System.err.printf("\rDone: %s", Progress.percentage(counter.incrementAndGet(), total));
+			int txnSize = 0;
+
 			stub.beginTxn();
 			for (String line : adsData) {
 				String[] lineSplit = line.split(";");
@@ -165,7 +154,7 @@ public class AdServiceApp {
 					copies++;
 				}
 
-				if (txnSize >= 100) {
+				if (txnSize >= 50) {
 					stub.endTxn();
 					stub.beginTxn();
 					txnSize = 0;

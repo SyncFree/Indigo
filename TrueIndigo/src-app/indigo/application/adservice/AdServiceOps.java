@@ -34,7 +34,7 @@ import sys.utils.Tasks;
 
 // implements the ad service functionality
 
-public class AdServiceOps<E> {
+public class AdServiceOps {
 
 	private static Logger logger = Logger.getLogger("indigo.adservice");
 
@@ -63,7 +63,6 @@ public class AdServiceOps<E> {
 			List<ResourceRequest<?>> resources = new LinkedList<>();
 			resources.add(request);
 			stub.beginTxn(resources);
-			stub.get(NamingScheme.forAd(adTitle), true, BoundedCounterAsResource.class).increment(0, siteId);
 			AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forAdIndex(), true,
 					AddWinsSetCRDT.class);
 			index.add(adTitle);
@@ -85,7 +84,6 @@ public class AdServiceOps<E> {
 			List<ResourceRequest<?>> resources = new LinkedList<>();
 			resources.add(request);
 			stub.beginTxn(resources);
-			stub.get(NamingScheme.forAdCopy(adTitle), true, BoundedCounterAsResource.class).increment(0, siteId);
 			AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) stub.get(
 					NamingScheme.forAdSiteIndex(Integer.parseInt(adTitle.split("_")[0])), true, AddWinsSetCRDT.class);
 			index.add(adTitle);
@@ -105,16 +103,18 @@ public class AdServiceOps<E> {
 					BoundedCounterAsResource.class);
 			counter.increment(maximumViews, siteId);
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.warning(e.getMessage());
 		}
 	}
 
 	void setAdCopyInitialValue(final String adTitle, final int maximumViews) {
 		try {
-			BoundedCounterAsResource counter = stub.get(NamingScheme.forAdCopy(adTitle), true,
+			BoundedCounterAsResource counter = stub.get(NamingScheme.forAdCopy(adTitle), false,
 					BoundedCounterAsResource.class);
 			counter.increment(maximumViews, siteId);
 		} catch (Exception e) {
+			e.printStackTrace();
 			logger.warning(e.getMessage());
 		}
 	}
