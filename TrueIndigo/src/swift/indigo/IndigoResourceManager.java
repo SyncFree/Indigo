@@ -139,6 +139,7 @@ final public class IndigoResourceManager {
 					System.out.println(sequencer.siteId + " Resource from storage " + resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("Didn't found requested version, will deny message and continue");
+					storage.endTxn(mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
 
