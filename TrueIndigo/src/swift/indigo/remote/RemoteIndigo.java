@@ -177,7 +177,9 @@ public class RemoteIndigo implements Indigo {
 			this.timestamp = reply.timestamp();
 
 			for (CRDTObjectUpdatesGroup<?> i : reply.operations()) {
-				if (!cache.containsKey(i.getTargetUID())) {
+				// Puts new objects in cache so that they can be used
+				// immediately.
+				if (!cache.containsKey(i.getTargetUID()) && i.getCreationState() != null) {
 					ManagedCRDT crdt = new ManagedCRDT(i.getTargetUID(), i.getCreationState(), snapshot, false);
 					crdt.execute(i, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 					cache.put(i.getTargetUID(), crdt.getLatestVersion(this));

@@ -53,7 +53,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	// TODO: make costly assertion checks optional.
 	private static final long serialVersionUID = 1L;
 
-	private static <V extends CRDT<V>> Map<Timestamp, CRDTObjectUpdatesGroup<V>> getTimestampToUpdatesMap(List<CRDTObjectUpdatesGroup<V>> log) {
+	private static <V extends CRDT<V>> Map<Timestamp, CRDTObjectUpdatesGroup<V>> getTimestampToUpdatesMap(
+			List<CRDTObjectUpdatesGroup<V>> log) {
 		final Map<Timestamp, CRDTObjectUpdatesGroup<V>> result = new HashMap<Timestamp, CRDTObjectUpdatesGroup<V>>();
 		for (final CRDTObjectUpdatesGroup<V> localUpdate : log) {
 			result.put(localUpdate.getClientTimestamp(), localUpdate);
@@ -259,7 +260,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	 */
 	public void merge(ManagedCRDT<V> other) {
 		if (!id.equals(other.id)) {
-			throw new IllegalArgumentException("Refusing to merge two objects with different identities: " + id + " vs " + other.id);
+			throw new IllegalArgumentException("Refusing to merge two objects with different identities: " + id
+					+ " vs " + other.id);
 		}
 
 		// This is a somewhat messy best-effort logic, since merge is not
@@ -275,7 +277,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 				// Merge timestamp mappings. (not sure if this is strictly
 				// necessary, but let's do it)
 				for (final CRDTObjectUpdatesGroup<V> otherUpdate : other.strippedLog) {
-					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate.getClientTimestamp());
+					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate
+							.getClientTimestamp());
 					if (localMatch != null) {
 						localMatch.mergeSystemTimestamps(otherUpdate);
 					}
@@ -288,9 +291,11 @@ public class ManagedCRDT<V extends CRDT<V>> {
 				this.clock = other.clock.clone();
 				final List<CRDTObjectUpdatesGroup<V>> newLog = new LinkedList<CRDTObjectUpdatesGroup<V>>();
 				for (final CRDTObjectUpdatesGroup<V> otherUpdate : other.strippedLog) {
-					final CRDTObjectUpdatesGroup<V> copiedOtherUpdate = otherUpdate.strippedWithCopiedTimestampMappings();
+					final CRDTObjectUpdatesGroup<V> copiedOtherUpdate = otherUpdate
+							.strippedWithCopiedTimestampMappings();
 					newLog.add(copiedOtherUpdate);
-					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate.getClientTimestamp());
+					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate
+							.getClientTimestamp());
 					if (localMatch != null) {
 						copiedOtherUpdate.mergeSystemTimestamps(localMatch);
 					}
@@ -307,7 +312,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 				// update
 				// must be present in either B.checkpoint or B.log
 				if (!pruneClock.compareTo(other.clock).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_EQUALS)) {
-					throw new IllegalStateException("Unsupported attempt to merge objects with concurrent clocks and a clock concurrent to pruning point");
+					throw new IllegalStateException(
+							"Unsupported attempt to merge objects with concurrent clocks and a clock concurrent to pruning point");
 				}
 				this.checkpoint = other.checkpoint;
 				this.pruneClock = other.pruneClock.clone();
@@ -315,9 +321,11 @@ public class ManagedCRDT<V extends CRDT<V>> {
 				final List<CRDTObjectUpdatesGroup<V>> mergedLog = new LinkedList<CRDTObjectUpdatesGroup<V>>();
 				// Copy other's log and merge timestamps with all local updates.
 				for (final CRDTObjectUpdatesGroup<V> otherUpdate : other.strippedLog) {
-					final CRDTObjectUpdatesGroup<V> copiedOtherUpdate = otherUpdate.strippedWithCopiedTimestampMappings();
+					final CRDTObjectUpdatesGroup<V> copiedOtherUpdate = otherUpdate
+							.strippedWithCopiedTimestampMappings();
 					mergedLog.add(copiedOtherUpdate);
-					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate.getClientTimestamp());
+					final CRDTObjectUpdatesGroup<V> localMatch = thisTimestampToUpdatesMap.get(otherUpdate
+							.getClientTimestamp());
 					if (localMatch != null) {
 						copiedOtherUpdate.mergeSystemTimestamps(localMatch);
 					}
@@ -327,7 +335,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 				// checkpoint/log.
 				for (final CRDTObjectUpdatesGroup<V> thisUpdate : strippedLog) {
 					if (thisUpdate.anyTimestampIncluded(other.clock)) {
-						final CRDTObjectUpdatesGroup<V> mergedUpdate = mergedTimestampToUpdatesMap.get(thisUpdate.getClientTimestamp());
+						final CRDTObjectUpdatesGroup<V> mergedUpdate = mergedTimestampToUpdatesMap.get(thisUpdate
+								.getClientTimestamp());
 						if (mergedUpdate != null) {
 							mergedUpdate.mergeSystemTimestamps(thisUpdate);
 						}
@@ -336,7 +345,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 						// in #augmentWithScoutClock
 					} else {
 						if (mergedTimestampToUpdatesMap.containsKey(thisUpdate.getClientTimestamp())) {
-							throw new IllegalArgumentException("The incoming CRDT contains updates that are not included in its clock");
+							throw new IllegalArgumentException(
+									"The incoming CRDT contains updates that are not included in its clock");
 						}
 						mergedLog.add(thisUpdate.strippedWithCopiedTimestampMappings());
 					}
@@ -424,6 +434,9 @@ public class ManagedCRDT<V extends CRDT<V>> {
 		if (!isRegisteredInStore()) {
 			// It is safe to register it once, since a TxnHandle instance
 			// calls getVersion exactly once.
+			if (checkpoint == null) {
+				System.out.println("aqui");
+			}
 			txn.registerObjectCreation(id, (V) checkpoint.copy());
 		}
 		final V version = (V) checkpoint.copyWith(txn, versionClock.clone());
@@ -452,7 +465,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 		}
 		final CMP_CLOCK clockCmp = getClock().compareTo(clock);
 		if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
-			throw new IllegalStateException(id + " : provided clock (" + clock + ") is not less or equal to the object updates clock (" + getClock() + ")");
+			throw new IllegalStateException(id + " : provided clock (" + clock
+					+ ") is not less or equal to the object updates clock (" + getClock() + ")");
 		}
 	}
 
@@ -462,7 +476,8 @@ public class ManagedCRDT<V extends CRDT<V>> {
 		}
 		final CMP_CLOCK clockCmp = getPruneClock().compareTo(clock);
 		if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
-			throw new IllegalStateException("provided clock (" + clock + ") is not greater or equal to the prune clock (" + getPruneClock() + ")");
+			throw new IllegalStateException("provided clock (" + clock
+					+ ") is not greater or equal to the prune clock (" + getPruneClock() + ")");
 		}
 	}
 
@@ -522,6 +537,7 @@ public class ManagedCRDT<V extends CRDT<V>> {
 
 	@Override
 	public String toString() {
-		return String.format("[id=%s,clock=%s,pruneClock=%s,registered=%b,checkpoint=%s,log=%s", id, clock, pruneClock, registeredInStore, checkpoint, strippedLog);
+		return String.format("[id=%s,clock=%s,pruneClock=%s,registered=%b,checkpoint=%s,log=%s", id, clock, pruneClock,
+				registeredInStore, checkpoint, strippedLog);
 	}
 }
