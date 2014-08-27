@@ -179,7 +179,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
 	static Operation[] ops = new Operation[]{new AddPlayer().freq(5), new AddTournament().freq(2),
 			new EnrollTournament().freq(16), new DisenrollTournament().freq(4), new DoMatch().freq(22),
-			new RemTournament().freq(1), new ViewStatus().freq(50)};
+			new RemTournament().freq(10), new ViewStatus().freq(41)};
 
 	static AtomicInteger doMixedCounter = new AtomicInteger(7);
 

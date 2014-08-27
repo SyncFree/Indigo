@@ -4,6 +4,7 @@ import indigo.application.tournament.TournamentServiceBenchmark;
 
 import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.Semaphore;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -40,6 +41,44 @@ public class TournamentTest {
 	public void test1DC1Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
 		TournamentServiceBenchmark service = new TournamentServiceBenchmark();
 		service.doBenchmark(new String[]{"-server", "tcp://*/36001/", "-threads", "1", "-name", DC_A});
+	}
+
+	@Test
+	public void test1DC10Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
+		TournamentServiceBenchmark service = new TournamentServiceBenchmark();
+		service.doBenchmark(new String[]{"-server", "tcp://*/36001/", "-threads", "10", "-name", DC_A});
+	}
+
+	@Test
+	public void test2DC1Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
+		TournamentServiceBenchmark service = new TournamentServiceBenchmark();
+		Semaphore sem = new Semaphore(2);
+		sem.acquire(2);
+		new Thread(() -> {
+			service.doBenchmark(new String[]{"-server", "tcp://*/36001/", "-threads", "1", "-name", DC_A});
+			sem.release();
+		}).start();
+		new Thread(() -> {
+			service.doBenchmark(new String[]{"-server", "tcp://*/36002/", "-threads", "1", "-name", DC_B});
+			sem.release();
+		});
+		sem.acquire();
+	}
+
+	@Test
+	public void test2DC10Thread() throws SwiftException, InterruptedException, BrokenBarrierException {
+		TournamentServiceBenchmark service = new TournamentServiceBenchmark();
+		Semaphore sem = new Semaphore(2);
+		sem.acquire(2);
+		new Thread(() -> {
+			service.doBenchmark(new String[]{"-server", "tcp://*/36001/", "-threads", "10", "-name", DC_A});
+			sem.release();
+		}).start();
+		new Thread(() -> {
+			service.doBenchmark(new String[]{"-server", "tcp://*/36002/", "-threads", "10", "-name", DC_B});
+			sem.release();
+		});
+		sem.acquire();
 	}
 
 }

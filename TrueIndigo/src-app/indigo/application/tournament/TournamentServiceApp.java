@@ -126,18 +126,23 @@ public class TournamentServiceApp {
 					if (toks.length == 3) {
 						int siteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
 						String tournament = tournamentClient.selectTournament(siteId);
+						if (tournament == null) {
+							Log.info("No tournament available at site " + toks[1]);
+							break;
+						}
 						tournamentClient.removeTournament(siteId, tournament);
 						break;
 					}
 				case ENROLL_TOURNAMENT :
 					if (toks.length == 3) {
 						String player = tournamentClient.selectPlayer(Integer.parseInt(toks[1]));
-						if (player == null) {
-							Log.info("No player available at site " + toks[1]);
-							break;
-						}
 						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? -1 : Integer
 								.parseInt(toks[1]));
+						if (player == null || tournament == null) {
+							Log.info("No player or tournament available at site " + toks[1]);
+							break;
+						}
+
 						tournamentClient.enrollTournament(player, tournament, maxPlayers);
 						break;
 					}
@@ -157,6 +162,10 @@ public class TournamentServiceApp {
 					if (toks.length == 3) {
 						int site = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
 						String tournament = tournamentClient.selectTournament(site);
+						if (tournament == null) {
+							Log.info("No tournament available at site " + toks[1]);
+							break;
+						}
 						Pair<String, String> players = tournamentClient.selectTournamentPlayerPair(tournament);
 						// TODO: Does not handle unique identifiers
 						if (players != null) {
