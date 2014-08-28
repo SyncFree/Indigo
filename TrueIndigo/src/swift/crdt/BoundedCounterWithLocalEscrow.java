@@ -8,6 +8,8 @@ import java.util.Queue;
 import java.util.Set;
 
 import swift.api.CRDTIdentifier;
+import swift.clocks.CausalityClock;
+import swift.crdt.core.BaseCRDT;
 import swift.exceptions.IncompatibleTypeException;
 import swift.indigo.ConsumableResource;
 import swift.indigo.Resource;
@@ -165,11 +167,12 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 		return new BoundedCounterWithLocalEscrow(callerId, resource.getUID(), resource);
 	}
 
-	public void release(String siteId, ResourceRequest<?> req_i) {
+	public boolean release(String siteId, ResourceRequest<?> req_i) {
 		if (!activeRequests.remove(req_i)) {
 			System.out.println("ERROR release did not remove a resource " + req_i);
 			System.exit(0);
 		}
+		return true;
 	}
 
 	@Override

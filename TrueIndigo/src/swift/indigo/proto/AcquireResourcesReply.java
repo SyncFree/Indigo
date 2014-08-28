@@ -121,7 +121,7 @@ public class AcquireResourcesReply {
 	}
 
 	public String toString() {
-		return "STATUS " + status + " C_TS: " + cltTimestamp;
+		return "STATUS " + status + " TS: " + timestamp;
 	}
 	public Collection<ResourceRequest<?>> getResourcesRequest() {
 		return requests;

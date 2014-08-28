@@ -109,11 +109,12 @@ public class EscrowableTokenCRDTWithLocks extends ResourceDecorator<EscrowableTo
 		return new EscrowableTokenCRDTWithLocks(callerId, resource.getUID(), resource);
 	}
 
-	public void release(String siteId, ResourceRequest<?> req_i) {
+	public boolean release(String siteId, ResourceRequest<?> req_i) {
 		if (!activeClients.remove(req_i)) {
 			System.out.println("ERROR release did not remove a resource " + req_i);
 			System.exit(0);
 		}
+		return true;
 	}
 
 	@Override

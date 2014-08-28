@@ -75,29 +75,23 @@ final public class IndigoResourceManager {
 	// This release modifies soft-state exclusively. If we want to support
 	// durability this must be different
 	protected boolean releaseResources(AcquireResourcesReply alr) {
-		boolean ok = true;
+		boolean ok = false;
 		try {
 			// alr.lockStuff();
-			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
-				if (req_i instanceof LockReservation) {
-					Resource<ShareableLock> resource = (Resource<ShareableLock>) cache.get(req_i.getResourceId());
-					((EscrowableTokenCRDTWithLocks) resource).release(sequencer.siteId, req_i);
-				}
-				if (req_i instanceof CounterReservation) {
-					ConsumableResource<Integer> cachedResource = (ConsumableResource<Integer>) cache.get(req_i
-							.getResourceId());
-					((BoundedCounterWithLocalEscrow) cachedResource).release(sequencer.siteId, req_i);
 
 					// TODO: Warning this reads from storage, every time
 					// some notifications arrives.
 					// More efficient could be for instance to apply the
 					// decrement directly on the soft-state
 
-					try {
-						getResourceAndUpdateCache(req_i);
-					} catch (VersionNotFoundException e) {
-						logger.warning("Version exception but continues");
+			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
+				if (req_i instanceof LockReservation) {
+					Resource<ShareableLock> resource = (Resource<ShareableLock>) getResourceAndUpdateCache(req_i);
+					ok = ((EscrowableTokenCRDTWithLocks) resource).release(sequencer.siteId, req_i);
 					}
+				if (req_i instanceof CounterReservation) {
+					ConsumableResource<Integer> cachedResource = (ConsumableResource<Integer>) getResourceAndUpdateCache(req_i);
+					ok = ((BoundedCounterWithLocalEscrow) cachedResource).release(sequencer.siteId, req_i);
 				}
 
 			}
@@ -106,16 +100,17 @@ final public class IndigoResourceManager {
 			// checkPendingRequest(req_i);
 			// }
 
+		} catch (VersionNotFoundException e) {
+			logger.warning("Version exception but continues " + (++exceptionCount));
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
+
 		} finally {
 			// alr.unlockStuff();
 		}
-		return ok || true; // TODO: handle cases for timestamps that do not
-							// involve
-							// locks...
+		return ok || false;
 	}
 
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
@@ -174,6 +169,7 @@ final public class IndigoResourceManager {
 				// Do the locking
 				for (ResourceRequest<?> req : request.getRequests()) {
 					Resource resourceFromCache = cache.get(req.getResourceId());
+					logger.info("Satisfy request " + req + " for resource " + resourceFromCache);
 					resourceFromCache.apply(sequencer.siteId, req);
 				}
 
@@ -243,9 +239,9 @@ final public class IndigoResourceManager {
 	protected TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
+		boolean updated = false;
 		try {
 			// request.lockStuff();
-			boolean updated = false;
 			storage.beginTxn(null);
 			for (ResourceRequest<?> req_i : request.getRequests()) {
 				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i);
@@ -262,24 +258,21 @@ final public class IndigoResourceManager {
 					updated = true;
 				}
 			}
-
-			storage.endTxn(updated);
-			if (allSuccess) {
-				return TRANSFER_STATUS.SUCCESS;
-			} else if (atLeastOnePartial) {
-				return TRANSFER_STATUS.PARTIAL;
-			} else {
-				return TRANSFER_STATUS.FAIL;
-			}
-
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 		} finally {
+			storage.endTxn(updated);
 			// request.unlockStuff();
 		}
+		if (allSuccess) {
+			return TRANSFER_STATUS.SUCCESS;
+		} else if (atLeastOnePartial) {
+			return TRANSFER_STATUS.PARTIAL;
+		} else {
 		return TRANSFER_STATUS.FAIL;
+	}
 	}
 
 	private Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request) throws SwiftException,
@@ -337,7 +330,6 @@ final public class IndigoResourceManager {
 			}
 		}
 
-		System.out.println(sequencer.siteId + " " + requestMsg + " " + result + " " + resource);
 		logger.info(requestMsg + " " + result);
 		return result;
 	}

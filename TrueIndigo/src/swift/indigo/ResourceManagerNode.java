@@ -159,13 +159,22 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			// replies.remove(ts);
 			synchronized (thisManager) {
 				if (arr.acquiredResources()) {
-					manager.releaseResources(arr);
+					if (request.isRetry()) {
+						System.out.println("HERE");
+					}
+					if (!manager.releaseResources(arr)) {
+						// Failed - put it back on the queue
+						incomingRequestsQueue.add(request);
+						request.setRetry(true);
+					} else {
+						arr.setReleased();
+						waitingIndex.remove(request);
+					}
 				} else {
-					logger.warning("SITE: " + sequencer.siteId + " Trying to release but did not get resources "
-							+ request);
+					logger.warning("SITE: " + sequencer.siteId
+							+ " Trying to release but did not get resources: exiting, should not happen " + request);
+					System.exit(0);
 				}
-				arr.setReleased();
-				waitingIndex.remove(request);
 			}
 
 			if (logger.isLoggable(Level.INFO))

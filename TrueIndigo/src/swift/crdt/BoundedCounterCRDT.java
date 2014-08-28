@@ -27,9 +27,6 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 	protected Map<String, Integer> delta;
 	protected int initVal, val;
 
-	transient private boolean failed;
-	transient private boolean invalidated;
-
 	public BoundedCounterCRDT() {
 		super();
 	}
@@ -158,22 +155,6 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 	protected abstract void applyInc(BoundedCounterIncrement<T> incUpdate);
 
 	protected abstract void applyDec(BoundedCounterDecrement<T> decUpdate);
-
-	public boolean isInvalidated() {
-		return invalidated;
-	}
-
-	public void invalidate() {
-		invalidated = true;
-	}
-
-	public boolean isFailed() {
-		return failed;
-	}
-
-	public void setFailed() {
-		failed = true;
-	}
 
 	// TODO: Not implemented - but should not be necessary!
 	public boolean isSingleOwner(String siteId) {

@@ -12,6 +12,7 @@ public class ReleaseResourcesRequest extends ClientRequest implements IndigoOper
 
 	private Timestamp clientTs;
 	private long serial;
+	private transient boolean retry;
 
 	public ReleaseResourcesRequest() {
 		super();
@@ -72,4 +73,13 @@ public class ReleaseResourcesRequest extends ClientRequest implements IndigoOper
 	public int hashCode() {
 		return clientTs.hashCode();
 	}
+
+	public boolean isRetry() {
+		return retry;
+	}
+
+	public void setRetry(boolean retry) {
+		this.retry = retry;
+	}
+
 }
