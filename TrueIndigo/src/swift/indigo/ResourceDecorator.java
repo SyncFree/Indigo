@@ -7,7 +7,7 @@ import swift.exceptions.IncompatibleTypeException;
 
 public abstract class ResourceDecorator<V extends ResourceDecorator<V, T>, T> implements Resource<T> {
 
-	Resource<T> originalResource;
+	public Resource<T> originalResource;
 	private CRDTIdentifier uid;
 
 	public ResourceDecorator() {

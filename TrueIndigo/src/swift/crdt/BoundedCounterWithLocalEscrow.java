@@ -217,4 +217,10 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 		return super.releaseShare(ownerId);
 	}
 
+	public CausalityClock getClock() {
+		BaseCRDT crdt = ((BaseCRDT) super.originalResource);
+		return crdt.getClock();
+
+	}
+
 }

@@ -49,6 +49,8 @@ final public class IndigoResourceManager {
 
 	private int transferSeqNumber;
 
+	private int exceptionCount;
+
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 
@@ -79,16 +81,16 @@ final public class IndigoResourceManager {
 		try {
 			// alr.lockStuff();
 
-					// TODO: Warning this reads from storage, every time
-					// some notifications arrives.
-					// More efficient could be for instance to apply the
-					// decrement directly on the soft-state
+			// TODO: Warning this reads from storage, every time
+			// some notifications arrives.
+			// More efficient could be for instance to apply the
+			// decrement directly on the soft-state
 
 			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
 				if (req_i instanceof LockReservation) {
 					Resource<ShareableLock> resource = (Resource<ShareableLock>) getResourceAndUpdateCache(req_i);
 					ok = ((EscrowableTokenCRDTWithLocks) resource).release(sequencer.siteId, req_i);
-					}
+				}
 				if (req_i instanceof CounterReservation) {
 					ConsumableResource<Integer> cachedResource = (ConsumableResource<Integer>) getResourceAndUpdateCache(req_i);
 					ok = ((BoundedCounterWithLocalEscrow) cachedResource).release(sequencer.siteId, req_i);
@@ -131,7 +133,11 @@ final public class IndigoResourceManager {
 			for (ResourceRequest<?> req : modifiedRequest.getRequests()) {
 				try {
 					resource = getResourceAndUpdateCache(req);
-					System.out.println(sequencer.siteId + " Resource from storage " + resource);
+					if (resource instanceof BoundedCounterWithLocalEscrow) {
+						System.out.println(sequencer.siteId + " Resource from storage " + resource + " CLOCK: "
+								+ ((BoundedCounterWithLocalEscrow) resource).getClock());
+					} else
+						System.out.println(sequencer.siteId + " Resource from storage " + resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("Didn't found requested version, will deny message and continue");
 					storage.endTxn(mustUpdate);
@@ -271,8 +277,8 @@ final public class IndigoResourceManager {
 		} else if (atLeastOnePartial) {
 			return TRANSFER_STATUS.PARTIAL;
 		} else {
-		return TRANSFER_STATUS.FAIL;
-	}
+			return TRANSFER_STATUS.FAIL;
+		}
 	}
 
 	private Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request) throws SwiftException,

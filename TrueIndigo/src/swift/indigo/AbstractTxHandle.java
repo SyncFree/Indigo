@@ -31,150 +31,150 @@ import swift.exceptions.WrongTypeException;
 
 abstract public class AbstractTxHandle implements TxnHandle {
 
-    protected TxnStatus status;
-    protected Timestamp cltTimestamp;
-    protected CausalityClock snapshot;
-    protected Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> ops;
+	protected TxnStatus status;
+	public Timestamp cltTimestamp;
+	protected CausalityClock snapshot;
+	protected Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> ops;
 
-    protected AbstractTxHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
-        this.ops = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
-        this.snapshot = snapshot.clone();
-        this.cltTimestamp = cltTimestamp;
-        this.status = TxnStatus.PENDING;
-    }
+	protected AbstractTxHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
+		this.ops = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
+		this.snapshot = snapshot.clone();
+		this.cltTimestamp = cltTimestamp;
+		this.status = TxnStatus.PENDING;
+	}
 
-    protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
-            boolean create, Class<V> classOfV) throws VersionNotFoundException;
+	protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
+			boolean create, Class<V> classOfV) throws VersionNotFoundException;
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
+	@SuppressWarnings("unchecked")
+	@Override
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+			NoSuchObjectException, VersionNotFoundException, NetworkException {
 
-        V res = (V) cache.get(id);
-        if (res == null)
-            cache.put(id, res = this.getCRDT(id, snapshot, create, classOfV).getVersion(snapshot, this));
+		V res = (V) cache.get(id);
+		if (res == null)
+			cache.put(id, res = this.getCRDT(id, snapshot, create, classOfV).getVersion(snapshot, this));
 
-        return res;
-    }
+		return res;
+	}
 
-    @Override
-    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
-        return get(id, create, classOfV);
-    }
+	@Override
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+			ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+			VersionNotFoundException, NetworkException {
+		return get(id, create, classOfV);
+	}
 
-    @Override
-    public void commitAsync(CommitListener listener) {
-        commit();
-    }
+	@Override
+	public void commitAsync(CommitListener listener) {
+		commit();
+	}
 
-    @Override
-    public void commit() {
-        throw NotImplemented;
-    }
+	@Override
+	public void commit() {
+		throw NotImplemented;
+	}
 
-    @Override
-    public void rollback() {
-        throw NotImplemented;
-    }
+	@Override
+	public void rollback() {
+		throw NotImplemented;
+	}
 
-    @Override
-    public TxnStatus getStatus() {
-        return status;
-    }
+	@Override
+	public TxnStatus getStatus() {
+		return status;
+	}
 
-    protected <V extends CRDT<V>> ManagedCRDT<V> createCRDT(CRDTIdentifier id, CausalityClock clock, Class<V> classOfV) {
-        try {
-            final Constructor<V> constructor = classOfV.getConstructor(CRDTIdentifier.class);
-            final V checkpoint = constructor.newInstance(id);
-            return new ManagedCRDT<V>(id, checkpoint, clock, false);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+	protected <V extends CRDT<V>> ManagedCRDT<V> createCRDT(CRDTIdentifier id, CausalityClock clock, Class<V> classOfV) {
+		try {
+			final Constructor<V> constructor = classOfV.getConstructor(CRDTIdentifier.class);
+			final V checkpoint = constructor.newInstance(id);
+			return new ManagedCRDT<V>(id, checkpoint, clock, false);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
 
-    @Override
-    public TripleTimestamp nextTimestamp() {
-        return tsSource().generateNew();
-    }
+	@Override
+	public TripleTimestamp nextTimestamp() {
+		return tsSource().generateNew();
+	}
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
-        synchronized (this) {
-            CRDTObjectUpdatesGroup<V> group = (CRDTObjectUpdatesGroup<V>) ops.get(id);
-            if (group == null)
-                ops.put(id, group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), null, snapshot));
+	@SuppressWarnings("unchecked")
+	@Override
+	public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
+		synchronized (this) {
+			CRDTObjectUpdatesGroup<V> group = (CRDTObjectUpdatesGroup<V>) ops.get(id);
+			if (group == null)
+				ops.put(id, group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), null, snapshot));
 
-            group.append(op);
-        }
-    }
+			group.append(op);
+		}
+	}
 
-    @Override
-    public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
-        synchronized (this) {
-            CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState,
-                    snapshot);
-            if (ops.put(id, group) != null) {
-                throw new IllegalStateException("CRDT creation was preceded by some other operation:" + id);
-            }
-        }
-    }
+	@Override
+	public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
+		synchronized (this) {
+			CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState,
+					snapshot);
+			if (ops.put(id, group) != null) {
+				throw new IllegalStateException("CRDT creation was preceded by some other operation:" + id);
+			}
+		}
+	}
 
-    public List<CRDTObjectUpdatesGroup<?>> getUpdates() {
-        List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
-        groups.addAll(ops.values());
-        return groups;
-    }
+	public List<CRDTObjectUpdatesGroup<?>> getUpdates() {
+		List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
+		groups.addAll(ops.values());
+		return groups;
+	}
 
-    public boolean isReadOnly() {
-        return ops.isEmpty();
-    }
+	public boolean isReadOnly() {
+		return ops.isEmpty();
+	}
 
-    protected TimestampMapping timestampMapping() {
-        if (timestampMapping == null)
-            timestampMapping = new TimestampMapping(cltTimestamp());
-        return timestampMapping;
-    }
+	protected TimestampMapping timestampMapping() {
+		if (timestampMapping == null)
+			timestampMapping = new TimestampMapping(cltTimestamp());
+		return timestampMapping;
+	}
 
-    private IncrementalTripleTimestampGenerator tsSource() {
-        if (tsSource == null)
-            tsSource = new IncrementalTripleTimestampGenerator(cltTimestamp());
-        return tsSource;
-    }
+	private IncrementalTripleTimestampGenerator tsSource() {
+		if (tsSource == null)
+			tsSource = new IncrementalTripleTimestampGenerator(cltTimestamp());
+		return tsSource;
+	}
 
-    protected Timestamp cltTimestamp() {
-        return cltTimestamp;
-    }
+	protected Timestamp cltTimestamp() {
+		return cltTimestamp;
+	}
 
-    private TimestampMapping timestampMapping;
-    private IncrementalTripleTimestampGenerator tsSource;
+	private TimestampMapping timestampMapping;
+	private IncrementalTripleTimestampGenerator tsSource;
 
-    protected Map<CRDTIdentifier, CRDT<?>> cache = new HashMap<CRDTIdentifier, CRDT<?>>();
+	protected Map<CRDTIdentifier, CRDT<?>> cache = new HashMap<CRDTIdentifier, CRDT<?>>();
 
-    @Override
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids,
-            final BulkGetProgressListener listener) {
-        return bulkGet(subscribeUpdates, ids.toArray(new CRDTIdentifier[ids.size()]));
-    }
+	@Override
+	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids,
+			final BulkGetProgressListener listener) {
+		return bulkGet(subscribeUpdates, ids.toArray(new CRDTIdentifier[ids.size()]));
+	}
 
-    /**
-     * TODO document
-     * 
-     * @param ids
-     * @return
-     */
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final CRDTIdentifier... ids) {
-        Map<CRDTIdentifier, CRDT<?>> res = new HashMap<CRDTIdentifier, CRDT<?>>();
-        for (CRDTIdentifier i : ids)
-            try {
-                res.put(i, get(i, false, null));
-            } catch (Exception x) {
-                x.printStackTrace();
-            }
-        return res;
-    }
+	/**
+	 * TODO document
+	 * 
+	 * @param ids
+	 * @return
+	 */
+	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final CRDTIdentifier... ids) {
+		Map<CRDTIdentifier, CRDT<?>> res = new HashMap<CRDTIdentifier, CRDT<?>>();
+		for (CRDTIdentifier i : ids)
+			try {
+				res.put(i, get(i, false, null));
+			} catch (Exception x) {
+				x.printStackTrace();
+			}
+		return res;
+	}
 }

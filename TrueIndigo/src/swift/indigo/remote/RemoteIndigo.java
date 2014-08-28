@@ -56,6 +56,7 @@ public class RemoteIndigo implements Indigo {
 	final ReturnableTimestampSourceDecorator<Timestamp> tsSource;
 
 	_TxnHandle handle;
+	private boolean hasResources;
 
 	// private Timestamp lastTSWithGrantedLocks;
 
@@ -108,6 +109,7 @@ public class RemoteIndigo implements Indigo {
 	}
 
 	public void beginTxn() throws SwiftException {
+		hasResources = false;
 		beginTxn(new HashSet<ResourceRequest<?>>());
 	}
 
@@ -125,11 +127,15 @@ public class RemoteIndigo implements Indigo {
 		for (ResourceRequest<?> res : resources) {
 			res.setClientTs(txnTimestamp);
 		}
+		if (resources.size() > 0)
+			hasResources = true;
 
 		int retryCount = 0;
 		for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
 			AcquireResourcesReply reply = stub.request(server, request);
 			if (reply != null && reply.acquiredResources() || resources.size() == 0) {
+				if (Log.isLoggable(Level.INFO))
+					Log.info("Received reply for " + txnTimestamp + " " + reply);
 				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
 				profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp.toString());
 				// if (resources.size() != 0)
@@ -162,7 +168,9 @@ public class RemoteIndigo implements Indigo {
 
 	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
 			NoSuchObjectException, VersionNotFoundException, NetworkException {
-		return (V) handle.get(id, create, classOfV);
+		V obj = (V) handle.get(id, create, classOfV);
+		Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj);
+		return obj;
 	}
 
 	class _TxnHandle extends AbstractTxHandle {
@@ -210,6 +218,8 @@ public class RemoteIndigo implements Indigo {
 				req.setTimestamp(timestamp);
 
 				final Semaphore semaphore = new Semaphore(0);
+				if (Log.isLoggable(Level.INFO))
+					Log.info("Going to send commit request for: " + req);
 				stub.asyncRequest(
 						server,
 						req,
@@ -226,6 +236,17 @@ public class RemoteIndigo implements Indigo {
 				super.status = TxnStatus.COMMITTED_GLOBAL;
 			} else {
 				super.status = TxnStatus.COMMITTED_LOCAL;
+				if (hasResources) {
+					System.out.println("CANT HAPPEN " + cltTimestamp + timestamp);
+					System.out.println(Thread.currentThread().getStackTrace());
+					try {
+						Thread.sleep(500);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					System.exit(0);
+				}
 				rollback();
 			}
 		}
