@@ -2,6 +2,7 @@ package sys.utils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,7 +22,7 @@ public class Profiler {
 	private static Profiler instance;
 
 	private Profiler() {
-		ops = new HashMap<Long, Pair<String, OperationStats>>();
+		ops = new ConcurrentHashMap<Long, Pair<String, OperationStats>>();
 		opIdGenerator = new AtomicLong();
 		loggers = new HashMap<>();
 	}
