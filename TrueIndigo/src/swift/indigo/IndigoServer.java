@@ -74,7 +74,7 @@ public class IndigoServer extends Server {
 
 	RemoteIndigoServer rindigo;
 
-	IndigoServer() {
+	public IndigoServer() {
 		this.lockManager = super.sequencer;
 		this.rindigo = new RemoteIndigoServer(lockManager, this);
 

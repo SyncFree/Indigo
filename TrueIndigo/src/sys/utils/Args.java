@@ -19,6 +19,7 @@ package sys.utils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -70,6 +71,10 @@ public class Args {
 		return valueOf(_current, flag, defaultValue);
 	}
 
+	static public String[] valueOf(String flag, String delimiter, String[] defaultValue) {
+		return valueOf(_current, flag, delimiter, defaultValue);
+	}
+
 	static public List<String> subList(String flag) {
 		return subList(_current, flag);
 	}
@@ -106,6 +111,13 @@ public class Args {
 		return defaultValue;
 	}
 
+	static public String[] valueOf(String[] args, String flag, String delimiter, String[] defaultValue) {
+		for (int i = 0; i < args.length - 1; i++)
+			if (flag.equals(args[i]))
+				return args[i + 1].split(";");
+		return defaultValue;
+	}
+
 	static public List<String> subList(String[] args, String flag) {
 		List<String> res = new ArrayList<String>();
 		for (int i = 0; i < args.length - 1; i++)
@@ -117,5 +129,20 @@ public class Args {
 						res.add(args[j]);
 			}
 		return res;
+	}
+
+	public static String[] getCurrent() {
+		LinkedList<String> lines = new LinkedList<String>();
+		StringBuilder line = new StringBuilder();
+		for (String arg : _current) {
+			if (arg.startsWith("-")) {
+				if (line.length() > 0)
+					lines.add(line.toString());
+				line = new StringBuilder();
+				line.append(arg);
+			} else
+				line.append(" " + arg);
+		}
+		return lines.toArray(new String[]{});
 	}
 }

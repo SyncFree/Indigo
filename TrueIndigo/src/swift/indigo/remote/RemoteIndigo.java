@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.api.TxnHandle;
+import swift.application.test.TestsUtil;
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.ReturnableTimestampSourceDecorator;
@@ -85,23 +86,24 @@ public class RemoteIndigo implements Indigo {
 			FileHandler fileTxt;
 			try {
 				String resultsDir = Args.valueOf("-results_dir", ".");
-				String siteId = Args.valueOf("-site_id", "GLOBAL");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
 				String suffix = Args.valueOf("-fileNameSuffix", "");
 				fileTxt = new FileHandler(resultsDir + "/remote_indigo_results" + "_" + siteId + suffix + ".log");
 				fileTxt.setFormatter(new java.util.logging.Formatter() {
-
 					@Override
 					public String format(LogRecord record) {
 						return record.getMessage() + "\n";
 					}
 				});
 				logger.addHandler(fileTxt);
+				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
 			} catch (Exception e) {
+				e.printStackTrace();
 				Log.warning("Exception while generating log file");
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES", "TIMESTAMP");
+		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES");
 	}
 
 	public TxnHandle getTxnHandle() {
@@ -137,7 +139,7 @@ public class RemoteIndigo implements Indigo {
 				if (Log.isLoggable(Level.INFO))
 					Log.info("Received reply for " + txnTimestamp + " " + reply);
 				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-				profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp.toString());
+				profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount);
 				// if (resources.size() != 0)
 				// lastTSWithGrantedLocks = txnTimestamp;
 				break;

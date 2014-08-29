@@ -70,6 +70,11 @@ public class Profiler {
 		}
 		return loggers.get(loggerName);
 	}
+
+	public void printMessage(String loggerName, String dumpArgs) {
+		Logger logger = getLogger(loggerName);
+		logger.finest(dumpArgs);
+	}
 }
 
 class OperationStats {
