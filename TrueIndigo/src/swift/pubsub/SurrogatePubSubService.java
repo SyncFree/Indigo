@@ -49,7 +49,8 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
 						updateDcVersions(nextEvt.src, nextEvt.dcVersion);
 						nextEvt.payload().notifyTo(SurrogatePubSubService.this);
 
-						System.err.println(">>>>>" + nextEvt.payload().getClass());
+						// System.err.println(">>>>>" +
+						// nextEvt.payload().getClass());
 					}
 				}).offer(evt.seqN(), evt);
 			}

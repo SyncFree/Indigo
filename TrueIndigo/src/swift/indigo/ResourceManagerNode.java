@@ -159,9 +159,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			// replies.remove(ts);
 			synchronized (thisManager) {
 				if (arr.acquiredResources()) {
-					if (request.isRetry()) {
-						System.out.println("HERE");
-					}
+					// if (request.isRetry()) {
+					// System.out.println("HERE");
+					// }
 					if (!manager.releaseResources(arr)) {
 						// Failed - put it back on the queue
 						incomingRequestsQueue.add(request);

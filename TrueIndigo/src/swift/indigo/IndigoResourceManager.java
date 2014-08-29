@@ -133,11 +133,6 @@ final public class IndigoResourceManager {
 			for (ResourceRequest<?> req : modifiedRequest.getRequests()) {
 				try {
 					resource = getResourceAndUpdateCache(req);
-					if (resource instanceof BoundedCounterWithLocalEscrow) {
-						System.out.println(sequencer.siteId + " Resource from storage " + resource + " CLOCK: "
-								+ ((BoundedCounterWithLocalEscrow) resource).getClock());
-					} else
-						System.out.println(sequencer.siteId + " Resource from storage " + resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("Didn't found requested version, will deny message and continue");
 					storage.endTxn(mustUpdate);

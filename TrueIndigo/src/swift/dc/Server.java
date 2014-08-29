@@ -153,7 +153,8 @@ public class Server implements SurrogateProtocol {
 			});
 		};
 
-		System.err.println(siteId + "  " + req.getTimestamp() + " took: " + (System.currentTimeMillis() - T0));
+		// System.err.println(siteId + "  " + req.getTimestamp() + " took: " +
+		// (System.currentTimeMillis() - T0));
 		// System.err.println("------------->>>>>EXECUTED DONE!!!   " +
 		// ops.size() + " @ siteId: " + siteId + "   ts: " + req.getTimestamp()
 		// + " clt: " + req.getCltTimestamp() + " deps: " +
