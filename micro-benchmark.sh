@@ -1,41 +1,37 @@
 #!/bin/bash
 
-#USERNAME="ubuntu"
-#USER_ROOT="/home/$USERNAME/crdtdb-git/"
-#RIAK_ROOT="/home/$USERNAME/riak/"
+#USERNAME="balegas"
+#INDIGO_ROOT="/Users/$USERNAME/swiftcloud_deployment/"
+#SOURCE_ROOT="/Users/$USERNAME/workspace/java/swiftcloud-indigo/"
 
-USERNAME="balegas"
-USER_ROOT="/Users/$USERNAME/"
-INDIGO_ROOT=$USER_ROOT"workspace/java/swiftcloud-indigo/"
+USERNAME="ec2-user"
+INDIGO_ROOT="/home/$USERNAME/"
+SOURCE_ROOT="/Users/balegas/workspace/java/swiftcloud-indigo/"
 
 REGION_NAME=(
 	"US-EAST"
-	"EUROPE"
 	)
 
 INDIGOS=(
-	"tcp://*/36001/US-EAST"
-	"tcp://*/36001/EUROPE"
+	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/36001/US-EAST"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://*/31001/US-EAST"
-	"tcp://*/31002/EUROPE"
+	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/31001/US-EAST"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://*/32001/US-EAST"
-	"tcp://*/32002/EUROPE"
+	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/32001/US-EAST"
 	)
 
 SERVER_MACHINES=(
-	"localhost"
+	"ec2-54-164-219-255.compute-1.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"localhost"
+	"ec2-54-164-219-255.compute-1.amazonaws.com"
 	)
 
 TABLE="table"
@@ -60,6 +56,7 @@ ssh_command() {
 	done
 }
 
+
 kill_all() {
 #	cmd="rm -fr crdtdb/results/*"
 	cmd="killall java"
@@ -67,10 +64,41 @@ kill_all() {
 	echo "All clients have stopped"
 }
 
+rsync_source() {
+	servers=("$@")
+	cmd="prsync -r "		
+	for h in ${servers[@]}; do
+		cmd=$cmd" -H "$USERNAME"@"$h" "
+	done
+	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
+	$cmd1
+	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
+	$cmd2
+}
+
+generate_results() {
+	servers=("$@")
+	cmd="prsync -r "		
+	for h in ${servers[@]}; do
+		cmd=$cmd" -H "$USERNAME"@"$h" "
+	done
+	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
+	$cmd1
+	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
+	$cmd2
+}
+
 #Process options
-while getopts "c:d:n:r:t:v:k" optname
+while getopts "abc:d:n:r:t:v:k" optname
   do
     case "$optname" in
+		"a")
+			rsync_source "${SERVER_MACHINES[@]}"
+			exit
+		;;
+		"B")
+		;;
+		
 		"c")
 			case $OPTARG in
 				'strong')
@@ -124,8 +152,9 @@ while getopts "c:d:n:r:t:v:k" optname
 	esac
 	done
 
-LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"TrueIndigo/stuff/benchmarks.properties"
-CMD="java -classpath "$INDIGO_ROOT"bin/:"$INDIGO_ROOT"TrueIndigo/lib/* "$LOG" indigo.application.benchmark.MicroBenchmark"
+CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
+LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
+CMD="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
 
 echo "####################################################"
 echo "####################################################"
@@ -148,8 +177,9 @@ do
 				echo $k" KEYS"
 				echo $m" MODE"
 				echo $DISTRIBUTION" DISTRIBUTION"
-				OUTPUT_DIR=$USER_ROOT"results"$m"-k"$k"-r"$i"-t"$j"/"
-				makeDir="mkdir -p $OUTPUT_DIR "
+				echo $INIT_VALUE" INIT VALUE"
+				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
+				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencers=(${SEQUENCERS[@]:0:$i})
 				servers=(${SERVERS[@]:0:$i})
@@ -166,7 +196,7 @@ do
 				done
 
 				master=${CLIENT_MACHINES[0]}
-				cmd=$CMD" -init -siteId "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$MODE" -initValue "$INIT_VAL
+				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$MODE" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
 				echo "Init data "$master" CMD "$cmd
 				ssh $USERNAME@$master $cmd
 
@@ -174,15 +204,31 @@ do
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					cmd=$makeDir"; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$MODE" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$MODE" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
-					ssh $USERNAME@$h $cmd
+					ssh $USERNAME@$h $cmd" > client_console.log"
+				done
+				
+				#Generate results
+				ri=0;
+				RUN_STATS="java $CLASSPATH evaluation.StatisticsUtils"
+				CDF="-cdf 0 1000 10"
+				for h in ${client_machines[@]}; do
+					
+					cdf_dir=$OUTPUT_DIR"CDF/"
+					makeDir="mkdir -p "$cdf_dir
+					output_cdf=$cdf_dir"remote_indigo_results_"${REGION_NAME[$((ri))]}".dat"
+					
+					awk="awk -F '\t'  '{print \$4}' "$OUTPUT_DIR"remote_indigo_results_"${REGION_NAME[$((ri))]}".log"
+					cmd="$awk | $RUN_STATS $CDF"
+					ri=`expr $ri + 1`
+					echo "Generate results "$h" CMD "$cmd" to "$output_cdf
+					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
 				done
 
-				sleep 10
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
-
+				sleep 10
 			done
 		done
 	done

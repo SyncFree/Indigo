@@ -31,7 +31,7 @@ public class MicroBenchmark {
 
 	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException,
 			InterruptedException, BrokenBarrierException {
-		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s",
+		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s.\n",
 				nThreadsByDC, maxThinkTime, DC_ID, DC_ADDRESS);
 		Semaphore sem = new Semaphore(nThreadsByDC);
 		sem.acquire(nThreadsByDC);
@@ -128,7 +128,7 @@ public class MicroBenchmark {
 			nKeys = Args.valueOf("-nKeys", 1);
 			DC_ID = Args.valueOf("-siteId", "X");
 			table = Args.valueOf("-table", "COUNTER_A");
-			DC_ADDRESS = Args.valueOf("-srvAddress", "tcp://*/36001/") + DC_ID;
+			DC_ADDRESS = Args.valueOf("-srvAddress", "tcp://*/36001/");
 			int nThreads = Args.valueOf("-threads", 1);
 			int maxThinkTime = Args.valueOf("-maxThinkTime", 100);
 			String distributionName = Args.valueOf("-distribution", "uniform");
