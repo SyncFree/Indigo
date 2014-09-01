@@ -20,6 +20,11 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 		super();
 	}
 
+	public BoundedCounterAsResource(CRDTIdentifier identifier) {
+		super(identifier);
+		this.counter = new LowerBoundCounterCRDT(identifier);
+	}
+
 	public BoundedCounterAsResource(CRDTIdentifier identifier, BoundedCounterCRDT<LowerBoundCounterCRDT> counter) {
 		super(identifier);
 		this.counter = counter;

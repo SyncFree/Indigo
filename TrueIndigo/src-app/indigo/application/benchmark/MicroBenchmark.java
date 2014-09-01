@@ -3,9 +3,14 @@ package indigo.application.benchmark;
 import static sys.Context.Networking;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Semaphore;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import org.apache.commons.math3.distribution.IntegerDistribution;
 import org.apache.commons.math3.distribution.UniformIntegerDistribution;
@@ -18,9 +23,11 @@ import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
+import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
 import sys.shepard.PatientShepard;
 import sys.utils.Args;
+import sys.utils.Profiler;
 
 public class MicroBenchmark {
 	static String table;
@@ -29,6 +36,8 @@ public class MicroBenchmark {
 	static IntegerDistribution distribution;
 	static Random uniformRandom = new Random();
 	private static int nKeys;
+	private static String resultsLogName = "MicroBenchmark";
+	private static Profiler profiler;
 
 	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException,
 			InterruptedException, BrokenBarrierException {
@@ -46,7 +55,7 @@ public class MicroBenchmark {
 						while (result) {
 							String key = nKeys > 1 ? distribution.sample() + "" : "1";
 							CRDTIdentifier id = new CRDTIdentifier(table + "", key);
-							result = TestsUtil.getValueDecrement(id, 1, stub, DC_ID);
+							result = getValueDecrement(id, 1, stub, DC_ID);
 							Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
 						}
 					} catch (SwiftException e) {
@@ -65,6 +74,29 @@ public class MicroBenchmark {
 		sem.acquire(nThreadsByDC);
 		System.out.println("All clients stopped");
 		System.exit(0);
+	}
+
+	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId)
+			throws SwiftException {
+		long opId = profiler.startOp(resultsLogName, "OP");
+		int counterValue = -999;
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation(siteId, id, units));
+		boolean result = false;
+		try {
+			stub.beginTxn(resources);
+			BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+			if ((x.getValue()) > 0) {
+				result = x.decrement(units, siteId);
+				counterValue = x.getValue();
+			}
+		} catch (IndigoImpossibleExcpetion e) {
+			result = false;
+		} finally {
+			stub.endTxn();
+		}
+		profiler.endOp(opId, counterValue + "");
+		return result;
 	}
 
 	public void setNormalDistribution(int sampleSize) {
@@ -99,7 +131,8 @@ public class MicroBenchmark {
 			}
 		}
 		System.out.println("Finished initializing Counters");
-		System.exit(0);
+		if (!Args.contains("-startDC"))
+			System.exit(0);
 	}
 
 	private static void increment(CRDTIdentifier id, int amount, Indigo stub, String siteId) throws SwiftException {
@@ -168,6 +201,8 @@ public class MicroBenchmark {
 				if (Args.contains("-shepard")) {
 					PatientShepard.sheepJoinHerd(Args.valueOf("-shepard", ""));
 				};
+
+				initLogger();
 				decrementCycleNThreads(nThreads, maxThinkTime);
 			}
 
@@ -178,6 +213,33 @@ public class MicroBenchmark {
 		} catch (BrokenBarrierException e) {
 			e.printStackTrace();
 		}
+
+	}
+
+	private static void initLogger() {
+		Logger logger = Logger.getLogger(resultsLogName);
+		profiler = Profiler.getInstance();
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/micro_benchmark_results" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(0);
+			}
+		}
+		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE");
 
 	}
 }

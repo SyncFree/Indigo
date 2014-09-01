@@ -232,8 +232,16 @@ do
 					awk="awk -F '\t'  '{print \$4}' "$OUTPUT_DIR"remote_indigo_results_"${REGION_NAME[$((ri))]}".log"
 					cmd="$awk | $RUN_STATS $CDF"
 					ri=`expr $ri + 1`
-					echo "Generate results "$h" CMD "$cmd" to "$output_cdf
+					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
 					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
+					
+					output_cdf=$cdf_dir"micro_benchmark_results_"${REGION_NAME[$((ri))]}".dat"
+					awk="awk -F '\t'  '{print \$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
+					cmd="$awk | $RUN_STATS $CDF"
+					ri=`expr $ri + 1`
+					echo "Generate results "$h" CMD "$cmd" to "$output_cdf
+					ssh $USERNAME@$h "$cmd > $output_cdf"
+					
 				done
 
 			done

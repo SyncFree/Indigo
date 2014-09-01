@@ -4,6 +4,7 @@ import static sys.Context.Networking;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.logging.FileHandler;
@@ -58,6 +59,7 @@ public class RemoteIndigo implements Indigo {
 
 	_TxnHandle handle;
 	private boolean hasResources;
+	final boolean emulateWeakConsistency;
 
 	// private Timestamp lastTSWithGrantedLocks;
 
@@ -73,6 +75,7 @@ public class RemoteIndigo implements Indigo {
 		this.server = server;
 		this.stub = Networking.stub();
 		this.stubId = this.stub.localEndpoint().url();
+		this.emulateWeakConsistency = Args.contains("-weak") || false;
 		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
 		if (profiler == null) {
 			initializeProfiling(resultsLogName);
@@ -117,37 +120,44 @@ public class RemoteIndigo implements Indigo {
 
 	@Override
 	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
-		long opId = profiler.startOp(resultsLogName, "beginTxn");
 		Timestamp txnTimestamp = tsSource.generateNew();
 		// while (txnTimestamp.equals(lastTSWithGrantedLocks)) {
 		// Log.warning("Repeated Timestamp " + lastTSWithGrantedLocks);
 		// txnTimestamp = tsSource.generateNewForced();
 		// }
 
-		AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
-
-		for (ResourceRequest<?> res : resources) {
-			res.setClientTs(txnTimestamp);
-		}
-		if (resources.size() > 0)
-			hasResources = true;
-
-		int retryCount = 0;
-		for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
+		AcquireResourcesRequest request;
+		if (emulateWeakConsistency) {
+			request = new AcquireResourcesRequest(stubId, txnTimestamp, new LinkedList<ResourceRequest<?>>());
 			AcquireResourcesReply reply = stub.request(server, request);
-			if (reply != null && reply.acquiredResources() || resources.size() == 0) {
-				if (Log.isLoggable(Level.INFO))
-					Log.info("Received reply for " + txnTimestamp + " " + reply);
-				handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-				profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount);
-				// if (resources.size() != 0)
-				// lastTSWithGrantedLocks = txnTimestamp;
-				break;
-			} else if (reply.isImpossible()) {
-				throw new IndigoImpossibleExcpetion();
-			} else {
-				retryCount++;
-				Threading.sleep(delay);
+			handle = new _TxnHandle(reply, txnTimestamp, false);
+			return;
+		} else {
+			long opId = profiler.startOp(resultsLogName, "beginTxn");
+			request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
+			for (ResourceRequest<?> res : resources) {
+				res.setClientTs(txnTimestamp);
+			}
+			if (resources.size() > 0)
+				hasResources = true;
+
+			int retryCount = 0;
+			for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
+				AcquireResourcesReply reply = stub.request(server, request);
+				if (reply != null && reply.acquiredResources() || resources.size() == 0) {
+					if (Log.isLoggable(Level.INFO))
+						Log.info("Received reply for " + txnTimestamp + " " + reply);
+					handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
+					profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount);
+					// if (resources.size() != 0)
+					// lastTSWithGrantedLocks = txnTimestamp;
+					break;
+				} else if (reply.isImpossible()) {
+					throw new IndigoImpossibleExcpetion();
+				} else {
+					retryCount++;
+					Threading.sleep(delay);
+				}
 			}
 		}
 	}
