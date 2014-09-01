@@ -13,32 +13,33 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/36001/US-EAST"
+	"tcp://ec2-54-164-140-77.compute-1.amazonaws.com:36001/US-EAST"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/31001/US-EAST"
+	"tcp://ec2-54-164-140-77.compute-1.amazonaws.com:31001/US-EAST"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-164-219-255.compute-1.amazonaws.com/32001/US-EAST"
+	"tcp://ec2-54-164-140-77.compute-1.amazonaws.com:32001/US-EAST"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-164-219-255.compute-1.amazonaws.com"
+	"ec2-54-164-140-77.compute-1.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-164-219-255.compute-1.amazonaws.com"
+	"ec2-54-164-80-239.compute-1.amazonaws.com"
 	)
 
+SHEPARD_URL="tcp://ec2-54-164-140-77.compute-1.amazonaws.com:29876/"
 TABLE="table"
 N_KEYS=(1 100 1000)
 N_REGIONS=(1)
 N_THREADS=(1 10 20 30)
-MODE=("-indigo" "-weak" "-strong")
+MODE=("-indigo")
 SHEPARD="localhost"
 DISTRIBUTION="uniform"
 INIT_VAL=1000
@@ -76,16 +77,13 @@ rsync_source() {
 	$cmd2
 }
 
-generate_results() {
+get_results() {
 	servers=("$@")
-	cmd="prsync -r "		
+	cmd="rsync -r "		
 	for h in ${servers[@]}; do
-		cmd=$cmd" -H "$USERNAME"@"$h" "
+		cmd=$cmd" "$USERNAME"@"$h":results* "$SOURCE_ROOT"../indigo_results/"
+		$cmd
 	done
-	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
-	$cmd1
-	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
-	$cmd2
 }
 
 #Process options
@@ -94,9 +92,12 @@ while getopts "abc:d:n:r:t:v:k" optname
     case "$optname" in
 		"a")
 			rsync_source "${SERVER_MACHINES[@]}"
+			rsync_source "${CLIENT_MACHINES[@]}"
 			exit
 		;;
-		"B")
+		"b")
+			get_results "${CLIENT_MACHINES[@]}"
+			exit
 		;;
 		
 		"c")
@@ -155,7 +156,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
 LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
 CMD="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
-
+SHEPARD="java "$CLASSPATH" "$LOG" sys.shepard.PatientShepard"
 echo "####################################################"
 echo "####################################################"
 echo "####################################################"
@@ -177,7 +178,7 @@ do
 				echo $k" KEYS"
 				echo $m" MODE"
 				echo $DISTRIBUTION" DISTRIBUTION"
-				echo $INIT_VALUE" INIT VALUE"
+				echo $INIT_VAL" INIT VALUE"
 				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
@@ -195,20 +196,28 @@ do
 					
 				done
 
-				master=${CLIENT_MACHINES[0]}
+				master=${SERVER_MACHINES[0]}
 				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$MODE" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
 				echo "Init data "$master" CMD "$cmd
-				ssh $USERNAME@$master $cmd
+				ssh $USERNAME@$master "nohup "$cmd
+				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
+				
+				sleep 1
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$MODE" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$MODE" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
-					ssh $USERNAME@$h $cmd" > client_console.log"
+					ssh $USERNAME@$h "nohup "$cmd" > client_console.log" &
 				done
+
+				sleep 120
+				kill_all "`echo ${SERVER_MACHINES[@]}`"
+				kill_all "`echo ${CLIENT_MACHINES[@]}`"
+
 				
 				#Generate results
 				ri=0;
@@ -227,8 +236,6 @@ do
 					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
 				done
 
-				kill_all "`echo ${SERVER_MACHINES[@]}`"
-				sleep 10
 			done
 		done
 	done

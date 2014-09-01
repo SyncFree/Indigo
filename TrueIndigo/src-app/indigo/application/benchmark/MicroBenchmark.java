@@ -19,6 +19,7 @@ import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.RemoteIndigo;
+import sys.shepard.PatientShepard;
 import sys.utils.Args;
 
 public class MicroBenchmark {
@@ -164,6 +165,9 @@ public class MicroBenchmark {
 			}
 
 			if (Args.contains("-run")) {
+				if (Args.contains("-shepard")) {
+					PatientShepard.sheepJoinHerd(Args.valueOf("-shepard", ""));
+				};
 				decrementCycleNThreads(nThreads, maxThinkTime);
 			}
 
