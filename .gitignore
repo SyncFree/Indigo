@@ -2,3 +2,8 @@
 .project
 .classpath
 .settings/*
+*.ps
+*.dat
+*.log
+*.log.*
+
