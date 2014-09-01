@@ -148,7 +148,7 @@ public class RemoteIndigo implements Indigo {
 					if (Log.isLoggable(Level.INFO))
 						Log.info("Received reply for " + txnTimestamp + " " + reply);
 					handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-					profiler.endOp(opId, reply.acquiredStatus().toString(), "" + retryCount);
+					profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount);
 					// if (resources.size() != 0)
 					// lastTSWithGrantedLocks = txnTimestamp;
 					break;

@@ -46,7 +46,7 @@ public class MicroBenchmark {
 		Semaphore sem = new Semaphore(nThreadsByDC);
 		sem.acquire(nThreadsByDC);
 		for (int i = 0; i < nThreadsByDC; i++) {
-			Indigo stub = RemoteIndigo.getInstance(Networking.resolve(DC_ADDRESS + DC_ID + "/"));
+			Indigo stub = RemoteIndigo.getInstance(Networking.resolve(DC_ADDRESS + "/"));
 
 			Thread t = new Thread(new Runnable() {
 				public void run() {
@@ -95,7 +95,7 @@ public class MicroBenchmark {
 		} finally {
 			stub.endTxn();
 		}
-		profiler.endOp(opId, counterValue + "");
+		profiler.endOp(resultsLogName, opId, counterValue + "", result + "");
 		return result;
 	}
 
@@ -239,7 +239,7 @@ public class MicroBenchmark {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE");
+		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS");
 
 	}
 }

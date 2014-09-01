@@ -32,6 +32,6 @@ public class ProfilerTest {
 		Profiler profiler = Profiler.getInstance();
 		long opId = profiler.startOp(logname, "OP");
 		Thread.sleep(1000);
-		profiler.endOp(opId);
+		profiler.endOp(logname, opId);
 	}
 }

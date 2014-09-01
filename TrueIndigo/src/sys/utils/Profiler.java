@@ -36,7 +36,7 @@ public class Profiler {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
 			long opId = opIdGenerator.getAndIncrement();
-			ops.put(opId, new Pair<>(loggerName, new OperationStats(operationName, System.currentTimeMillis())));
+			ops.put(opId, new Pair<>(loggerName, new OperationStats(operationName, System.nanoTime())));
 			return opId;
 		}
 		return -1;
@@ -46,7 +46,7 @@ public class Profiler {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
 			Pair<String, OperationStats> op = ops.get(opId);
-			op.getSecond().endOperation(System.currentTimeMillis(), otherFields);
+			op.getSecond().endOperation(System.nanoTime(), otherFields);
 			if (logger.isLoggable(Level.FINEST)) {
 				logger.finest(op.getSecond().toString());
 			}
@@ -100,8 +100,7 @@ public class Profiler {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
 			requests.put(request,
-					new Pair<>(loggerName,
-							new OperationStats(request.getClass().toString(), System.currentTimeMillis())));
+					new Pair<>(loggerName, new OperationStats(request.getClass().toString(), System.nanoTime())));
 		}
 	}
 
@@ -109,7 +108,7 @@ public class Profiler {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
 			Pair<String, OperationStats> req = requests.get(request);
-			req.getSecond().endOperation(System.currentTimeMillis());
+			req.getSecond().endOperation(System.nanoTime());
 			if (logger.isLoggable(Level.FINEST)) {
 				logger.finest(req.getSecond().toString());
 			}
@@ -119,19 +118,19 @@ public class Profiler {
 }
 
 class OperationStats {
-	private long startTimeMillis;
-	private long endTimeMillis;
+	private long startTimeNanos;
+	private long endTimeNanos;
 	private String operationName;
 	private String[] otherFields;
 
-	public OperationStats(String operationName, long startTimeMillis) {
+	public OperationStats(String operationName, long startTimeNanos) {
 		super();
-		this.startTimeMillis = startTimeMillis;
+		this.startTimeNanos = startTimeNanos;
 		this.operationName = operationName;
 	}
 
-	public void endOperation(long endTimeMillis, String... otherFields) {
-		this.endTimeMillis = endTimeMillis;
+	public void endOperation(long endTimeNanos, String... otherFields) {
+		this.endTimeNanos = endTimeNanos;
 		this.otherFields = otherFields;
 	}
 
@@ -139,11 +138,11 @@ class OperationStats {
 		StringBuilder string = new StringBuilder();
 		string.append(operationName);
 		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
-		string.append(startTimeMillis);
+		string.append(startTimeNanos);
 		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
-		string.append(endTimeMillis);
+		string.append(endTimeNanos);
 		string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
-		string.append(endTimeMillis - startTimeMillis);
+		string.append((endTimeNanos - startTimeNanos) / 1000000);
 		if (otherFields != null && otherFields.length > 0) {
 			string.append(Profiler.DEFAULT_FIELD_SEPARATOR);
 			string.append(otherFields[0]);
