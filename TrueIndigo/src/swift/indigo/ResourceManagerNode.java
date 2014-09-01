@@ -7,9 +7,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import swift.application.test.TestsUtil;
 import swift.clocks.Timestamp;
 import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
@@ -19,11 +22,13 @@ import swift.indigo.proto.TransferResourcesRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
 import sys.net.api.Service;
+import sys.utils.Args;
 import sys.utils.ConcurrentHashSet;
+import sys.utils.Profiler;
 
 public class ResourceManagerNode implements ReservationsProtocolHandler {
 
-	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 50;
+	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 1;
 
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
 
@@ -50,6 +55,10 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private Map<Timestamp, IndigoOperation> alreadyProcessedTransfers;
 
+	private static Profiler profiler;
+
+	private static String profilerName = "ManagerProfile";
+
 	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			final Map<String, Endpoint> endpoints) {
 
@@ -71,6 +80,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		this.sequencer = sequencer;
 		this.active = true;
+
+		initLogger();
 
 		final SimpleMessageBalacing messageBalancing = new SimpleMessageBalacing(DEFAULT_REQUEST_TRANSFER_RATIO,
 				incomingRequestsQueue, transferRequestsQueue);
@@ -153,6 +164,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest " + request);
 		}
+		long opId = profiler.startOp(profilerName, "release");
 		Timestamp ts = request.getClientTs();
 		AcquireResourcesReply arr = replies.get(ts);
 		if (arr != null && !arr.isReleased()) {
@@ -180,9 +192,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Finished ReleaseResourcesRequest" + request);
 		}
+		profiler.endOp(profilerName, opId);
 	}
 
 	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
+		long opId = profiler.startOp(profilerName, "acquire");
 		AcquireResourcesReply reply = null;
 		if (logger.isLoggable(Level.INFO))
 			logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
@@ -197,6 +211,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 					+ reply);
 
 		waitingIndex.remove(request.getClientTs());
+		profiler.endOp(profilerName, opId);
 		conn.reply(reply);
 	}
 	/**
@@ -207,7 +222,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	public void onReceive(Envelope conn, AcquireResourcesRequest request) {
 		request.setHandler(conn);
 		AcquireResourcesReply reply = null;
-
+		profiler.trackRequest(profilerName, request);
 		if (request.getRequests().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
@@ -285,23 +300,31 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		return null;
 	}
 
-}
-
-class FIFOClassQueue<T> {
-
-	Queue<Queue<T>> orderedByPriority;
-
-	public FIFOClassQueue(Queue<Queue<T>> orderedByPriority) {
-		this.orderedByPriority = orderedByPriority;
-	}
-
-	public synchronized T nextElement() {
-		for (Queue<T> queue : orderedByPriority) {
-			if (!queue.isEmpty()) {
-				return queue.remove();
+	private static void initLogger() {
+		Logger logger = Logger.getLogger(profilerName);
+		profiler = Profiler.getInstance();
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/manager_profiler" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+				profiler.printMessage(profilerName, TestsUtil.dumpArgs());
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(0);
 			}
 		}
-		return null;
+		profiler.printHeaderWithCustomFields(profilerName);
+
 	}
 
 }
@@ -310,7 +333,7 @@ class SimpleMessageBalacing {
 
 	enum OPType {
 		TRANSFER, REQUEST
-	};
+	}
 
 	private AtomicInteger transfers;
 	private AtomicInteger requests;
@@ -354,6 +377,5 @@ class SimpleMessageBalacing {
 			return transferQueue.remove();
 		} else
 			return null;
-
 	}
 }

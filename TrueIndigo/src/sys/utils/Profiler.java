@@ -7,6 +7,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import swift.indigo.IndigoOperation;
+import swift.indigo.proto.AcquireResourcesRequest;
 import swift.utils.Pair;
 
 public class Profiler {
@@ -14,6 +16,8 @@ public class Profiler {
 	protected static String DEFAULT_FIELD_SEPARATOR = "\t";
 
 	private static Map<Long, Pair<String, OperationStats>> ops;
+
+	private static Map<IndigoOperation, Pair<String, OperationStats>> requests;
 
 	private static Map<String, Logger> loggers;
 
@@ -23,22 +27,29 @@ public class Profiler {
 
 	private Profiler() {
 		ops = new ConcurrentHashMap<Long, Pair<String, OperationStats>>();
+		requests = new ConcurrentHashMap<>();
 		opIdGenerator = new AtomicLong();
 		loggers = new HashMap<>();
 	}
 
 	public long startOp(String loggerName, String operationName) {
-		long opId = opIdGenerator.getAndIncrement();
-		ops.put(opId, new Pair<>(loggerName, new OperationStats(operationName, System.currentTimeMillis())));
-		return opId;
+		Logger logger = getLogger(loggerName);
+		if (logger.isLoggable(Level.FINEST)) {
+			long opId = opIdGenerator.getAndIncrement();
+			ops.put(opId, new Pair<>(loggerName, new OperationStats(operationName, System.currentTimeMillis())));
+			return opId;
+		}
+		return -1;
 	}
 
-	public void endOp(long opId, String... otherFields) {
-		Pair<String, OperationStats> op = ops.get(opId);
-		op.getSecond().endOperation(System.currentTimeMillis(), otherFields);
-		Logger logger = getLogger(op.getFirst());
+	public void endOp(String loggerName, long opId, String... otherFields) {
+		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
-			logger.finest(op.getSecond().toString());
+			Pair<String, OperationStats> op = ops.get(opId);
+			op.getSecond().endOperation(System.currentTimeMillis(), otherFields);
+			if (logger.isLoggable(Level.FINEST)) {
+				logger.finest(op.getSecond().toString());
+			}
 		}
 	}
 
@@ -74,6 +85,36 @@ public class Profiler {
 	public void printMessage(String loggerName, String dumpArgs) {
 		Logger logger = getLogger(loggerName);
 		logger.finest(dumpArgs);
+	}
+
+	/**
+	 * Experimental feature to track the time the operation takes from entering
+	 * the system and being answered. Not being used right now, just for some
+	 * quick experiments.
+	 * 
+	 * @param loggerName
+	 * @param request
+	 */
+
+	public void trackRequest(String loggerName, IndigoOperation request) {
+		Logger logger = getLogger(loggerName);
+		if (logger.isLoggable(Level.FINEST)) {
+			requests.put(request,
+					new Pair<>(loggerName,
+							new OperationStats(request.getClass().toString(), System.currentTimeMillis())));
+		}
+	}
+
+	public void finishRequest(String loggerName, AcquireResourcesRequest request) {
+		Logger logger = getLogger(loggerName);
+		if (logger.isLoggable(Level.FINEST)) {
+			Pair<String, OperationStats> req = requests.get(request);
+			req.getSecond().endOperation(System.currentTimeMillis());
+			if (logger.isLoggable(Level.FINEST)) {
+				logger.finest(req.getSecond().toString());
+			}
+			requests.remove(request);
+		}
 	}
 }
 
