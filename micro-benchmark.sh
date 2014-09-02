@@ -9,28 +9,28 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-164-186-255.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:36001/US-EAST"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-164-186-255.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:31001/US-EAST"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-164-186-255.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:32001/US-EAST"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-164-186-255.compute-1.amazonaws.com"
+	"ec2-54-164-239-59.compute-1.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-164-213-54.compute-1.amazonaws.com"
+	"ec2-54-165-27-213.compute-1.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-164-186-255.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-164-239-59.compute-1.amazonaws.com:29876/"
 
 
 #LOCAL OVERRIDE
@@ -50,10 +50,10 @@ SHEPARD_URL="tcp://ec2-54-164-186-255.compute-1.amazonaws.com:29876/"
 TABLE="table"
 N_KEYS=(1 100)
 N_REGIONS=(1)
-N_THREADS=(1 10)
+N_THREADS=(1 10 20 30 40 50 60 70 80)
 MODE=("-indigo" "-weak")
 DISTRIBUTION="uniform"
-INIT_VAL=1000
+INIT_VAL=1000000
 #<Clients> #<Command>
 ssh_command() {
 	hosts=($1)
@@ -233,7 +233,7 @@ do
 				#Generate results
 				ri=0;
 				RUN_STATS="java $CLASSPATH evaluation.StatisticsUtils"
-				CDF="-cdf 0 1000 10"
+				CDF="-cdf 0 1000 5"
 				TPSL="-tpsl"
 				cdf_dir=$OUTPUT_DIR"CDF/"
 				tpsl_dir=$OUTPUT_DIR"TPSL/"
@@ -243,7 +243,7 @@ do
 					output_cdf=$cdf_dir"micro_benchmark_results_"${REGION_NAME[$((ri))]}".dat"
 					output_tpsl=$tpsl_dir"micro_benchmark_results_"${REGION_NAME[$((ri))]}".dat"
 
-					awk="awk -F '\t'  '{print \$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
+					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
 					cmd="$awk | $RUN_STATS $CDF"
 					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
 					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"

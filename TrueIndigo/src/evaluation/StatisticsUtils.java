@@ -2,25 +2,29 @@ package evaluation;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Scanner;
 
 import org.apache.commons.math3.stat.Frequency;
 
-import swift.utils.Pair;
-
 public class StatisticsUtils {
 	private static final long ONE_SECOND_IN_NANOS = 1000000000;
+	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 60;
+	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 10;
 	static Frequency valuesFreq;
 
 	public static void getCDF(int rangeI, int rangeF, int increment) {
+		long startTime = -1;
 		valuesFreq = new Frequency();
 		Scanner scanner = new Scanner(System.in);
 		while (scanner.hasNext()) {
-			if (scanner.hasNextInt()) {
-				int opTime = scanner.nextInt();
-				valuesFreq.addValue(opTime);
+			if (scanner.hasNextLong()) {
+				long opStartTime = scanner.nextLong();
+				long opTime = scanner.nextLong();
+				if (startTime == -1) {
+					startTime = opStartTime;
+				}
+				if (opStartTime - startTime > WARMUP_TIME)
+					valuesFreq.addValue(opTime);
 			} else
 				scanner.nextLine();
 		}
@@ -33,47 +37,48 @@ public class StatisticsUtils {
 
 	}
 	/**
-	 * Transactions per minute and Throughput/Latency
+	 * Transactions per second
 	 * 
 	 * @param rangeI
 	 * @param rangeF
 	 * @param increment
 	 */
-	public static void getTPSAndTPL() {
-		long lastSecond = 0;
+	public static void getTPSandTPL() {
+		boolean warmUpComplete = false;
+		long startTime = -1;
 		int count = 0;
-		long sumLatencies = 0;
-		List<Pair<Long, Integer>> tpMinute = new LinkedList<Pair<Long, Integer>>();
-		List<Pair<Integer, Long>> tpLatency = new LinkedList<Pair<Integer, Long>>();
+		long totalLatencies = 0;
+
 		Scanner scanner = new Scanner(System.in);
 		while (scanner.hasNext()) {
 			if (scanner.hasNextLong()) {
-				long startTime = scanner.nextLong();
+				long opStartTime = scanner.nextLong();
 				long opTime = scanner.nextLong();
-				sumLatencies += opTime;
-				if (startTime - lastSecond > ONE_SECOND_IN_NANOS) {
-					tpMinute.add(new Pair<>(startTime, count));
-					if (count != 0) {
-						tpLatency.add(new Pair<Integer, Long>(count, sumLatencies / count));
-					} else {
-						tpLatency.add(new Pair<Integer, Long>(0, 0l));
-					}
-
-					count = 0;
-					sumLatencies = 0;
-					lastSecond = startTime;
+				if (startTime == -1) {
+					startTime = opStartTime;
 				}
-				count++;
+				if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+					warmUpComplete = true;
+					startTime = opStartTime;
+				}
+				if (warmUpComplete) {
+					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+						count++;
+						totalLatencies += opTime;
+					} else {
+						// Just take results in one minute
+						break;
+					}
+				}
 			} else
 				scanner.nextLine();
 		}
+		int TPS = count / 60;
+		long AVGLatencyNanos = (totalLatencies / count);
 		scanner.close();
+		System.out.printf("%d\n\n", count);
 		System.out.printf("START\tTPS\tTPL\n");
-		while (!tpMinute.isEmpty()) {
-			Pair<Long, Integer> tpm = tpMinute.remove(0);
-			Pair<Integer, Long> tpl = tpLatency.remove(0);
-			System.out.printf("%s\t%s\t%s\n", tpm.getFirst(), tpm.getSecond(), tpl.getSecond());
-		}
+		System.out.printf("%s\t%s\t%s\n", startTime, TPS, AVGLatencyNanos);
 	}
 
 	public static void createTPS(String filter, String[] files) throws FileNotFoundException {
@@ -125,7 +130,7 @@ public class StatisticsUtils {
 				return;
 			}
 			if (args[0].equals("-tpsl")) {
-				getTPSAndTPL();
+				getTPSandTPL();
 			}
 			if (args[0].equals("-tps")) {
 				String filter = args[1];
