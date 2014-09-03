@@ -164,7 +164,7 @@ public class MicroBenchmark {
 			table = Args.valueOf("-table", "COUNTER_A");
 			DC_ADDRESS = Args.valueOf("-srvAddress", "tcp://*/36001/");
 			int nThreads = Args.valueOf("-threads", 1);
-			int maxThinkTime = Args.valueOf("-maxThinkTime", 100);
+			int maxThinkTime = Args.valueOf("-maxThinkTime", 50);
 			String distributionName = Args.valueOf("-distribution", "uniform");
 
 			if (nKeys > 1) {

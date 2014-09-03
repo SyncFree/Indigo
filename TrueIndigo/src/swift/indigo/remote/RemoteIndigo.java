@@ -106,7 +106,8 @@ public class RemoteIndigo implements Indigo {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES");
+		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES", "CLIENT_TS", "SNAPSHOT",
+				"SERVER_TIME");
 	}
 
 	public TxnHandle getTxnHandle() {
@@ -148,7 +149,8 @@ public class RemoteIndigo implements Indigo {
 					if (Log.isLoggable(Level.INFO))
 						Log.info("Received reply for " + txnTimestamp + " " + reply);
 					handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-					profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount);
+					profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount,
+							txnTimestamp + "", reply.getSnapshot().toString(), reply.getPhysicalClock() + "");
 					// if (resources.size() != 0)
 					// lastTSWithGrantedLocks = txnTimestamp;
 					break;

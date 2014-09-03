@@ -9,28 +9,28 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:36001/US-EAST"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:31001/US-EAST"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-164-239-59.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:32001/US-EAST"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-164-239-59.compute-1.amazonaws.com"
+	"ec2-54-165-83-167.compute-1.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-27-213.compute-1.amazonaws.com"
+	"ec2-54-165-83-157.compute-1.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-164-239-59.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-165-83-167.compute-1.amazonaws.com:29876/"
 
 
 #LOCAL OVERRIDE
@@ -48,12 +48,12 @@ SHEPARD_URL="tcp://ec2-54-164-239-59.compute-1.amazonaws.com:29876/"
 
 
 TABLE="table"
-N_KEYS=(1 100)
+N_KEYS=(1000)
 N_REGIONS=(1)
-N_THREADS=(1 10 20 30 40 50 60 70 80)
-MODE=("-indigo" "-weak")
+N_THREADS=(1 10 20 40 50 60 80 100 120 140 160 180 200)
+MODE=("-indigo")
 DISTRIBUTION="uniform"
-INIT_VAL=1000000
+INIT_VAL=9999999
 #<Clients> #<Command>
 ssh_command() {
 	hosts=($1)
@@ -82,6 +82,7 @@ rsync_source() {
 	for h in ${servers[@]}; do
 		cmd=$cmd" -H "$USERNAME"@"$h" "
 	done
+    ant -buildfile $SOURCE_ROOT/TrueIndigo/balegas-jar-build.xml 
 	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
 	$cmd1
 	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
@@ -203,9 +204,9 @@ do
 					ri=`expr $ri + 1`
 					echo "Start DC "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " > dc_console.log" &
-					sleep 2 
-					
 				done
+				
+				sleep 5
 
 				master=${SERVER_MACHINES[0]}
 				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
@@ -213,7 +214,7 @@ do
 				ssh $USERNAME@$master "nohup "$cmd
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
 				
-				sleep 1
+				sleep 5
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
@@ -226,6 +227,7 @@ do
 				done
 
 				sleep 120
+
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
 

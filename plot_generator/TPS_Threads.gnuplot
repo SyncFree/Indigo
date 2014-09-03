@@ -1,7 +1,7 @@
 #set encoding utf8;
 #set label 1 "XXX - scout at DC" font "Helvetica,16" at 1,950;
 set terminal postscript size 10.0, 7.0 enhanced monochrome dashed font "Helvetica,24" linewidth 1;
-set xlabel "# Threads [ ms ]";
+set xlabel "# Threads";
 set ylabel "Throughput [ TP/Second ]";
 set mxtics;
 set mytics;
@@ -19,6 +19,6 @@ set clip points;
 
 set pointinterval 0.1;
 
-plot  indigo using 1:2  every ::1 title "Indigo" with linespoints pointinterval 1 lw 4 ps 2 pt 7, \
-	  weak using 1:2  every ::1 title "Causal" with linespoints pointinterval 1 lw 4 ps 2 pt 3
+plot  iuse using 1:2  every ::1 title "Indigo: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 7, \
+	  wuse using 1:2  every ::1 title "Causal: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 3
 

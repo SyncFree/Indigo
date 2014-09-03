@@ -17,9 +17,9 @@ set clip points;
 #set bmargin at screen 0.05;
 #set tmargin at screen 0.9999;
 
-set pointinterval 0.1;
+set pointinterval 1;
 set decimalsign locale;
 
-plot  indigo using 1:($2*100) title "Indigo" with linespoints pointinterval 0.1 lw 4 ps 2 pt 7, \
-	  weak using 1:($2*100) title "Causal" with linespoints pointinterval 0.1 lw 4 ps 2 pt 3
+plot  iuse using 1:($2*100) title "Indigo: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 7, \
+	  wuse using 1:($2*100) title "Causal: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 3
 

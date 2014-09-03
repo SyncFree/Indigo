@@ -9,7 +9,7 @@ import org.apache.commons.math3.stat.Frequency;
 public class StatisticsUtils {
 	private static final long ONE_SECOND_IN_NANOS = 1000000000;
 	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 60;
-	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 10;
+	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 20;
 	static Frequency valuesFreq;
 
 	public static void getCDF(int rangeI, int rangeF, int increment) {
@@ -76,7 +76,6 @@ public class StatisticsUtils {
 		int TPS = count / 60;
 		long AVGLatencyNanos = (totalLatencies / count);
 		scanner.close();
-		System.out.printf("%d\n\n", count);
 		System.out.printf("START\tTPS\tTPL\n");
 		System.out.printf("%s\t%s\t%s\n", startTime, TPS, AVGLatencyNanos);
 	}
@@ -87,7 +86,7 @@ public class StatisticsUtils {
 			int idxI = file.indexOf("-t");
 			int idxF = file.indexOf("-", idxI + 1);
 			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
-			int avg = average_column(1, file);
+			long avg = average_column(1, file);
 			System.out.printf("%s\t%s\n", nThreads, avg);
 		}
 	}
@@ -98,23 +97,23 @@ public class StatisticsUtils {
 			int idxI = file.indexOf(filter);
 			int idxF = file.indexOf("-", idxI);
 			int nThreads = Integer.parseInt(file.substring(idxI, idxF));
-			int avg = average_column(2, file);
+			long avg = average_column(2, file);
 			System.out.printf("%s\t%s\n", nThreads, avg);
 		}
 	}
 
-	private static int average_column(int colIdx, String fileName) throws FileNotFoundException {
+	private static long average_column(int colIdx, String fileName) throws FileNotFoundException {
 		File file = new File(fileName);
 		Scanner fileIS = new Scanner(file);
 		int count = 0;
-		int sum = 0;
+		long sum = 0;
 
 		// Skip header
 		fileIS.nextLine();
 
 		while (fileIS.hasNextLine()) {
 			String[] lineToks = fileIS.nextLine().split("\t");
-			sum += Integer.parseInt(lineToks[colIdx]);
+			sum += Long.parseLong(lineToks[colIdx]);
 			count++;
 		}
 		fileIS.close();
