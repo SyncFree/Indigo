@@ -6,9 +6,7 @@ import java.util.Collections;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.indigo.IndigoResourceManager;
 import swift.indigo.ResourceRequest;
-import sys.utils.Threading;
 
 public class AcquireResourcesReply {
 
@@ -27,6 +25,8 @@ public class AcquireResourcesReply {
 	// transient boolean[] durable;
 	transient Timestamp cltTimestamp;
 
+	private long time;
+
 	/**
 	 * Fake constructor for Kryo serialization. Do NOT use.
 	 */
@@ -34,12 +34,14 @@ public class AcquireResourcesReply {
 	}
 
 	public AcquireResourcesReply(boolean dummy) {
+		this.time = System.currentTimeMillis();
 		this.status = AcquireReply.NO;
 		if (dummy != false)
 			throw new RuntimeException("Expected false...");
 	}
 
 	public AcquireResourcesReply(AcquireReply status, CausalityClock snapshot) {
+		this.time = System.currentTimeMillis();
 		this.status = status;
 		this.snapshot = snapshot;
 		this.objectUpdateGroups = Collections.emptyList();
@@ -47,6 +49,7 @@ public class AcquireResourcesReply {
 
 	public AcquireResourcesReply(Timestamp cltTimestamp, Timestamp timestamp, CausalityClock snapshot,
 			Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Collection<ResourceRequest<?>> requests) {
+		this.time = System.currentTimeMillis();
 		this.status = AcquireReply.YES;
 		this.snapshot = snapshot;
 		this.timestamp = timestamp;
@@ -59,6 +62,7 @@ public class AcquireResourcesReply {
 	}
 	// Used for weak consistency emulation...
 	public AcquireResourcesReply(long serial, CausalityClock currentClockEstimate) {
+		this.time = System.currentTimeMillis();
 		this.serial = serial;
 		this.status = AcquireReply.YES;
 		this.timestamp = null;
@@ -98,28 +102,6 @@ public class AcquireResourcesReply {
 		return snapshot;
 	}
 
-	public void lockStuff() {
-		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-		// // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-		// for (Lock i : locks)
-		// Threading.lock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.lock(i.getId());
-		// // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-	}
-
-	public void unlockStuff() {
-		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-		// for (Lock i : locks)
-		// Threading.unlock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.unlock(i.getId());
-		// // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-	}
-
 	public String toString() {
 		return "STATUS " + status + " TS: " + timestamp;
 	}
@@ -139,19 +121,8 @@ public class AcquireResourcesReply {
 		return status.equals(AcquireReply.IMPOSSIBLE);
 	}
 
-	// public void setDurable(CRDTIdentifier crdt) {
-	// for (int i = 0; i < requests.length; i++) {
-	// durable[i] = true;
-	// }
-	// }
-	//
-	// public boolean allDurable() {
-	// for (int i = 0; i < requests.length; i++) {
-	// if (durable[i] != true) {
-	// return false;
-	// }
-	// }
-	// return true;
-	// }
+	public long getPhysicalClock() {
+		return time;
+	}
 
 }

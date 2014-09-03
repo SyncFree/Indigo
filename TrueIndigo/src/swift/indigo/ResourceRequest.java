@@ -10,10 +10,6 @@ public interface ResourceRequest<T> extends Comparable<ResourceRequest<T>> {
 
 	public String getRequesterId();
 
-	public void lockStuff();
-
-	public void unlockStuff();
-
 	void setClientTs(Timestamp ts);
 
 }

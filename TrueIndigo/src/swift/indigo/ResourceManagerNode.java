@@ -6,6 +6,9 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -32,6 +35,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
 
+	private static final int nWorkers = 10;
+
 	private static Logger logger = Logger.getLogger(ResourceManagerNode.class.getName());
 
 	private IndigoResourceManager manager;
@@ -55,6 +60,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private Map<Timestamp, IndigoOperation> alreadyProcessedTransfers;
 
+	private ExecutorService workers;
+
 	private static Profiler profiler;
 
 	private static String profilerName = "ManagerProfile";
@@ -70,11 +77,12 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		// and messages with smaller requests (size of requests was not tested)
 		this.transferRequestsQueue = new PriorityQueue<TransferResourcesRequest>();
 		// Incoming messages are ordered by FIFO order
-		this.incomingRequestsQueue = new LinkedList<IndigoOperation>();
+		this.incomingRequestsQueue = new ConcurrentLinkedQueue<IndigoOperation>();
 
 		this.waitingIndex = new ConcurrentHashSet<IndigoOperation>();
 		this.alreadyProcessedTransfers = new ConcurrentHashMap<Timestamp, IndigoOperation>();
 
+		this.workers = Executors.newFixedThreadPool(nWorkers);
 		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
 		this.stub = sequencer.stub;
 
@@ -93,11 +101,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			public void run() {
 				while (active) {
 					IndigoOperation request;
-					synchronized (thisManager) {
-						request = messageBalancing.nextOp();
-					}
+					request = messageBalancing.nextOp();
 					if (request != null) {
-						request.deliverTo(thisManager);
+						workers.execute(new Runnable() {
+							@Override
+							public void run() {
+								request.deliverTo(thisManager);
+							}
+						});
 					} else {
 						try {
 							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
@@ -105,10 +116,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 							e.printStackTrace();
 						}
 					}
-
 				}
 			}
-
 		}).start();
 
 		// Transfer requests thread
@@ -119,14 +128,13 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				while (active) {
 					if (outgoingMessages.size() > 0) {
 						TransferResourcesRequest request = null;
-						synchronized (thisManager) {
-							if (outgoingMessages.size() > 0) {
-								request = outgoingMessages.remove();
-							} else
-								continue;
-						}
+						if (outgoingMessages.size() > 0) {
+							request = outgoingMessages.remove();
+						} else
+							continue;
 						Endpoint endpoint = endpoints.get(request.getDestination());
-						logger.info("Asking resources: " + request);
+						if (logger.isLoggable(Level.INFO))
+							logger.info("Asking resources: " + request);
 						stub.send(endpoint, request);
 					} else {
 						try {
@@ -146,8 +154,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
 		}
 
-		// TODO: Attention! this is not a synchronized call --- It blocked
-		// during the transaction commit
 		TRANSFER_STATUS reply = manager.transferResources(request);
 
 		if (reply.hasTransferred()) {
@@ -168,27 +174,21 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		Timestamp ts = request.getClientTs();
 		AcquireResourcesReply arr = replies.get(ts);
 		if (arr != null && !arr.isReleased()) {
-			// replies.remove(ts);
-			synchronized (thisManager) {
-				if (arr.acquiredResources()) {
-					// if (request.isRetry()) {
-					// System.out.println("HERE");
-					// }
-					if (!manager.releaseResources(arr)) {
-						// Failed - put it back on the queue
-						incomingRequestsQueue.add(request);
-						request.setRetry(true);
-					} else {
-						arr.setReleased();
-						waitingIndex.remove(request);
-					}
+			if (arr.acquiredResources()) {
+				if (!manager.releaseResources(arr)) {
+					// Failed - put it back on the queue
+					request.setRetry(true);
+					incomingRequestsQueue.add(request);
 				} else {
+					arr.setReleased();
+					waitingIndex.remove(request);
+				}
+			} else {
+				if (logger.isLoggable(Level.WARNING))
 					logger.warning("SITE: " + sequencer.siteId
 							+ " Trying to release but did not get resources: exiting, should not happen " + request);
-					System.exit(0);
-				}
+				System.exit(0);
 			}
-
 			if (logger.isLoggable(Level.INFO))
 				logger.info("SITE: " + sequencer.siteId + " Finished ReleaseResourcesRequest" + request);
 		}
@@ -200,9 +200,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		AcquireResourcesReply reply = null;
 		if (logger.isLoggable(Level.INFO))
 			logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
-		synchronized (thisManager) {
-			reply = manager.acquireResources(request);
-		}
+		reply = manager.acquireResources(request);
 		if (reply.acquiredStatus().equals(AcquireReply.YES)) {
 			replies.put(request.getClientTs(), reply);
 		}
@@ -223,7 +221,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		request.setHandler(conn);
 		AcquireResourcesReply reply = null;
 		profiler.trackRequest(profilerName, request);
-		if (request.getRequests().size() == 0) {
+		if (request.getResourcesRequest().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
 			if (isDuplicate(request)) {
@@ -236,9 +234,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 							+ replies.get(request.getClientTs()));
 				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
 			} else {
-				synchronized (thisManager) {
-					incomingRequestsQueue.add(request);
-				}
+				incomingRequestsQueue.add(request);
 			}
 
 		}
@@ -253,7 +249,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
 			// Check if the message is duplicated
 			if (!isDuplicate(request)) {
-				synchronized (thisManager) {
+				synchronized (transferRequestsQueue) {
 					transferRequestsQueue.add(request);
 				}
 			}
@@ -265,16 +261,15 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		AcquireResourcesReply reply = replies.get(request);
 		if (reply == null || !reply.isReleased()) {
 			if (!isDuplicate(request)) {
-				synchronized (thisManager) {
-					incomingRequestsQueue.add(request);
-				}
+				incomingRequestsQueue.add(request);
 			}
 		}
 	}
 
 	@Override
 	public void onReceive(Envelope conn, AcquireResourcesReply request) {
-		logger.warning("RPC " + request.getClass() + " not implemented!");
+		if (logger.isLoggable(Level.WARNING))
+			logger.warning("RPC " + request.getClass() + " not implemented!");
 	}
 
 	/**
@@ -366,15 +361,20 @@ class SimpleMessageBalacing {
 		}
 	}
 
-	public synchronized IndigoOperation nextOp() {
-		int nRequests = requests.get();
-		int nTransfers = transfers.get();
+	public IndigoOperation nextOp() {
+		int nRequests, nTransfers;
+		synchronized (this) {
+			nRequests = requests.get();
+			nTransfers = transfers.get();
+		}
 		if (requestQueue.size() > 0 && (nRequests - nTransfers <= ratio || transferQueue.size() == 0)) {
 			registerOp(OPType.REQUEST);
 			return requestQueue.remove();
 		} else if (transferQueue.size() > 0) {
 			registerOp(OPType.TRANSFER);
-			return transferQueue.remove();
+			synchronized (transferQueue) {
+				return transferQueue.remove();
+			}
 		} else
 			return null;
 	}

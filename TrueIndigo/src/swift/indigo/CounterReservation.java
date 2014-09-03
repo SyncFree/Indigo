@@ -2,7 +2,6 @@ package swift.indigo;
 
 import swift.api.CRDTIdentifier;
 import swift.clocks.Timestamp;
-import sys.utils.Threading;
 
 public class CounterReservation implements ResourceRequest<Integer> {
 
@@ -74,28 +73,6 @@ public class CounterReservation implements ResourceRequest<Integer> {
 			// CounterReservation has less priority than any other resource type
 			return 1;
 		}
-	}
-
-	public void lockStuff() {
-		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-		// // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-		// for (Lock i : locks)
-		// Threading.lock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.lock(i.getId());
-		// // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-	}
-
-	public void unlockStuff() {
-		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-		// for (Lock i : locks)
-		// Threading.unlock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.unlock(i.getId());
-		// // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
 	}
 
 }

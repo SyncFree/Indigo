@@ -3,7 +3,6 @@ package swift.indigo;
 import swift.api.CRDTIdentifier;
 import swift.clocks.Timestamp;
 import swift.crdt.ShareableLock;
-import sys.utils.Threading;
 
 public class LockReservation implements ResourceRequest<ShareableLock> {
 
@@ -67,28 +66,6 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 			return -1;
 		}
 
-	}
-
-	public void lockStuff() {
-		Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-		// // System.err.println("Locking:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-		// for (Lock i : locks)
-		// Threading.lock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.lock(i.getId());
-		// // System.err.println("Locked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
-	}
-
-	public void unlockStuff() {
-		Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-		// for (Lock i : locks)
-		// Threading.unlock(i.id());
-		// for (CounterReservation i : counters)
-		// Threading.unlock(i.getId());
-		// // System.err.println("UnLocked:" + Arrays.asList(locks) + ", " +
-		// // Arrays.asList(counters));
 	}
 
 	@Override

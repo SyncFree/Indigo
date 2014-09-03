@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,12 +38,12 @@ final public class IndigoResourceManager {
 	private static Logger logger = Logger.getLogger(IndigoResourceManager.class.getName());
 
 	final String resourceMgrId;
-	final public static String LOCKS_TABLE = "/indigo/locks";
 
 	private final StorageHelper storage;
 	private final IndigoSequencerAndResourceManager sequencer;
 
 	private Map<CRDTIdentifier, Resource<?>> cache;
+	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
 	private transient Queue<TransferResourcesRequest> transferQueue;
 
@@ -66,8 +68,11 @@ final public class IndigoResourceManager {
 		}
 		this.storage = new StorageHelper(sequencer, surrogate, resourceMgrId, isMaster);
 
-		this.cache = new HashMap<CRDTIdentifier, Resource<?>>();
-		logger.info("ENDPOINTS: " + endpoints);
+		this.cache = new ConcurrentHashMap<>();
+		this.lockTable = new ConcurrentHashMap<>();
+
+		if (logger.isLoggable(Level.INFO))
+			logger.info("ENDPOINTS: " + endpoints);
 
 		this.storage.registerType(CounterReservation.class, NonNegativeBoundedCounterAsResource.class);
 		this.storage.registerType(LockReservation.class, EscrowableTokenCRDT.class);
@@ -79,7 +84,7 @@ final public class IndigoResourceManager {
 	protected boolean releaseResources(AcquireResourcesReply alr) {
 		boolean ok = false;
 		try {
-			// alr.lockStuff();
+			acquireLocks(alr.getResourcesRequest());
 
 			// TODO: Warning this reads from storage, every time
 			// some notifications arrives.
@@ -103,19 +108,22 @@ final public class IndigoResourceManager {
 			// }
 
 		} catch (VersionNotFoundException e) {
-			logger.warning("Version exception but continues " + (++exceptionCount));
+			if (logger.isLoggable(Level.WARNING))
+				logger.warning("Version exception but continues " + (++exceptionCount));
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 
 		} finally {
-			// alr.unlockStuff();
+			releaseLocks(alr.getResourcesRequest());
 		}
 		return ok || false;
 	}
 
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
+		acquireLocks(request.getResourcesRequest());
+
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 
@@ -130,7 +138,7 @@ final public class IndigoResourceManager {
 
 			// Test resource's availability
 			Resource resource;
-			for (ResourceRequest<?> req : modifiedRequest.getRequests()) {
+			for (ResourceRequest<?> req : modifiedRequest.getResourcesRequest()) {
 				try {
 					resource = getResourceAndUpdateCache(req);
 				} catch (VersionNotFoundException e) {
@@ -168,16 +176,18 @@ final public class IndigoResourceManager {
 			else {
 
 				// Do the locking
-				for (ResourceRequest<?> req : request.getRequests()) {
+				for (ResourceRequest<?> req : request.getResourcesRequest()) {
 					Resource resourceFromCache = cache.get(req.getResourceId());
-					logger.info("Satisfy request " + req + " for resource " + resourceFromCache);
+					// logger.info("Satisfy request " + req + " for resource " +
+					// resourceFromCache);
 					resourceFromCache.apply(sequencer.siteId, req);
 				}
 
 				Collection<CRDTObjectUpdatesGroup<?>> updates = storage.endTxnAndGetUpdates(false);
 				Timestamp txnTs = storage.recordNewEvent();
 
-				return new AcquireResourcesReply(request.getClientTs(), txnTs, snapshot, updates, request.getRequests());
+				return new AcquireResourcesReply(request.getClientTs(), txnTs, snapshot, updates,
+						request.getResourcesRequest());
 			}
 
 		} catch (SwiftException e) {
@@ -185,13 +195,16 @@ final public class IndigoResourceManager {
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 		} finally {
-			// unlockTable();
+			releaseLocks(request.getResourcesRequest());
 		}
 		return generateDenyMessage(unsatified, snapshot);
 	}
+
 	private void printResourcesState(Map<CRDTIdentifier, Resource<?>> unsatified) {
 		for (Entry<CRDTIdentifier, Resource<?>> un_i : unsatified.entrySet()) {
-			logger.info(sequencer.siteId + " Resouce could not be granted: " + un_i.getKey() + ": " + un_i.getValue());
+			if (logger.isLoggable(Level.INFO))
+				logger.info(sequencer.siteId + " Resouce could not be granted: " + un_i.getKey() + ": "
+						+ un_i.getValue());
 		}
 
 	}
@@ -238,13 +251,13 @@ final public class IndigoResourceManager {
 	// TODO:It seems that it does not block when no transference is executed
 	// It might be due to this transaction
 	protected TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
+		acquireLocks(request.getResourcesRequest());
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
 		boolean updated = false;
 		try {
-			// request.lockStuff();
 			storage.beginTxn(null);
-			for (ResourceRequest<?> req_i : request.getRequests()) {
+			for (ResourceRequest<?> req_i : request.getResourcesRequest()) {
 				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i);
 				if (transferred.equals(TRANSFER_STATUS.FAIL)) {
 					allSuccess = false;
@@ -272,8 +285,34 @@ final public class IndigoResourceManager {
 		} else if (atLeastOnePartial) {
 			return TRANSFER_STATUS.PARTIAL;
 		} else {
+			releaseLocks(request.getResourcesRequest());
 			return TRANSFER_STATUS.FAIL;
 		}
+	}
+
+	private void acquireLocks(Collection<ResourceRequest<?>> resourcesRequest) {
+		for (ResourceRequest<?> req : resourcesRequest) {
+			ReentrantLock lock = getLock(req.getResourceId());
+			lock.lock();
+		}
+	}
+
+	private void releaseLocks(Collection<ResourceRequest<?>> resourcesRequest) {
+		for (ResourceRequest<?> req : resourcesRequest) {
+			ReentrantLock lock = lockTable.get(req.getResourceId());
+			lock.unlock();
+		}
+	}
+
+	private ReentrantLock getLock(CRDTIdentifier resourceId) {
+		ReentrantLock lock = lockTable.get(resourceId);
+		if (lock == null) {
+			lock = new ReentrantLock();
+			synchronized (lockTable) {
+				lockTable.put(resourceId, lock);
+			}
+		}
+		return lock;
 	}
 
 	private Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request) throws SwiftException,
@@ -330,8 +369,8 @@ final public class IndigoResourceManager {
 				requestMsg += "No resources available ";
 			}
 		}
-
-		logger.info(requestMsg + " " + result);
+		if (logger.isLoggable(Level.INFO))
+			logger.info(requestMsg + " " + result);
 		return result;
 	}
 	// For Locks retrieve the same request
@@ -371,7 +410,7 @@ final public class IndigoResourceManager {
 	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request) {
 		HashSet<ResourceRequest<?>> nonCached = new HashSet<ResourceRequest<?>>();
 
-		for (ResourceRequest req : request.getRequests()) {
+		for (ResourceRequest req : request.getResourcesRequest()) {
 			Resource<?> cached = cache.get(req.getResourceId());
 			if (cached == null || !cached.checkRequest(sequencer.siteId, req)) {
 				nonCached.add(req);
@@ -400,7 +439,7 @@ final public class IndigoResourceManager {
 	 */
 	private List<TransferResourcesRequest> provisionPolicy(AcquireResourcesRequest req, Timestamp requestId) {
 		Map<String, List<ResourceRequest<?>>> requestsBySite = new HashMap<String, List<ResourceRequest<?>>>();
-		for (ResourceRequest<?> req_i : req.getRequests()) {
+		for (ResourceRequest<?> req_i : req.getResourcesRequest()) {
 			Resource resource = cache.get(req_i.getResourceId());
 			// if (logger.isLoggable(Level.INFO))
 			// logger.info("Checking permissions for " + resource +
@@ -451,19 +490,4 @@ final public class IndigoResourceManager {
 		return returnList;
 	}
 
-	// private void lockTable() {
-	// Threading.lock(IndigoResourceManager.LOCKS_TABLE);
-	// }
-	//
-	// private void unlockTable() {
-	// Threading.unlock(IndigoResourceManager.LOCKS_TABLE);
-	// }
-
-	// public static ResourceRequest<?>[]
-	// sortedRequests(Collection<ResourceRequest<?>> requests) {
-	// int size = requests.size();
-	// return size == 0 ? new ResourceRequest[0] : new
-	// TreeSet<ResourceRequest<?>>(requests)
-	// .toArray(new ResourceRequest[size]);
-	// }
 }
