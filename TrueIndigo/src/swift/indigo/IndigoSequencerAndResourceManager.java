@@ -131,7 +131,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 
 		List<String> servers = Args.subList("-servers");
 		List<String> sequencers = Args.subList("-sequencers");
-		String sequencerShadow = Args.valueOf("-sequencerShadow", null);
+		String sequencerShadow = Args.valueOf("-sequencerShadow", (String) null);
 
 		List<String> dcNames = Args.subList("-names");
 

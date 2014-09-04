@@ -252,7 +252,6 @@ public class RemoteIndigo implements Indigo {
 				super.status = TxnStatus.COMMITTED_LOCAL;
 				if (hasResources) {
 					System.out.println("CANT HAPPEN " + cltTimestamp + timestamp);
-					System.out.println(Thread.currentThread().getStackTrace());
 					try {
 						Thread.sleep(500);
 					} catch (InterruptedException e) {

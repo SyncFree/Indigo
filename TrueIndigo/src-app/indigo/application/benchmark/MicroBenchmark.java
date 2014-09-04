@@ -149,8 +149,8 @@ public class MicroBenchmark {
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
-		String[] otherSequencers = Args.valueOf("-otherSequencers", ";", new String[]{});
-		String[] otherServers = Args.valueOf("-otherServers", ";", new String[]{});
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
 		TestsUtil.startDC1Server(DC_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort,
 				indigoPort, otherSequencers, otherServers);

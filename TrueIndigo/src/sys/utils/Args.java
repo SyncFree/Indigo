@@ -71,8 +71,8 @@ public class Args {
 		return valueOf(_current, flag, defaultValue);
 	}
 
-	static public String[] valueOf(String flag, String delimiter, String[] defaultValue) {
-		return valueOf(_current, flag, delimiter, defaultValue);
+	static public String[] valueOf(String flag, String[] defaultValue) {
+		return valueOf(_current, flag, defaultValue);
 	}
 
 	static public List<String> subList(String flag) {
@@ -111,10 +111,17 @@ public class Args {
 		return defaultValue;
 	}
 
-	static public String[] valueOf(String[] args, String flag, String delimiter, String[] defaultValue) {
+	static public String[] valueOf(String[] args, String flag, String[] defaultValue) {
+		List<String> outArgs = new LinkedList<>();
 		for (int i = 0; i < args.length - 1; i++)
-			if (flag.equals(args[i]))
-				return args[i + 1].split(";");
+			if (flag.equals(args[i])) {
+				i++;
+				while (!args[i].startsWith("-") && i < args.length) {
+					outArgs.add(args[i]);
+					i++;
+				}
+				return outArgs.toArray(new String[]{});
+			}
 		return defaultValue;
 	}
 
