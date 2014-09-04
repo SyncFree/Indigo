@@ -24,11 +24,11 @@ public class ServicePacket implements KryoSerializable, Envelope {
 	}
 
 	ServicePacket(Object payload, Handler<?> handler) {
-		this(payload, handler == null ? 0L : g_replyHandlerId.incrementAndGet());
+		this(payload, handler == null ? 0L : (g_replyHandlerId.incrementAndGet() << 1));
 	}
 
 	ServicePacket(Object payload, Handler<?> handler, boolean streamingReplies) {
-		this(payload, handler == null ? 0L : g_replyHandlerId.incrementAndGet() + 1L);
+		this(payload, handler == null ? 0L : (g_replyHandlerId.incrementAndGet() << 1) + (streamingReplies ? 1L : 0));
 	}
 
 	ServicePacket(Object payload, long handlerId) {
