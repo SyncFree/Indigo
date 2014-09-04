@@ -97,7 +97,6 @@ public class IndigoMultipleServersCounterTest {
 	@Test
 	public void testTransference() throws SwiftException, InterruptedException {
 		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
-		initKey(stub1, id, "DC_A");
 		increment(id, 10, stub1, DC_A);
 
 		stub2.beginTxn();
@@ -205,6 +204,7 @@ public class IndigoMultipleServersCounterTest {
 			}).start();
 		}
 		sem.acquire(NTHREADS);
+		Thread.sleep(10000);
 		compareValue(id, 0, stub1);
 		compareValue(id, 0, stub2);
 	}
