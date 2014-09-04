@@ -17,7 +17,7 @@
 package swift.indigo.proto;
 
 import swift.api.CRDTIdentifier;
-import swift.indigo.ReservationsProtocolHandler;
+import swift.clocks.CausalityClock;
 import swift.proto.ClientRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
@@ -29,31 +29,41 @@ import sys.net.api.MessageHandler;
  */
 public class FetchObjectRequest extends ClientRequest {
 
-    protected CRDTIdentifier uid;
-    protected boolean subscribe;
+	protected CRDTIdentifier uid;
+	protected boolean subscribe;
+	protected CausalityClock dcClock;
 
-    public FetchObjectRequest() {
-    }
+	public FetchObjectRequest() {
+	}
 
-    public FetchObjectRequest(String clientId, CRDTIdentifier uid, boolean subscribe) {
-        super(clientId);
-        this.uid = uid;
-        this.subscribe = subscribe;
-    }
+	private FetchObjectRequest(String clientId, CRDTIdentifier uid, boolean subscribe) {
+		super(clientId);
+		this.uid = uid;
+		this.subscribe = subscribe;
+	}
 
-    public boolean hasSubscription() {
-        return subscribe;
-    }
+	public FetchObjectRequest(CausalityClock dcClock, String clientId, CRDTIdentifier uid, boolean subscribe) {
+		this(clientId, uid, subscribe);
+		this.dcClock = dcClock.clone();
+	}
 
-    /**
-     * @return id of the requested object
-     */
-    public CRDTIdentifier getUid() {
-        return uid;
-    }
+	public boolean hasSubscription() {
+		return subscribe;
+	}
 
-    @Override
-    public void deliverTo(Envelope src, MessageHandler handler) {
-        ((ReservationsProtocolHandler) handler).onReceive(src, this);
-    }
+	/**
+	 * @return id of the requested object
+	 */
+	public CRDTIdentifier getUid() {
+		return uid;
+	}
+
+	public CausalityClock getDcClock() {
+		return dcClock;
+	}
+
+	@Override
+	public void deliverTo(Envelope src, MessageHandler handler) {
+		((IndigoProtocolHandler) handler).onReceive(src, this);
+	}
 }

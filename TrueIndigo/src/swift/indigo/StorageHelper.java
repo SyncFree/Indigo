@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
@@ -21,10 +22,10 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.indigo.proto.FetchObjectReply;
+import swift.indigo.proto.FetchObjectRequest;
 import swift.proto.CommitUpdatesReply;
 import swift.proto.CommitUpdatesRequest;
-import swift.proto.FetchObjectVersionReply;
-import swift.proto.FetchObjectVersionRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Service;
 import sys.utils.Timings;
@@ -49,8 +50,7 @@ public class StorageHelper {
 	final private Endpoint surrogate;
 
 	// TODO: Sequencer should be remote
-	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId,
-			boolean isMasterLockManager) {
+	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId, boolean isMasterLockManager) {
 		this.sequencer = sequencer;
 		this.LOCK_MANAGER = sequencer.siteId + "LockManager";
 		this.stub = sequencer.stub;
@@ -120,12 +120,10 @@ public class StorageHelper {
 				if (!updates.isEmpty()) {
 					Timestamp ts = sequencer.clocks.newTimestamp();
 
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
-							updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
 					req.setTimestamp(ts);
 				} else {
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
-							snapshot, updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
 				}
 
 				final Semaphore semaphore = new Semaphore(0);
@@ -142,25 +140,26 @@ public class StorageHelper {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
-				boolean create, Class<V> classOfV) throws VersionNotFoundException {
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException {
 			try {
 				Timings.mark();
-				FetchObjectVersionRequest req = new FetchObjectVersionRequest(LOCK_MANAGER, uid, version, true);
+				FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, uid, true);
 
 				Timings.mark();
-				FetchObjectVersionReply reply = stub.request(surrogate, req);
+				FetchObjectReply reply = stub.request(surrogate, req);
 				Timings.sample("fetchCRDT(" + uid + ") from" + surrogate);
 
 				if (reply != null) {
-					if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OK) {
-						return (ManagedCRDT<V>) reply.getCrdt();
+					if (reply.getStatus() == FetchObjectReply.FetchStatus.OK) {
+						ManagedCRDT<V> res = (ManagedCRDT<V>) reply.getCrdt();
+						CMP_CLOCK cmp = version.compareTo(res.getClock());
+						if (cmp.is(CMP_CLOCK.CMP_EQUALS, CMP_CLOCK.CMP_ISDOMINATED))
+							return res;
+						else
+							throw new VersionNotFoundException("Version nout found");
 					}
-					if (create && reply.getStatus() == FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND) {
+					if (create && reply.getStatus() == FetchObjectReply.FetchStatus.OBJECT_NOT_FOUND) {
 						return createCRDT(uid, version, classOfV);
-					}
-					if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.VERSION_NOT_FOUND) {
-						throw new VersionNotFoundException("Version nout found");
 					}
 				}
 				return null;
@@ -168,9 +167,7 @@ public class StorageHelper {
 				Timings.sample("getCRDT(" + uid + ")");
 			}
 		}
-
-		public <V extends CRDT<V>> V getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV)
-				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> V getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 			return (V) this.getCRDT(id, getCurrentClock(), create, classOfV).getLatestVersion(this);
 		}

@@ -46,6 +46,7 @@ import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.FetchObjectReply;
 import swift.indigo.proto.FetchObjectRequest;
 import swift.indigo.proto.IndigoCommitRequest;
+import swift.indigo.proto.IndigoProtocolHandler;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigoServer;
@@ -61,7 +62,7 @@ import sys.utils.Timings;
  * 
  * @author smduarte
  */
-public class IndigoServer extends Server {
+public class IndigoServer extends Server implements IndigoProtocolHandler {
 	AtomicLong snapshots = new AtomicLong(0L);
 
 	static Logger logger = Logger.getLogger(IndigoServer.class.getName());
@@ -99,10 +100,12 @@ public class IndigoServer extends Server {
 			logger.info("FetchObjectRequest client = " + request.getClientId() + " id: " + request.getUid());
 		}
 
+		clocks.updateCurrentClock(request.getDcClock());
+
 		if (request.hasSubscription())
 			getSession(request.getClientId()).subscribe(request.getUid());
 
-		ManagedCRDT<?> crdt = getCRDT(request.getUid(), null, request.getClientId());
+		ManagedCRDT<?> crdt = getCRDT(request.getUid(), request.getDcClock(), request.getClientId());
 		src.reply(new FetchObjectReply(crdt));
 	}
 
@@ -137,13 +140,11 @@ public class IndigoServer extends Server {
 			return "indigo-" + stubId;
 		}
 
-		public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
-				VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 			return get(id, false, null);
 		}
 
-		public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 			return (V) handle.get(id, create, classOfV);
 		}
 
@@ -238,8 +239,7 @@ public class IndigoServer extends Server {
 						List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 						groups.addAll(ops.values());
 
-						final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp(),
-								snapshot, groups, withLocks);
+						final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp(), snapshot, groups, withLocks);
 
 						if (groups.isEmpty()) {
 							rollback();
@@ -258,8 +258,7 @@ public class IndigoServer extends Server {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
-					boolean create, Class<V> classOfV) {
+			protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) {
 				try {
 					Timings.mark();
 					ManagedCRDT<V> res = (ManagedCRDT<V>) server.getCRDT(id, version, stubId);
