@@ -48,6 +48,6 @@ public class BoundedCounterTransfer<T extends BoundedCounterCRDT<T>> implements 
 	}
 
 	public String toString() {
-		return String.format("Transfer %d from: %s to %s ", originId, targetId, amount);
+		return String.format("Transfer %d from: %s to %s ", amount, originId, targetId);
 	}
 }

@@ -37,7 +37,6 @@ public class StorageHelper {
 	final Service stub;
 	final Sequencer sequencer;
 
-	_TxnHandle handle;
 	private final CausalityClock grantedRequests;
 
 	private String resourceMgrId;
@@ -50,7 +49,8 @@ public class StorageHelper {
 	final private Endpoint surrogate;
 
 	// TODO: Sequencer should be remote
-	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId, boolean isMasterLockManager) {
+	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId,
+			boolean isMasterLockManager) {
 		this.sequencer = sequencer;
 		this.LOCK_MANAGER = sequencer.siteId + "LockManager";
 		this.stub = sequencer.stub;
@@ -70,16 +70,16 @@ public class StorageHelper {
 		return sequencer.clocks.currentClockCopy();
 	}
 
-	void beginTxn(Timestamp cltTimestamp) {
-		handle = new _TxnHandle(getCurrentClock(), cltTimestamp);
+	_TxnHandle beginTxn(Timestamp cltTimestamp) {
+		return new _TxnHandle(getCurrentClock(), cltTimestamp);
 	}
 
-	public void endTxn(final boolean writeThrough) {
+	public void endTxn(final _TxnHandle handle, final boolean writeThrough) {
 		if (writeThrough)
 			handle.commit();
 	}
 
-	public Resource getResource(ResourceRequest<?> req) throws SwiftException {
+	public Resource getResource(ResourceRequest<?> req, final _TxnHandle handle) throws SwiftException {
 		Class<CRDT> type = tableToType.get(req.getClass());
 		Resource resource = (Resource<?>) handle.getMostRecent(req.getResourceId(), isMasterLockManager, type);
 		return resource;
@@ -113,23 +113,37 @@ public class StorageHelper {
 		@Override
 		public void commit() {
 			try {
+
+				System.out.println("COMMIT " + this.toString());
 				Timings.mark();
 				final CommitUpdatesRequest req;
 				List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
 				if (!updates.isEmpty()) {
+					System.out.println("UPDATES NOT EMPTY " + updates.size());
 					Timestamp ts = sequencer.clocks.newTimestamp();
 
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
+							updates);
 					req.setTimestamp(ts);
 				} else {
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
+					System.out.println("UPDATES EMPTY");
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
+							snapshot, updates);
+					Thread.currentThread().dumpStack();
+					System.out.println("NAO pode acontecer");
+					System.exit(0);
 				}
 
 				final Semaphore semaphore = new Semaphore(0);
 				stub.asyncRequest(surrogate, req, (CommitUpdatesReply r) -> {
-					if (Log.isLoggable(Level.INFO))
+					if (Log.isLoggable(Level.INFO)) {
+						Timestamp test = req.getTimestamp();
+						if (test == null) {
+							System.out.println("aqui");
+						}
 						Log.info("FINISH COMMIT------->>" + r.getStatus() + " FOR : " + req.getTimestamp());
+					}
 					semaphore.release();
 				});
 				semaphore.acquireUninterruptibly();
@@ -140,7 +154,8 @@ public class StorageHelper {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException {
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
+				boolean create, Class<V> classOfV) throws VersionNotFoundException {
 			try {
 				Timings.mark();
 				FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, uid, true);
@@ -167,7 +182,8 @@ public class StorageHelper {
 				Timings.sample("getCRDT(" + uid + ")");
 			}
 		}
-		public <V extends CRDT<V>> V getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> V getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV)
+				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 			return (V) this.getCRDT(id, getCurrentClock(), create, classOfV).getLatestVersion(this);
 		}
@@ -191,10 +207,9 @@ public class StorageHelper {
 		return ts;
 	}
 
-	public Collection<CRDTObjectUpdatesGroup<?>> endTxnAndGetUpdates(boolean b) {
-		endTxn(b);
+	public Collection<CRDTObjectUpdatesGroup<?>> endTxnAndGetUpdates(final _TxnHandle handle, boolean b) {
+		endTxn(handle, b);
 		return handle.getUpdates();
-
 	}
 
 }

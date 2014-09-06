@@ -177,4 +177,8 @@ abstract public class AbstractTxHandle implements TxnHandle {
 			}
 		return res;
 	}
+
+	public String toString() {
+		return "CLT " + cltTimestamp + " SNAPSHOT " + snapshot + " OPS " + ops.size();
+	}
 }
