@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -22,6 +23,7 @@ import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
+import swift.utils.LogSiteFormatter;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
 import sys.net.api.Service;
@@ -36,8 +38,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
 
 	private static final int nWorkers = 10;
-
-	private static Logger logger = Logger.getLogger(ResourceManagerNode.class.getName());
 
 	private IndigoResourceManager manager;
 
@@ -66,6 +66,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private static String profilerName = "ManagerProfile";
 
+	Logger logger;
+	private Logger logger;
+
 	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
 			final Map<String, Endpoint> endpoints) {
 
@@ -89,7 +92,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		this.sequencer = sequencer;
 		this.active = true;
 
-		initLogger();
+		initLogging();
 
 		final SimpleMessageBalacing messageBalancing = new SimpleMessageBalacing(DEFAULT_REQUEST_TRANSFER_RATIO,
 				incomingRequestsQueue, transferRequestsQueue);
@@ -151,7 +154,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	}
 	public void process(TransferResourcesRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
-			logger.info("SITE: " + sequencer.siteId + " Processing TransferResourcesRequest: " + request);
+			logger.info("Processing TransferResourcesRequest: " + request);
 		}
 
 		TRANSFER_STATUS reply = manager.transferResources(request);
@@ -162,13 +165,12 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}
 
 		if (logger.isLoggable(Level.INFO)) {
-			logger.info("SITE: " + sequencer.siteId + " Finished TransferResourcesRequest: " + request + " Reply: "
-					+ reply);
+			logger.info("Finished TransferResourcesRequest: " + request + " Reply: " + reply);
 		}
 	}
 	public void process(ReleaseResourcesRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
-			logger.info("SITE: " + sequencer.siteId + " Processing ReleaseResourcesRequest " + request);
+			logger.info("Processing ReleaseResourcesRequest " + request);
 		}
 		long opId = profiler.startOp(profilerName, "release");
 		Timestamp ts = request.getClientTs();
@@ -185,12 +187,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				}
 			} else {
 				if (logger.isLoggable(Level.WARNING))
-					logger.warning("SITE: " + sequencer.siteId
-							+ " Trying to release but did not get resources: exiting, should not happen " + request);
+					logger.warning("Trying to release but did not get resources: exiting, should not happen " + request);
 				System.exit(0);
 			}
 			if (logger.isLoggable(Level.INFO))
-				logger.info("SITE: " + sequencer.siteId + " Finished ReleaseResourcesRequest" + request);
+				logger.info("Finished ReleaseResourcesRequest" + request);
 		}
 		profiler.endOp(profilerName, opId);
 	}
@@ -199,14 +200,13 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		long opId = profiler.startOp(profilerName, "acquire");
 		AcquireResourcesReply reply = null;
 		if (logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Processing AcquireResourcesRequest " + request);
+			logger.info("Processing AcquireResourcesRequest " + request);
 		reply = manager.acquireResources(request);
 		if (reply.acquiredStatus().equals(AcquireReply.YES)) {
 			replies.put(request.getClientTs(), reply);
 		}
 		if (logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Finished AcquireResourcesRequest " + request + " Reply: "
-					+ reply);
+			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply);
 
 		waitingIndex.remove(request.getClientTs());
 		profiler.endOp(profilerName, opId);
@@ -226,11 +226,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		} else {
 			if (isDuplicate(request)) {
 				if (logger.isLoggable(Level.INFO))
-					logger.info(sequencer.siteId + " Message is already enqueued: " + request);
+					logger.info("Message is already enqueued: " + request);
 				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
 			} else if (checkAcquireAlreadyProcessed(request) != null) {
 				if (logger.isLoggable(Level.INFO))
-					logger.info(sequencer.siteId + " Received an already processed message: " + request + " REPLY: "
+					logger.info("Received an already processed message: " + request + " REPLY: "
 							+ replies.get(request.getClientTs()));
 				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
 			} else {
@@ -252,7 +252,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				synchronized (transferRequestsQueue) {
 					transferRequestsQueue.add(request);
 				}
+			} else {
+				logger.info("repeated message");
 			}
+		} else {
+			logger.info("already processed request " + request);
 		}
 	}
 
@@ -288,14 +292,21 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		AcquireResourcesReply reply = replies.get(request.getClientTs());
 
 		if (reply != null && logger.isLoggable(Level.INFO))
-			logger.info("SITE: " + sequencer.siteId + " Reply from cache: " + reply);
+			logger.info("Reply from cache: " + reply);
 
 		if (reply != null)
 			return reply;
 		return null;
 	}
 
-	private static void initLogger() {
+	private void initLogging() {
+
+		ConsoleHandler handler = new ConsoleHandler();
+		handler.setFormatter(new LogSiteFormatter(sequencer.siteId));
+		logger = Logger.getLogger(this.getClass().getName() + "." + sequencer.siteId);
+		logger.setUseParentHandlers(false);
+		logger.addHandler(handler);
+
 		Logger logger = Logger.getLogger(profilerName);
 		profiler = Profiler.getInstance();
 		if (logger.isLoggable(Level.FINEST)) {
@@ -377,5 +388,9 @@ class SimpleMessageBalacing {
 			}
 		} else
 			return null;
+	}
+
+	public String toString() {
+		return "REQ: " + requestQueue + " TRANS: " + transferQueue;
 	}
 }

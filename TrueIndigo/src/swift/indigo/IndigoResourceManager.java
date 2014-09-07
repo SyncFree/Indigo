@@ -11,6 +11,7 @@ import java.util.Queue;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,14 +33,14 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
+import swift.utils.LogSiteFormatter;
 import swift.utils.Pair;
 import sys.net.api.Endpoint;
 
 final public class IndigoResourceManager {
-	private static Logger logger = Logger.getLogger(IndigoResourceManager.class.getName());
+	private Logger logger;
 
-	final String resourceMgrId;
-
+	private final String resourceMgrId;
 	private final StorageHelper storage;
 	private final IndigoSequencerAndResourceManager sequencer;
 
@@ -72,6 +73,12 @@ final public class IndigoResourceManager {
 		this.cache = new ConcurrentHashMap<>();
 		this.lockTable = new ConcurrentHashMap<>();
 
+		ConsoleHandler handler = new ConsoleHandler();
+		handler.setFormatter(new LogSiteFormatter(sequencer.siteId));
+		logger = Logger.getLogger(this.getClass().getName() + "." + sequencer.siteId);
+		logger.setUseParentHandlers(false);
+		logger.addHandler(handler);
+
 		if (logger.isLoggable(Level.INFO))
 			logger.info("ENDPOINTS: " + endpoints);
 
@@ -79,7 +86,6 @@ final public class IndigoResourceManager {
 		this.storage.registerType(LockReservation.class, EscrowableTokenCRDT.class);
 
 	}
-
 	// This release modifies soft-state exclusively. If we want to support
 	// durability this must be different
 	protected boolean releaseResources(AcquireResourcesReply alr) {
@@ -147,7 +153,7 @@ final public class IndigoResourceManager {
 				try {
 					resource = getResourceAndUpdateCache(req, handle);
 				} catch (VersionNotFoundException e) {
-					logger.warning("Didn't found requested version, will deny message and continue");
+					logger.warning("VersionException " + e.getMessage());
 					storage.endTxn(handle, mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
@@ -208,8 +214,7 @@ final public class IndigoResourceManager {
 	private void printResourcesState(Map<CRDTIdentifier, Resource<?>> unsatified) {
 		for (Entry<CRDTIdentifier, Resource<?>> un_i : unsatified.entrySet()) {
 			if (logger.isLoggable(Level.INFO))
-				logger.info(sequencer.siteId + " Resouce could not be granted: " + un_i.getKey() + ": "
-						+ un_i.getValue());
+				logger.info("Resouce could not be granted: " + un_i.getKey() + ": " + un_i.getValue());
 		}
 
 	}
@@ -480,7 +485,7 @@ final public class IndigoResourceManager {
 
 			} else {
 				if (logger.isLoggable(Level.INFO))
-					logger.info(" Request " + req + " is already satisfied");
+					logger.info("Request " + req + " is already satisfied");
 			}
 		}
 		LinkedList<TransferResourcesRequest> returnList = new LinkedList<TransferResourcesRequest>();
