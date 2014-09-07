@@ -133,7 +133,7 @@ final public class IndigoResourceManager {
 	}
 
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
-		acquireLocks(request.getResourcesRequest());
+		acquireLocks(request.getResources());
 
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
@@ -149,7 +149,7 @@ final public class IndigoResourceManager {
 
 			// Test resource's availability
 			Resource resource;
-			for (ResourceRequest<?> req : modifiedRequest.getResourcesRequest()) {
+			for (ResourceRequest<?> req : modifiedRequest.getResources()) {
 				try {
 					resource = getResourceAndUpdateCache(req, handle);
 				} catch (VersionNotFoundException e) {
@@ -187,7 +187,7 @@ final public class IndigoResourceManager {
 			else {
 
 				// Do the locking
-				for (ResourceRequest<?> req : request.getResourcesRequest()) {
+				for (ResourceRequest<?> req : request.getResources()) {
 					Resource resourceFromCache = cache.get(req.getResourceId());
 					// logger.info("Satisfy request " + req + " for resource " +
 					// resourceFromCache);
@@ -198,7 +198,7 @@ final public class IndigoResourceManager {
 				Timestamp txnTs = storage.recordNewEvent();
 
 				return new AcquireResourcesReply(request.getClientTs(), txnTs, snapshot, updates,
-						request.getResourcesRequest());
+						request.getResources());
 			}
 
 		} catch (SwiftException e) {
@@ -206,7 +206,7 @@ final public class IndigoResourceManager {
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 		} finally {
-			releaseLocks(request.getResourcesRequest());
+			releaseLocks(request.getResources());
 		}
 		return generateDenyMessage(unsatified, snapshot);
 	}
@@ -260,14 +260,14 @@ final public class IndigoResourceManager {
 
 	// TODO:It seems that it does not block when no transference is executed
 	// It might be due to this transaction
-	protected TRANSFER_STATUS transferResources(final AcquireResourcesRequest request) {
-		acquireLocks(request.getResourcesRequest());
+	protected TRANSFER_STATUS transferResources(final TransferResourcesRequest request) {
+		acquireLocks(request.getResources());
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
 		boolean updated = false;
 		_TxnHandle handle = storage.beginTxn(null);
 		try {
-			for (ResourceRequest<?> req_i : request.getResourcesRequest()) {
+			for (ResourceRequest<?> req_i : request.getResources()) {
 				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i, handle);
 				if (transferred.equals(TRANSFER_STATUS.FAIL)) {
 					allSuccess = false;
@@ -289,7 +289,7 @@ final public class IndigoResourceManager {
 		} finally {
 			storage.endTxn(handle, updated);
 			System.out.println("UPD " + updated + " SUCC " + allSuccess + " " + request);
-			releaseLocks(request.getResourcesRequest());
+			releaseLocks(request.getResources());
 		}
 		if (allSuccess) {
 			return TRANSFER_STATUS.SUCCESS;
@@ -419,7 +419,7 @@ final public class IndigoResourceManager {
 	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request) {
 		HashSet<ResourceRequest<?>> nonCached = new HashSet<ResourceRequest<?>>();
 
-		for (ResourceRequest req : request.getResourcesRequest()) {
+		for (ResourceRequest req : request.getResources()) {
 			Resource<?> cached = cache.get(req.getResourceId());
 			if (cached == null || !cached.checkRequest(sequencer.siteId, req)) {
 				nonCached.add(req);
@@ -448,7 +448,7 @@ final public class IndigoResourceManager {
 	 */
 	private List<TransferResourcesRequest> provisionPolicy(AcquireResourcesRequest req, Timestamp requestId) {
 		Map<String, List<ResourceRequest<?>>> requestsBySite = new HashMap<String, List<ResourceRequest<?>>>();
-		for (ResourceRequest<?> req_i : req.getResourcesRequest()) {
+		for (ResourceRequest<?> req_i : req.getResources()) {
 			Resource resource = cache.get(req_i.getResourceId());
 			// if (logger.isLoggable(Level.INFO))
 			// logger.info("Checking permissions for " + resource +

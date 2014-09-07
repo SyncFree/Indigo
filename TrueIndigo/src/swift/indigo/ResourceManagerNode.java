@@ -66,7 +66,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private static String profilerName = "ManagerProfile";
 
-	Logger logger;
 	private Logger logger;
 
 	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
@@ -159,10 +158,11 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		TRANSFER_STATUS reply = manager.transferResources(request);
 
-		if (reply.hasTransferred()) {
-			alreadyProcessedTransfers.put(request.getClientTs(), request);
-			waitingIndex.remove(request);
-		}
+		// Never keep reply
+		// if (reply.hasTransferred()) {
+		// alreadyProcessedTransfers.put(request.getClientTs(), request);
+		waitingIndex.remove(request);
+		// }
 
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Finished TransferResourcesRequest: " + request + " Reply: " + reply);
@@ -208,7 +208,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (logger.isLoggable(Level.INFO))
 			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply);
 
-		waitingIndex.remove(request.getClientTs());
+		waitingIndex.remove(request);
 		profiler.endOp(profilerName, opId);
 		conn.reply(reply);
 	}
@@ -221,7 +221,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		request.setHandler(conn);
 		AcquireResourcesReply reply = null;
 		profiler.trackRequest(profilerName, request);
-		if (request.getResourcesRequest().size() == 0) {
+		if (request.getResources().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
 			if (isDuplicate(request)) {
@@ -244,20 +244,18 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
-		// Check if the transference request for the client timestamp
-		// was already satisfied
-		if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
-			// Check if the message is duplicated
-			if (!isDuplicate(request)) {
-				synchronized (transferRequestsQueue) {
-					transferRequestsQueue.add(request);
-				}
-			} else {
-				logger.info("repeated message");
+		// if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
+		// Check if the message is duplicated
+		if (!isDuplicate(request)) {
+			synchronized (transferRequestsQueue) {
+				transferRequestsQueue.add(request);
 			}
 		} else {
-			logger.info("already processed request " + request);
+			logger.info("repeated message");
 		}
+		// } else {
+		// logger.info("already processed request " + request);
+		// }
 	}
 
 	@Override

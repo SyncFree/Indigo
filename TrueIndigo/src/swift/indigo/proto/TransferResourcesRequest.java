@@ -1,6 +1,9 @@
 package swift.indigo.proto;
 
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import swift.clocks.Timestamp;
 import swift.indigo.IndigoOperation;
@@ -10,10 +13,11 @@ import swift.indigo.ResourceRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
-public class TransferResourcesRequest extends AcquireResourcesRequest implements IndigoOperation {
+public class TransferResourcesRequest extends IndigoOperation {
 
 	private String destinationId;
 	private int transferSeqNumber;
+	private SortedSet<ResourceRequest<?>> resources;
 
 	public TransferResourcesRequest() {
 
@@ -21,13 +25,17 @@ public class TransferResourcesRequest extends AcquireResourcesRequest implements
 
 	public TransferResourcesRequest(String requesterId, String destinationId, Timestamp cltTimestamp,
 			Collection<ResourceRequest<?>> resources, int transferSeqNumber) {
-		super(requesterId, cltTimestamp, resources);
+		super(requesterId);
+		this.resources = new TreeSet<ResourceRequest<?>>(resources);
+		this.requesterId = requesterId;
 		this.destinationId = destinationId;
 		this.transferSeqNumber = transferSeqNumber;
 	}
 
-	public TransferResourcesRequest(String destinationId, int transferSeqNumber, AcquireResourcesRequest request) {
-		super(request);
+	public TransferResourcesRequest(String requesterId, String destinationId, int transferSeqNumber,
+			Collection<ResourceRequest<?>> resources) {
+		super(requesterId);
+		this.resources = (SortedSet<ResourceRequest<?>>) resources;
 		this.destinationId = destinationId;
 		this.transferSeqNumber = transferSeqNumber;
 	}
@@ -39,7 +47,7 @@ public class TransferResourcesRequest extends AcquireResourcesRequest implements
 	}
 
 	public String toString() {
-		return String.format("Transfer: %s, TS:%s ----> %s", destinationId, super.clientTs, super.requests.toString());
+		return String.format("Transfer: %s, ----> %s", destinationId, resources.toString());
 	}
 
 	public String getDestination() {
@@ -67,10 +75,44 @@ public class TransferResourcesRequest extends AcquireResourcesRequest implements
 	@Override
 	public int compareTo(IndigoOperation o) {
 		if (o instanceof TransferResourcesRequest) {
-			return super.compareTo((AcquireResourcesRequest) o);
+			TransferResourcesRequest other = ((TransferResourcesRequest) o);
+			Iterator<ResourceRequest<?>> it = resources.iterator();
+			Iterator<ResourceRequest<?>> otherIt = other.resources.iterator();
+			int diff = 0;
+			while (diff == 0) {
+				if (it.hasNext()) {
+					ResourceRequest myElem = it.next();
+					if (otherIt.hasNext()) {
+						ResourceRequest otherElem = otherIt.next();
+						diff = myElem.compareTo(otherElem);
+					} else {
+						return 1;
+					}
+				} else {
+					// If the resources request list is smaller it is first in
+					// the lexicographical order
+					if (otherIt.hasNext())
+						return -1;
+					else {
+						break;
+					}
+				}
+			}
+			if (diff == 0) {
+				int clientComparison = getClientId().compareTo(other.getClientId());
+				if (clientComparison == 0) {
+					return destinationId.compareTo(other.destinationId);
+				} else
+					return clientComparison;
+			} else
+				return diff;
 		} else if (o instanceof AcquireResourcesRequest)
 			return -1;
 		else
 			return 1;
+	}
+
+	public Collection<ResourceRequest<?>> getResources() {
+		return resources;
 	}
 }

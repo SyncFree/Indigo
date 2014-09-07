@@ -2,21 +2,21 @@ package swift.indigo.proto;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.PriorityQueue;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import swift.clocks.Timestamp;
 import swift.indigo.IndigoOperation;
 import swift.indigo.ReservationsProtocolHandler;
 import swift.indigo.ResourceManagerNode;
 import swift.indigo.ResourceRequest;
-import swift.proto.ClientRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
-public class AcquireResourcesRequest extends ClientRequest implements IndigoOperation {
+public class AcquireResourcesRequest extends IndigoOperation {
 
 	Timestamp clientTs;
-	PriorityQueue<ResourceRequest<?>> requests;
+	SortedSet<ResourceRequest<?>> requests;
 	private transient Envelope handler;
 
 	public AcquireResourcesRequest() {
@@ -26,13 +26,13 @@ public class AcquireResourcesRequest extends ClientRequest implements IndigoOper
 	public AcquireResourcesRequest(String clientId, Timestamp cltTimestamp, Collection<ResourceRequest<?>> resources) {
 		super(clientId);
 		this.clientTs = cltTimestamp;
-		this.requests = new PriorityQueue<>(resources);
+		this.requests = new TreeSet<ResourceRequest<?>>(resources);
 	}
 
 	public AcquireResourcesRequest(AcquireResourcesRequest other) {
 		super(other.clientId);
 		this.clientTs = other.clientTs;
-		this.requests = new PriorityQueue<>(other.requests);
+		this.requests = new TreeSet<ResourceRequest<?>>(other.requests);
 	}
 
 	@Override
@@ -44,7 +44,7 @@ public class AcquireResourcesRequest extends ClientRequest implements IndigoOper
 		return clientTs;
 	}
 
-	public Collection<ResourceRequest<?>> getResourcesRequest() {
+	public Collection<ResourceRequest<?>> getResources() {
 		return requests;
 	}
 

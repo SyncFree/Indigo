@@ -1,7 +1,19 @@
 package swift.indigo;
 
-public interface IndigoOperation extends Comparable<IndigoOperation> {
+import swift.proto.ClientRequest;
 
-	public void deliverTo(ResourceManagerNode node);
+public abstract class IndigoOperation extends ClientRequest implements Comparable<IndigoOperation> {
+
+	protected String requesterId;
+
+	public IndigoOperation() {
+		super();
+	}
+
+	public IndigoOperation(String requesterId) {
+		super(requesterId);
+	}
+
+	public abstract void deliverTo(ResourceManagerNode node);
 
 }

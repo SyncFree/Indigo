@@ -4,11 +4,10 @@ import swift.clocks.Timestamp;
 import swift.indigo.IndigoOperation;
 import swift.indigo.ReservationsProtocolHandler;
 import swift.indigo.ResourceManagerNode;
-import swift.proto.ClientRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
-public class ReleaseResourcesRequest extends ClientRequest implements IndigoOperation {
+public class ReleaseResourcesRequest extends IndigoOperation {
 
 	private Timestamp clientTs;
 	private long serial;
