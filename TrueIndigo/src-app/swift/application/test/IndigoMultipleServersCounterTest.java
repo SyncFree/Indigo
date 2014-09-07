@@ -112,6 +112,29 @@ public class IndigoMultipleServersCounterTest {
 	}
 
 	@Test
+	public void testTransferenceMultipelKeys() throws SwiftException, InterruptedException {
+		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
+		increment(id, 10, stub1, DC_A);
+
+		CRDTIdentifier id2 = new CRDTIdentifier(table, ((char) (key + 1)) + "");
+		increment(id2, 10, stub1, DC_A);
+
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation("DC_B", id, 5));
+		stub2.beginTxn(resources);
+		BoundedCounterAsResource crdt = stub2.get(id, false, BoundedCounterAsResource.class);
+		crdt.decrement(5, "DC_B");
+		stub2.endTxn();
+
+		List<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
+		resources.add(new CounterReservation("DC_B", id2, 5));
+		stub2.beginTxn(resources);
+		BoundedCounterAsResource crdt2 = stub2.get(id, false, BoundedCounterAsResource.class);
+		crdt.decrement(5, "DC_B");
+		stub2.endTxn();
+	}
+
+	@Test
 	public void testTransferenceAndDecrement() throws SwiftException, InterruptedException {
 		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
 		initKey(stub1, id, "DC_A");

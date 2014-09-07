@@ -170,8 +170,9 @@ public class StorageHelper {
 						CMP_CLOCK cmp = version.compareTo(res.getClock());
 						if (cmp.is(CMP_CLOCK.CMP_EQUALS, CMP_CLOCK.CMP_ISDOMINATED))
 							return res;
-						else
-							throw new VersionNotFoundException("Version nout found");
+						else {
+							throw new VersionNotFoundException("Version not found: " + version);
+						}
 					}
 					if (create && reply.getStatus() == FetchObjectReply.FetchStatus.OBJECT_NOT_FOUND) {
 						return createCRDT(uid, version, classOfV);
