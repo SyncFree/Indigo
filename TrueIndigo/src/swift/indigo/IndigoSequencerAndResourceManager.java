@@ -80,7 +80,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 	public void onReceive(final Envelope conn, final CommitTimestampRequest request) {
 		// RPC Handle is null, since this should not reply EVER to the client
 		if (logger.isLoggable(Level.INFO))
-			logger.info("Commit timestamp " + request.getTimestamp());
+			logger.info("Commit timestamp " + request.getTimestamp() + " " + request.getCommitUpdatesRequest());
 		super.onReceive(conn, request);
 		// Only do release on local-DC commit messages and if it used locks
 		if (request.getCommitUpdatesRequest() instanceof IndigoCommitRequest) {

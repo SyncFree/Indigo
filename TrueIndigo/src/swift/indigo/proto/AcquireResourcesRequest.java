@@ -110,7 +110,7 @@ public class AcquireResourcesRequest extends IndigoOperation {
 	}
 	public String toString() {
 		String resourcesAsString = requests.toString();
-		return String.format("Acquire: %s, %s : %s)", clientTs, getClientId(), resourcesAsString);
+		return String.format("Acquire: %s)", resourcesAsString);
 	}
 
 	@Override

@@ -201,7 +201,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			replies.put(request.getClientTs(), reply);
 		}
 		if (logger.isLoggable(Level.INFO))
-			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply);
+			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply + " " + reply.getSnapshot());
 
 		waitingIndex.remove(request);
 		profiler.endOp(profilerName, opId);

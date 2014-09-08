@@ -497,7 +497,8 @@ final public class IndigoResourceManager {
 
 			} else {
 				if (logger.isLoggable(Level.INFO))
-					logger.info("Request " + req + " is already satisfied");
+					logger.info("Request " + req + " is already satisfied: " + resource
+							+ ((BoundedCounterWithLocalEscrow) resource).getClock());
 			}
 		}
 		LinkedList<TransferResourcesRequest> returnList = new LinkedList<TransferResourcesRequest>();

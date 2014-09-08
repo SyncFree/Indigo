@@ -21,6 +21,7 @@ import static sys.utils.Threading.lock;
 import static sys.utils.Threading.unlock;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,6 +39,7 @@ import swift.proto.DataServerProtocol;
 import swift.pubsub.DataServerPubSubService;
 import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.UpdateNotification;
+import swift.utils.LogSiteFormatter;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
@@ -51,8 +53,6 @@ import sys.utils.Threading;
  * @author preguica, smduarte
  */
 public final class DataServer {
-	private static Logger logger = Logger.getLogger(DataServer.class.getName());
-
 	final Service dht;
 	final Clocks clocks;
 	final Storage storage;
@@ -60,6 +60,8 @@ public final class DataServer {
 	final Server server;
 	final SurrogatePubSubService suPubSub;
 	final DataServerPubSubService dsPubSub;
+
+	private static Logger logger;
 
 	DataServer(Server server) {
 
@@ -72,9 +74,16 @@ public final class DataServer {
 		this.dht = initDHT();
 		DHT_Node.init(server.siteId, Args.subList("-dht"), dht.localEndpoint());
 
+		ConsoleHandler handler = new ConsoleHandler();
+		handler.setFormatter(new LogSiteFormatter(server.siteId));
+		logger = Logger.getLogger(DataServer.class.getName() + "." + server.siteId);
+		logger.setUseParentHandlers(false);
+		logger.addHandler(handler);
+
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Data server ready...");
 		}
+
 	}
 	/**
 	 * Start DHT subsystem...
@@ -225,11 +234,15 @@ public final class DataServer {
 
 			data.pruneIfPossible(clocks.pruneClockCopy());
 
+			logger.warning("----------" + data.getClock() + " " + data + " " + req.getGrp());
 			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+			logger.warning("----------" + data.getClock() + " " + data);
 			data.augmentWithDCClockWithoutMappings(req.getCurrentState());
 			data.discardScoutClock(req.getCltTs().getIdentifier());
 			if (logger.isLoggable(Level.INFO)) {
-				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = " + req.getCltTs());
+				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = "
+						+ clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency()
+						+ "; cltTs = " + req.getCltTs());
 			}
 
 			ObjectUpdatesInfo info = new ObjectUpdatesInfo(data.getPruneClock().clone(), req.getGrp());
@@ -241,7 +254,6 @@ public final class DataServer {
 			unlock(id);
 		}
 	}
-
 	public void updatePruneClock(CausalityClock safeSnapshot) {
 		clocks.updateClock(clocks.pruneClock, safeSnapshot);
 	}

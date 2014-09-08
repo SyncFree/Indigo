@@ -183,7 +183,7 @@ public class RemoteIndigo implements Indigo {
 	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
 			NoSuchObjectException, VersionNotFoundException, NetworkException {
 		V obj = (V) handle.get(id, create, classOfV);
-		Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj);
+		Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj + " " + obj.getClock());
 		return obj;
 	}
 
