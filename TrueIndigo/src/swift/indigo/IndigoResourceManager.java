@@ -45,6 +45,7 @@ final public class IndigoResourceManager {
 	private final IndigoSequencerAndResourceManager sequencer;
 
 	private Map<CRDTIdentifier, Resource<?>> cache;
+	private Map<CRDTIdentifier, List<ResourceRequest<?>>> toBeReleased;
 	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
 	private transient Queue<TransferResourcesRequest> transferQueue;
@@ -72,6 +73,7 @@ final public class IndigoResourceManager {
 
 		this.cache = new ConcurrentHashMap<>();
 		this.lockTable = new ConcurrentHashMap<>();
+		this.toBeReleased = new ConcurrentHashMap<>();
 
 		ConsoleHandler handler = new ConsoleHandler();
 		handler.setFormatter(new LogSiteFormatter(sequencer.siteId));
@@ -86,52 +88,59 @@ final public class IndigoResourceManager {
 		this.storage.registerType(LockReservation.class, EscrowableTokenCRDT.class);
 
 	}
-	// This release modifies soft-state exclusively. If we want to support
-	// durability this must be different
-	protected boolean releaseResources(AcquireResourcesReply alr) {
+
+	protected void releaseResources(AcquireResourcesReply alr) {
+		for (ResourceRequest<?> res : alr.getResourcesRequest()) {
+			List<ResourceRequest<?>> list = toBeReleased.get(res.getResourceId());
+			if (list == null) {
+				list = new LinkedList<>();
+				toBeReleased.put(res.getResourceId(), list);
+			}
+			synchronized (list) {
+				list.add(res);
+			}
+		}
+	}
+
+	// This release modifies soft-state exclusively.
+	private boolean doReleaseResources(CRDTIdentifier id) {
 		boolean ok = false;
 		try {
-			acquireLocks(alr.getResourcesRequest());
-
-			// TODO: Warning this reads from storage, every time
-			// some notifications arrives.
-			// More efficient could be for instance to apply the
-			// decrement directly on the soft-state
-
+			getLock(id).lock();
 			_TxnHandle handle = storage.beginTxn(null);
+			Resource<?> resource = null;
+			List<ResourceRequest<?>> pendingReleases = toBeReleased.get(id);
+			if (pendingReleases != null) {
+				synchronized (pendingReleases) {
+					while (!pendingReleases.isEmpty()) {
+						ResourceRequest<?> req_i = pendingReleases.remove(0);
+						if (resource == null || resource.getUID() != req_i.getResourceId()) {
+							resource = getResourceAndUpdateCache(req_i, handle);
+						}
+						if (req_i instanceof LockReservation) {
+							ok = ((EscrowableTokenCRDTWithLocks) resource).release(sequencer.siteId, req_i);
+						}
+						if (req_i instanceof CounterReservation) {
+							resource = getResourceAndUpdateCache(req_i, handle);
+							ok = ((BoundedCounterWithLocalEscrow) resource).release(sequencer.siteId, req_i);
+						}
 
-			for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
-				if (req_i instanceof LockReservation) {
-					Resource<ShareableLock> resource = (Resource<ShareableLock>) getResourceAndUpdateCache(req_i,
-							handle);
-					ok = ((EscrowableTokenCRDTWithLocks) resource).release(sequencer.siteId, req_i);
+					}
 				}
-				if (req_i instanceof CounterReservation) {
-					ConsumableResource<Integer> cachedResource = (ConsumableResource<Integer>) getResourceAndUpdateCache(
-							req_i, handle);
-					ok = ((BoundedCounterWithLocalEscrow) cachedResource).release(sequencer.siteId, req_i);
-				}
-
 			}
-
-			// for (ResourceRequest<?> req_i : alr.getResourcesRequest()) {
-			// checkPendingRequest(req_i);
-			// }
-
 		} catch (VersionNotFoundException e) {
 			if (logger.isLoggable(Level.WARNING))
-				logger.warning("Version exception but continues " + (++exceptionCount));
+				logger.warning("Version exception - did not finish releases " + (++exceptionCount));
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		} catch (IncompatibleTypeException e) {
 			e.printStackTrace();
 
 		} finally {
-			releaseLocks(alr.getResourcesRequest());
+			getLock(id).unlock();
 		}
 		return ok || false;
 	}
-
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
 		acquireLocks(request.getResources());
 
@@ -379,7 +388,7 @@ final public class IndigoResourceManager {
 			}
 		}
 		if (logger.isLoggable(Level.INFO))
-			logger.info(requestMsg + " " + result);
+			logger.info(requestMsg + " " + result + " " + resource);
 		return result;
 	}
 	// For Locks retrieve the same request
@@ -421,15 +430,18 @@ final public class IndigoResourceManager {
 
 		for (ResourceRequest req : request.getResources()) {
 			Resource<?> cached = cache.get(req.getResourceId());
-			if (cached == null || !cached.checkRequest(sequencer.siteId, req)) {
+			if (cached == null) {
 				nonCached.add(req);
+			} else if (!cached.checkRequest(sequencer.siteId, req)) {
+				doReleaseResources(req.getResourceId());
+				if (!cached.checkRequest(sequencer.siteId, req))
+					nonCached.add(req);
 			}
 		}
 
 		return new AcquireResourcesRequest(request.getClientId(), request.getClientTs(), nonCached);
 
 	}
-
 	private void performProvisioning(AcquireResourcesRequest request, Timestamp ts) {
 		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts);
 		// TODO: Not a very smart "contains" check - should look for requests

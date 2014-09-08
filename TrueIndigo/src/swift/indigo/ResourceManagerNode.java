@@ -177,14 +177,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		AcquireResourcesReply arr = replies.get(ts);
 		if (arr != null && !arr.isReleased()) {
 			if (arr.acquiredResources()) {
-				if (!manager.releaseResources(arr)) {
-					// Failed - put it back on the queue
-					request.setRetry(true);
-					incomingRequestsQueue.add(request);
-				} else {
-					arr.setReleased();
-					waitingIndex.remove(request);
-				}
+				manager.releaseResources(arr);
+				arr.setReleased();
+				waitingIndex.remove(request);
 			} else {
 				if (logger.isLoggable(Level.WARNING))
 					logger.warning("Trying to release but did not get resources: exiting, should not happen " + request);
