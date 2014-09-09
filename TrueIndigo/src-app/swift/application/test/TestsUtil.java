@@ -29,7 +29,7 @@ public class TestsUtil {
 		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
 
 		List<String> argsServer = new LinkedList<String>();
-		argsServer.addAll(Arrays.asList(new String[]{"-url", "tcp://*:" + serverPort, "-sequencer",
+		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer",
 				"tcp://*:" + sequencerPort, "-url4seq", "" + serverPort4Seq, "-dht", "tcp://*:" + DHTPort, "-pubsub",
 				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
 		argsServer.addAll(Arrays.asList(otherServers));

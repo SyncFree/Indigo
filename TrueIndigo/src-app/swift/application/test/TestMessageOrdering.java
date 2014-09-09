@@ -33,7 +33,7 @@ public class TestMessageOrdering {
 		Timestamp msg1TS = tsGenerator.generateNew();
 		AcquireResourcesRequest msg1 = new AcquireResourcesRequest("ID_A", msg1TS, resources);
 		ReleaseResourcesRequest msg2 = new ReleaseResourcesRequest(msg1TS);
-		TransferResourcesRequest msg3 = new TransferResourcesRequest("ID_A", 1, msg1);
+		TransferResourcesRequest msg3 = new TransferResourcesRequest("ID_A", "ID_A", 1, msg1.getResources());
 
 		queue.add(msg1);
 		queue.add(msg2);

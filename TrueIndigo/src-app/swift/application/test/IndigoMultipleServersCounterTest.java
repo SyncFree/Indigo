@@ -127,10 +127,10 @@ public class IndigoMultipleServersCounterTest {
 		stub2.endTxn();
 
 		List<ResourceRequest<?>> resources2 = new LinkedList<ResourceRequest<?>>();
-		resources.add(new CounterReservation("DC_B", id2, 5));
-		stub2.beginTxn(resources);
-		BoundedCounterAsResource crdt2 = stub2.get(id, false, BoundedCounterAsResource.class);
-		crdt.decrement(5, "DC_B");
+		resources2.add(new CounterReservation("DC_B", id2, 5));
+		stub2.beginTxn(resources2);
+		BoundedCounterAsResource crdt2 = stub2.get(id2, false, BoundedCounterAsResource.class);
+		crdt2.decrement(5, "DC_B");
 		stub2.endTxn();
 	}
 
