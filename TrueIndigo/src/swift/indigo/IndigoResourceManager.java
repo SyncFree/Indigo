@@ -15,16 +15,16 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.BoundedCounterAsResource;
-import swift.crdt.BoundedCounterWithLocalEscrow;
 import swift.crdt.EscrowableTokenCRDT;
 import swift.crdt.EscrowableTokenCRDTWithLocks;
 import swift.crdt.NonNegativeBoundedCounterAsResource;
-import swift.crdt.ShareableLock;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.ManagedCRDT;
 import swift.exceptions.IncompatibleTypeException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
@@ -44,7 +44,7 @@ final public class IndigoResourceManager {
 	private final StorageHelper storage;
 	private final IndigoSequencerAndResourceManager sequencer;
 
-	private Map<CRDTIdentifier, Resource<?>> cache;
+	private Map<CRDTIdentifier, ManagedCRDT<?>> cache;
 	private Map<CRDTIdentifier, List<ResourceRequest<?>>> toBeReleased;
 	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
@@ -144,18 +144,20 @@ final public class IndigoResourceManager {
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
 		acquireLocks(request.getResources());
 
+		String append = "";
+
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 
-		AcquireResourcesRequest modifiedRequest = preProcessRequest(request);
 		// Only set this variable to true if request fails (no effect on the
 		// client)
+		CausalityClock snapshot = null;
 		boolean mustUpdate = false;
-		CausalityClock snapshot = storage.getCurrentClock();
 		try {
 			// lockTable();
 			_TxnHandle handle = storage.beginTxn(request.getClientTs());
-
+			snapshot = storage.getCurrentClock();
+			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle);
 			// Test resource's availability
 			Resource resource;
 			for (ResourceRequest<?> req : modifiedRequest.getResources()) {
@@ -185,7 +187,7 @@ final public class IndigoResourceManager {
 			}
 			// At this point every read is satisfied from soft-state
 
-			performProvisioning(request, request.getClientTs());
+			performProvisioning(request, request.getClientTs(), handle);
 
 			if (unsatified.size() != 0) {
 				printResourcesState(unsatified);
@@ -197,14 +199,17 @@ final public class IndigoResourceManager {
 
 				// Do the locking
 				for (ResourceRequest<?> req : request.getResources()) {
-					Resource resourceFromCache = cache.get(req.getResourceId());
+					ManagedCRDT<?> crdt = cache.get(req.getResourceId());
+					Resource resourceFromCache = (Resource) cache.get(req.getResourceId()).getLatestVersion(handle);
 					// logger.info("Satisfy request " + req + " for resource " +
 					// resourceFromCache);
 					resourceFromCache.apply(sequencer.siteId, req);
+					append = "" + crdt;
 				}
 
 				Collection<CRDTObjectUpdatesGroup<?>> updates = storage.endTxnAndGetUpdates(handle, false);
 				Timestamp txnTs = storage.recordNewEvent();
+				System.out.println("-----------------------------" + txnTs + " " + append);
 
 				return new AcquireResourcesReply(request.getClientTs(), txnTs, snapshot, updates,
 						request.getResources());
@@ -228,32 +233,41 @@ final public class IndigoResourceManager {
 
 	}
 
-	private Resource<?> updateLocalInfo(Resource<?> resource) throws IncompatibleTypeException {
-		Resource<?> updated = null;
-		Resource<?> cachedValue = cache.get(resource.getUID());
+	private <V extends CRDT<V>> Resource<?> updateLocalInfoAndGetResource(ManagedCRDT<V> resourceCRDT, _TxnHandle handle)
+			throws IncompatibleTypeException {
+		// Resource<?> updated = null;
+		Resource<?> resource = (Resource<?>) resourceCRDT.getLatestVersion(handle);
+		ManagedCRDT<V> cachedValue = (ManagedCRDT<V>) cache.get(resource.getUID());
+		if (cachedValue == null) {
+			cache.put(resourceCRDT.getUID(), resourceCRDT);
+			cachedValue = resourceCRDT;
+		} else {
+			cachedValue.merge(resourceCRDT);
+		}
+		return (Resource<?>) cachedValue.getLatestVersion(handle);
 		// TODO: UPS... hide this! And use factory
-		if (resource instanceof BoundedCounterAsResource) {
-			if (cachedValue == null) {
-				updated = BoundedCounterWithLocalEscrow.createDecorator(sequencer.siteId,
-						(BoundedCounterAsResource) resource);
-			} else {
-				updated = ((BoundedCounterWithLocalEscrow) cachedValue)
-						.createDecoratorCopy((Resource<Integer>) resource);
-			}
-		}
-		if (resource instanceof EscrowableTokenCRDT) {
-			if (cachedValue == null) {
-				updated = EscrowableTokenCRDTWithLocks
-						.createDecorator(sequencer.siteId, (EscrowableTokenCRDT) resource);
-			} else {
-				updated = ((EscrowableTokenCRDTWithLocks) cachedValue)
-						.createDecoratorCopy((Resource<ShareableLock>) resource);
-			}
-		}
-		cache.put(resource.getUID(), updated);
-		return updated;
+		// if (resource instanceof BoundedCounterAsResource) {
+		// if (cachedValue == null) {
+		// updated =
+		// BoundedCounterWithLocalEscrow.createDecorator(sequencer.siteId,
+		// (BoundedCounterAsResource) resource);
+		// } else {
+		// updated = ((BoundedCounterWithLocalEscrow) cachedValue)
+		// .createDecoratorCopy((Resource<Integer>) resource);
+		// }
+		// }
+		// if ((resource.getLatestVersion(handle) instanceof
+		// EscrowableTokenCRDT) {
+		// if (cachedValue == null) {
+		// updated = EscrowableTokenCRDTWithLocks
+		// .createDecorator(sequencer.siteId, (EscrowableTokenCRDT) resource);
+		// } else {
+		// updated = ((EscrowableTokenCRDTWithLocks) cachedValue)
+		// .createDecoratorCopy((Resource<ShareableLock>) resource);
+		// }
+		// }
+		// return updated;
 	}
-
 	private AcquireResourcesReply generateDenyMessage(Map<CRDTIdentifier, Resource<?>> unsatified,
 			CausalityClock snapshot) {
 		boolean impossible = false;
@@ -337,10 +351,9 @@ final public class IndigoResourceManager {
 
 	private Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request, _TxnHandle handle) throws SwiftException,
 			IncompatibleTypeException {
-		Resource<?> resource = storage.getResource(request, handle);
+		ManagedCRDT<?> resource = storage.getResource(request, handle);
 		// Updates local storage with the updates read from storage
-		resource = updateLocalInfo(resource);
-		return resource;
+		return updateLocalInfoAndGetResource(resource, handle);
 	}
 
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, _TxnHandle handle)
@@ -401,7 +414,7 @@ final public class IndigoResourceManager {
 			int requested = counterReq.getResource();
 			// If request can be satisfied retrieve max(request ,
 			// half-permission)
-			if (((BoundedCounterWithLocalEscrow) resource).checkRequest(sequencer.siteId, counterReq))
+			if (((BoundedCounterAsResource) resource).checkRequest(sequencer.siteId, counterReq))
 				request = new CounterReservation(request.getRequesterId(), request.getResourceId(), Math.max(
 						availableLocally / 2, requested));
 			else {
@@ -424,17 +437,21 @@ final public class IndigoResourceManager {
 	 * @param request
 	 *            the requested resources
 	 * @return the requests that cannot be satisfied using local information.
+	 * @throws SwiftException
+	 * @throws IncompatibleTypeException
 	 */
-	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request) {
+	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request, _TxnHandle handle)
+			throws SwiftException, IncompatibleTypeException {
 		HashSet<ResourceRequest<?>> nonCached = new HashSet<ResourceRequest<?>>();
 
 		for (ResourceRequest req : request.getResources()) {
-			Resource<?> cached = cache.get(req.getResourceId());
-			if (cached == null) {
+			ManagedCRDT<?> cachedCRDT = cache.get(req.getResourceId());
+			if (cachedCRDT == null) {
 				nonCached.add(req);
-			} else if (!cached.checkRequest(sequencer.siteId, req)) {
-				doReleaseResources(req.getResourceId());
-				if (!cached.checkRequest(sequencer.siteId, req))
+			} else if (!((Resource<?>) cachedCRDT.getLatestVersion(handle)).checkRequest(sequencer.siteId, req)) {
+				ManagedCRDT<?> resourceCRDT = storage.getResource(req, handle);
+				updateLocalInfoAndGetResource(resourceCRDT, handle);
+				if (!((Resource<?>) cachedCRDT.getLatestVersion(handle)).checkRequest(sequencer.siteId, req))
 					nonCached.add(req);
 			}
 		}
@@ -442,8 +459,8 @@ final public class IndigoResourceManager {
 		return new AcquireResourcesRequest(request.getClientId(), request.getClientTs(), nonCached);
 
 	}
-	private void performProvisioning(AcquireResourcesRequest request, Timestamp ts) {
-		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts);
+	private void performProvisioning(AcquireResourcesRequest request, Timestamp ts, _TxnHandle handle) {
+		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts, handle);
 		// TODO: Not a very smart "contains" check - should look for requests
 		// for the same keys
 		if (transferRequests.size() > 0 && !transferQueue.contains(transferRequests)) {
@@ -458,10 +475,11 @@ final public class IndigoResourceManager {
 	 * @param requestId
 	 * @return
 	 */
-	private List<TransferResourcesRequest> provisionPolicy(AcquireResourcesRequest req, Timestamp requestId) {
+	private List<TransferResourcesRequest> provisionPolicy(AcquireResourcesRequest req, Timestamp requestId,
+			_TxnHandle handle) {
 		Map<String, List<ResourceRequest<?>>> requestsBySite = new HashMap<String, List<ResourceRequest<?>>>();
 		for (ResourceRequest<?> req_i : req.getResources()) {
-			Resource resource = cache.get(req_i.getResourceId());
+			Resource resource = (Resource) cache.get(req_i.getResourceId()).getLatestVersion(handle);
 			// if (logger.isLoggable(Level.INFO))
 			// logger.info("Checking permissions for " + resource +
 			// " and request " + req);
@@ -470,7 +488,7 @@ final public class IndigoResourceManager {
 				LinkedList<Pair<String, ResourceRequest<?>>> contactList = new LinkedList<Pair<String, ResourceRequest<?>>>();
 				// TODO: ups... shortcut. Must abstract this and can make it
 				// more elegant.
-				if (resource instanceof BoundedCounterWithLocalEscrow && pref.size() > 0) {
+				if (resource instanceof BoundedCounterAsResource && pref.size() > 0) {
 					contactList.add(new Pair<String, ResourceRequest<?>>(pref.peek().getFirst(), req_i));
 				}
 				if (resource instanceof EscrowableTokenCRDTWithLocks && pref.size() > 0) {

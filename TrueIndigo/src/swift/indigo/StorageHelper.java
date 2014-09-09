@@ -182,10 +182,10 @@ public class StorageHelper {
 			if (reply != null) {
 				if (reply.getStatus() == FetchObjectReply.FetchStatus.OK) {
 					ManagedCRDT<V> res = (ManagedCRDT<V>) reply.getCrdt();
-					return res.getLatestVersion(this);
+					return res;
 				}
 				if (create && reply.getStatus() == FetchObjectReply.FetchStatus.OBJECT_NOT_FOUND) {
-					return createCRDT(id, getCurrentClock(), classOfV).getLatestVersion(this);
+					return createCRDT(id, getCurrentClock(), classOfV);
 				}
 			}
 			return null;

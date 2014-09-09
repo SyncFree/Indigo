@@ -15,7 +15,7 @@ import swift.utils.Pair;
 
 public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extends BaseCRDT<T> {
 
-	private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
+	protected static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
 
 		@Override
 		public int compare(Pair<String, Integer> o1, Pair<String, Integer> o2) {

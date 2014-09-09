@@ -1,6 +1,7 @@
 package swift.crdt;
 
 import java.util.Collection;
+import java.util.Queue;
 
 import swift.api.CRDTIdentifier;
 import swift.api.TxnHandle;
@@ -9,6 +10,7 @@ import swift.indigo.ConsumableResource;
 import swift.indigo.CounterReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
+import swift.utils.Pair;
 
 public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterAsResource>
 		implements
@@ -144,6 +146,8 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 			counter.applyInc((BoundedCounterIncrement) req);
 		} else if (req instanceof BoundedCounterDecrement) {
 			counter.applyDec((BoundedCounterDecrement) req);
+		} else if (req instanceof CounterReservation) {
+			counter.applyDec(new BoundedCounterDecrement<>(req.getRequesterId(), req.getResource()));
 		}
 	}
 
@@ -166,6 +170,14 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 	@Override
 	public String toString() {
 		return counter.toString();
+	}
+
+	public Queue<Pair<String, Integer>> preferenceList() {
+		return counter.preferenceList();
+	}
+
+	public Queue<Pair<String, Integer>> preferenceList(String excludeSiteId) {
+		return counter.preferenceList(excludeSiteId);
 	}
 
 }
