@@ -159,7 +159,7 @@ final public class IndigoResourceManager {
 		try {
 			// lockTable();
 			_TxnHandle handle = storage.beginTxn(request.getClientTs());
-			snapshot = storage.getCurrentClock();
+			snapshot = handle.snapshot;
 			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle);
 			// Test resource's availability
 			Resource resource;
