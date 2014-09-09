@@ -49,7 +49,8 @@ public class StorageHelper {
 	final private Endpoint surrogate;
 
 	// TODO: Sequencer should be remote
-	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId, boolean isMasterLockManager) {
+	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId,
+			boolean isMasterLockManager) {
 		this.sequencer = sequencer;
 		this.LOCK_MANAGER = sequencer.siteId + "LockManager";
 		this.stub = sequencer.stub;
@@ -78,10 +79,9 @@ public class StorageHelper {
 			handle.commit();
 	}
 
-	public Resource getResource(ResourceRequest<?> req, final _TxnHandle handle) throws SwiftException {
+	public ManagedCRDT<?> getResource(ResourceRequest<?> req, final _TxnHandle handle) throws SwiftException {
 		Class<CRDT> type = tableToType.get(req.getClass());
-		Resource resource = (Resource<?>) handle.getMostRecent(req.getResourceId(), isMasterLockManager, type);
-		return resource;
+		return handle.getMostRecent(req.getResourceId(), isMasterLockManager, type);
 	}
 
 	// ATTENTION: Original code used locks to protect the creation of the lock
@@ -122,11 +122,13 @@ public class StorageHelper {
 					System.out.println("UPDATES NOT EMPTY " + updates.size());
 					Timestamp ts = sequencer.clocks.newTimestamp();
 
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
+							updates);
 					req.setTimestamp(ts);
 				} else {
 					System.out.println("UPDATES EMPTY");
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
+							snapshot, updates);
 					Thread.currentThread().dumpStack();
 					System.out.println("NAO pode acontecer");
 					System.exit(0);
@@ -151,7 +153,8 @@ public class StorageHelper {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException {
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
+				boolean create, Class<V> classOfV) throws VersionNotFoundException {
 			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, uid, true);
 
 			FetchObjectReply reply = stub.request(surrogate, req);
@@ -174,7 +177,8 @@ public class StorageHelper {
 		}
 
 		@SuppressWarnings("unchecked")
-		public <V extends CRDT<V>> V getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> ManagedCRDT<V> getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV)
+				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, id, true);
 			FetchObjectReply reply = stub.request(surrogate, req);
@@ -182,10 +186,10 @@ public class StorageHelper {
 			if (reply != null) {
 				if (reply.getStatus() == FetchObjectReply.FetchStatus.OK) {
 					ManagedCRDT<V> res = (ManagedCRDT<V>) reply.getCrdt();
-					return res.getLatestVersion(this);
+					return res;
 				}
 				if (create && reply.getStatus() == FetchObjectReply.FetchStatus.OBJECT_NOT_FOUND) {
-					return createCRDT(id, getCurrentClock(), classOfV).getLatestVersion(this);
+					return createCRDT(id, getCurrentClock(), classOfV);
 				}
 			}
 			return null;
