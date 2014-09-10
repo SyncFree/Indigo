@@ -175,7 +175,8 @@ final public class IndigoResourceManager {
 
 				// If a resource cannot be satisfied, free it locally.
 				// This is necessary to make the token converge
-				if (!satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
+				if (!satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)
+						&& req instanceof LockReservation) {
 					resource.releaseShare(sequencer.siteId);
 					satisfies = resource.checkRequest(sequencer.siteId, req);
 					mustUpdate = true;

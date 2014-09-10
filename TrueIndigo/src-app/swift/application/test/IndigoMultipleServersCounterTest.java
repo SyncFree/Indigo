@@ -152,7 +152,7 @@ public class IndigoMultipleServersCounterTest {
 		stub2.endTxn();
 
 		resources.clear();
-		resources.add(new CounterReservation("DC_B", id, 6));
+		resources.add(new CounterReservation("DC_B", id, 5));
 		stub1.beginTxn(resources);
 		System.out.println("DC_A: " + stub1.get(id, false, BoundedCounterAsResource.class).decrement(5, DC_A));
 		stub1.endTxn();
