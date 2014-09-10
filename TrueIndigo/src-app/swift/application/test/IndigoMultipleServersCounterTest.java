@@ -39,10 +39,10 @@ public class IndigoMultipleServersCounterTest {
 	@Before
 	public void init2DC() {
 		if (!started) {
-			TestsUtil.startDC1Server("DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{
+			TestsUtil.startDC1Server("DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{
 					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{
 					"tcp://*:" + 32001 + "/DC_A/", "tcp://*:" + 32002 + "/DC_B"});
-			TestsUtil.startDC1Server("DC_B", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{
+			TestsUtil.startDC1Server("DC_B", "DC_A", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{
 					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{
 					"tcp://*:" + 32001 + "/DC_A", "tcp://*:" + 32002 + "/DC_B"});
 			started = true;
@@ -61,10 +61,11 @@ public class IndigoMultipleServersCounterTest {
 	}
 
 	public static void initKey(Indigo stub, CRDTIdentifier id, String owner) throws SwiftException {
-		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new CounterReservation(owner, id, 0));
-		stub.beginTxn(resources);
-		stub.endTxn();
+		// List<ResourceRequest<?>> resources = new
+		// LinkedList<ResourceRequest<?>>();
+		// resources.add(new CounterReservation(owner, id, 0));
+		// stub.beginTxn(resources);
+		// stub.endTxn();
 	}
 
 	public void increment(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
@@ -150,6 +151,8 @@ public class IndigoMultipleServersCounterTest {
 		System.out.println("DC_B: " + stub2.get(id, false, BoundedCounterAsResource.class).decrement(5, DC_B));
 		stub2.endTxn();
 
+		resources.clear();
+		resources.add(new CounterReservation("DC_B", id, 6));
 		stub1.beginTxn(resources);
 		System.out.println("DC_A: " + stub1.get(id, false, BoundedCounterAsResource.class).decrement(5, DC_A));
 		stub1.endTxn();
@@ -228,7 +231,7 @@ public class IndigoMultipleServersCounterTest {
 			}).start();
 		}
 		sem.acquire(NTHREADS);
-		Thread.sleep(10000);
+		Thread.sleep(1000);
 		compareValue(id, 0, stub1);
 		compareValue(id, 0, stub2);
 	}

@@ -19,12 +19,13 @@ import sys.utils.Args;
 
 public class TestsUtil {
 
-	public static void startDC1Server(String siteId, int sequencerPort, int serverPort, int serverPort4Seq,
-			int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers, String[] otherServers) {
+	public static void startDC1Server(String siteId, String masterId, int sequencerPort, int serverPort,
+			int serverPort4Seq, int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers,
+			String[] otherServers) {
 
 		List<String> argsSeq = new LinkedList<String>();
-		argsSeq.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server",
-				"tcp://*:" + serverPort, "-sequencers"}));
+		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url",
+				"tcp://*:" + sequencerPort, "-server", "tcp://*:" + serverPort, "-sequencers"}));
 		argsSeq.addAll(Arrays.asList(otherSequencers));
 		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
 

@@ -7,8 +7,6 @@ import static swift.application.test.TestsUtil.getValue;
 import static swift.application.test.TestsUtil.increment;
 import static sys.Context.Networking;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Semaphore;
@@ -20,9 +18,7 @@ import org.junit.Test;
 
 import swift.api.CRDTIdentifier;
 import swift.exceptions.SwiftException;
-import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
-import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
 
@@ -42,8 +38,8 @@ public class CounterUnitTests {
 	@Before
 	public void init1DC() {
 		if (!started) {
-			TestsUtil.startDC1Server(DC_A, 31001, 32001, 33001, 34001, 35001, 36001, new String[]{"tcp://*:" + 31001
-					+ "/" + DC_A + "/"}, new String[]{});
+			TestsUtil.startDC1Server(DC_A, DC_A, 31001, 32001, 33001, 34001, 35001, 3600, new String[]{"tcp://*:"
+					+ 31001 + "/" + DC_A + "/"}, new String[]{});
 			started = true;
 
 			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
@@ -59,11 +55,12 @@ public class CounterUnitTests {
 	}
 
 	public void initKey(Indigo stub, String siteId) throws SwiftException {
-		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new CounterReservation(siteId, new CRDTIdentifier(table, "" + key), 0));
-		stub.beginTxn(resources);
-		stub.endTxn();
-
+		// List<ResourceRequest<?>> resources = new
+		// LinkedList<ResourceRequest<?>>();
+		// resources.add(new CounterReservation(siteId, new
+		// CRDTIdentifier(table, "" + key), 0));
+		// stub.beginTxn(resources);
+		// stub.endTxn();
 	}
 
 	@Test
@@ -96,10 +93,12 @@ public class CounterUnitTests {
 	}
 
 	@Test
-	public void decrementSucceeds() throws SwiftException {
+	public void decrementSucceeds() throws SwiftException, InterruptedException {
 		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
 		increment(id, 10, stub11, DC_A);
 		assertEquals(true, decrement(id, 10, stub11, DC_A));
+		Thread.sleep(1000);
+		assertEquals(0, getValue(id, stub11));
 	}
 
 	@Test

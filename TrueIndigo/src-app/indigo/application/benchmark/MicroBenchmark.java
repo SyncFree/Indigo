@@ -38,6 +38,7 @@ public class MicroBenchmark {
 	private static int nKeys;
 	private static String resultsLogName = "MicroBenchmark";
 	private static Profiler profiler;
+	private static String MASTER_ID;
 
 	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException,
 			InterruptedException, BrokenBarrierException {
@@ -88,6 +89,9 @@ public class MicroBenchmark {
 			BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
 			if ((x.getValue()) > 0) {
 				result = x.decrement(units, siteId);
+				if (result == false) {
+					System.out.println("FAILED");
+				}
 				counterValue = x.getValue();
 			}
 		} catch (IndigoImpossibleExcpetion e) {
@@ -120,7 +124,7 @@ public class MicroBenchmark {
 			counterRequests.add(new CounterReservation(ownerId, crdtId, 0));
 			if (i % transactionSize == 0 || i == nKeys) {
 				// System.out.println("Start transaction " + i);
-				stub.beginTxn(counterRequests);
+				stub.beginTxn();
 				while (counterRequests.size() > 0) {
 					ResourceRequest<Integer> request = (ResourceRequest<Integer>) counterRequests.remove(0);
 					// System.out.println("Increment " + request);
@@ -143,6 +147,7 @@ public class MicroBenchmark {
 	public static void startDC() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31001);
 		int serverPort = Args.valueOf("-srvPort", 32001);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
@@ -152,8 +157,59 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort,
-				indigoPort, otherSequencers, otherServers);
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
+				pubSubPort, indigoPort, otherSequencers, otherServers);
+	}
+
+	public static void startLocalDC1() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31001);
+		int serverPort = Args.valueOf("-srvPort", 32001);
+		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
+		int dhtPort = Args.valueOf("-dhtPort", 34001);
+		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
+		int indigoPort = Args.valueOf("-indigoPort", 36001);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+		String[] otherServers = Args.valueOf("-servers", new String[]{});
+
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
+				pubSubPort, indigoPort, otherSequencers, otherServers);
+	}
+
+	public static void startLocalDC2() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31002);
+		int serverPort = Args.valueOf("-srvPort", 32002);
+		int serverPortForSequencer = Args.valueOf("-sFs", 33002);
+		int dhtPort = Args.valueOf("-dhtPort", 34002);
+		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
+		int indigoPort = Args.valueOf("-indigoPort", 36002);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+		String[] otherServers = Args.valueOf("-servers", new String[]{});
+
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
+				pubSubPort, indigoPort, otherSequencers, otherServers);
+	}
+
+	public static void startLocalDC3() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31003);
+		int serverPort = Args.valueOf("-srvPort", 32003);
+		int serverPortForSequencer = Args.valueOf("-sFs", 33003);
+		int dhtPort = Args.valueOf("-dhtPort", 34003);
+		int pubSubPort = Args.valueOf("-pubSubPort", 35003);
+		int indigoPort = Args.valueOf("-indigoPort", 36003);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+		String[] otherServers = Args.valueOf("-servers", new String[]{});
+
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
+				pubSubPort, indigoPort, otherSequencers, otherServers);
 	}
 
 	public static void main(String[] args) {
@@ -176,6 +232,49 @@ public class MicroBenchmark {
 				}
 
 			}
+
+			if (Args.contains("-startDC1")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startLocalDC1();
+					}
+				});
+				dc.start();
+				Thread.sleep(1000);
+				// Reset args after starting DC
+				Args.use(args);
+			}
+
+			if (Args.contains("-startDC2")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startLocalDC2();
+					}
+				});
+				dc.start();
+				Thread.sleep(1000);
+				// Reset args after starting DC
+				Args.use(args);
+			}
+
+			if (Args.contains("-startDC3")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startLocalDC3();
+					}
+				});
+				dc.start();
+				Thread.sleep(1000);
+				// Reset args after starting DC
+				Args.use(args);
+			}
+
 			if (Args.contains("-startDC")) {
 				Thread dc = new Thread(new Runnable() {
 
