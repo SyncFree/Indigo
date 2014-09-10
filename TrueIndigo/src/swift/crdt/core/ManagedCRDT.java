@@ -79,9 +79,6 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	// unnecessary information (dependency clocks and ids)
 	protected List<CRDTObjectUpdatesGroup<V>> strippedLog;
 
-	private V cachedVersion;
-	private CausalityClock cachedVersionClock;
-
 	public ManagedCRDT() {
 	}
 
@@ -262,8 +259,6 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	 *             if merge heuristic fails to merge the two objects
 	 */
 	public void merge(ManagedCRDT<V> other) {
-		cachedVersion = null;
-		cachedVersionClock = null;
 		if (!id.equals(other.id)) {
 			throw new IllegalArgumentException("Refusing to merge two objects with different identities: " + id
 					+ " vs " + other.id);
@@ -381,8 +376,6 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	 *             dependencies was requested
 	 */
 	public boolean execute(CRDTObjectUpdatesGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
-		cachedVersion = null;
-		cachedVersionClock = null;
 		final CausalityClock dependencyClock = ops.getDependency();
 		if (dependenciesPolicy == CRDTOperationDependencyPolicy.CHECK) {
 			final CMP_CLOCK dependencyCmp = clock.compareTo(dependencyClock);
@@ -435,9 +428,6 @@ public class ManagedCRDT<V extends CRDT<V>> {
 	// wish only observable content + necessary metadata, but in practice
 	// that's often almost the same (OR-Set) or just the same (e.g. Counter)
 	public V getVersion(CausalityClock versionClock, TxnHandle txn) {
-		if (cachedVersionClock != null && versionClock.equals(cachedVersionClock))
-			return cachedVersion;
-
 		assertGreaterEqualsPruneClock(versionClock);
 		assertLessEqualsClock(versionClock);
 
@@ -458,8 +448,6 @@ public class ManagedCRDT<V extends CRDT<V>> {
 		// System.err.println("ARG:     " + versionClock);
 		// Thread.dumpStack();
 		// }
-		cachedVersionClock = versionClock;
-		cachedVersion = version;
 		return version;
 	}
 

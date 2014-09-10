@@ -234,11 +234,7 @@ public final class DataServer {
 
 			data.pruneIfPossible(clocks.pruneClockCopy());
 
-			logger.warning("B " + id + " ----------" + data.getClock() + " " + data + " " + req.getGrp());
 			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
-			logger.warning("F " + id + " ----------" + data.getClock() + " " + data);
-			data.augmentWithDCClockWithoutMappings(req.getCurrentState());
-			data.discardScoutClock(req.getCltTs().getIdentifier());
 			if (logger.isLoggable(Level.INFO)) {
 				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = "
 						+ clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency()

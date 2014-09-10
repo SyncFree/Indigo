@@ -30,6 +30,10 @@ import sys.net.api.Endpoint;
 import sys.net.api.Service;
 import sys.utils.Timings;
 
+/*
+ * TODO: Clock versions should be handled somewhere else.
+ * TODO: Put cache here?
+ */
 public class StorageHelper {
 	private static Logger Log = Logger.getLogger(StorageHelper.class.getName());
 
@@ -38,21 +42,16 @@ public class StorageHelper {
 	final Sequencer sequencer;
 
 	private final CausalityClock grantedRequests;
-
-	private String resourceMgrId;
-	private IncrementalTimestampGenerator cltTimestampSource;
-
+	private final IncrementalTimestampGenerator cltTimestampSource;
 	private Map<Class, Class> tableToType;
-
-	private boolean isMasterLockManager;
-
-	final private Endpoint surrogate;
+	private final boolean isMasterLockManager;
+	private final Endpoint surrogate;
 
 	// TODO: Sequencer should be remote
 	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId,
 			boolean isMasterLockManager) {
 		this.sequencer = sequencer;
-		this.LOCK_MANAGER = sequencer.siteId + "LockManager";
+		this.LOCK_MANAGER = sequencer.siteId + "_LockManager";
 		this.stub = sequencer.stub;
 		this.isMasterLockManager = isMasterLockManager;
 		this.surrogate = surrogate;
@@ -70,6 +69,10 @@ public class StorageHelper {
 		return sequencer.clocks.currentClockCopy();
 	}
 
+	public CausalityClock getLocalSnapshotClockCopy() {
+		return grantedRequests.clone();
+	}
+
 	_TxnHandle beginTxn(Timestamp cltTimestamp) {
 		return new _TxnHandle(getCurrentClock(), cltTimestamp);
 	}
@@ -81,32 +84,16 @@ public class StorageHelper {
 
 	public ManagedCRDT<?> getResource(ResourceRequest<?> req, final _TxnHandle handle) throws SwiftException {
 		Class<CRDT> type = tableToType.get(req.getClass());
-		return handle.getMostRecent(req.getResourceId(), isMasterLockManager, type);
+		return handle.getLatestVersion(req.getResourceId(), isMasterLockManager, type);
 	}
-
-	// ATTENTION: Original code used locks to protect the creation of the lock
-	// public void createResources(Collection<ResourceRequest<?>> request)
-	// throws SwiftException {
-	// for (ResourceRequest<?> req : request) {
-	// createResource(req);
-	// }
-	// }
-
-	// public Resource<?> createResource(ResourceRequest<?> req) throws
-	// SwiftException {
-	// if (Log.isLoggable(Level.INFO))
-	// Log.info("Created resource for request " + req);
-	// Class<CRDT> type = tableToType.get(req.getResourceId().getTable());
-	// Resource resource = (Resource) handle.getMostRecent(req.getResourceId(),
-	// true, type);
-	// resource.initialize(sequencer.siteId, req);
-	// return resource;
-	// }
 
 	class _TxnHandle extends AbstractTxHandle {
 
+		protected Timestamp commitTs;
+
 		_TxnHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
 			super(snapshot, cltTimestamp);
+			grantedRequests.merge(snapshot);
 		}
 
 		@Override
@@ -120,11 +107,11 @@ public class StorageHelper {
 
 				if (!updates.isEmpty()) {
 					System.out.println("UPDATES NOT EMPTY " + updates.size());
-					Timestamp ts = sequencer.clocks.newTimestamp();
+					commitTs = sequencer.clocks.newTimestamp();
 
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
 							updates);
-					req.setTimestamp(ts);
+					req.setTimestamp(commitTs);
 				} else {
 					System.out.println("UPDATES EMPTY");
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
@@ -137,10 +124,6 @@ public class StorageHelper {
 				final Semaphore semaphore = new Semaphore(0);
 				stub.asyncRequest(surrogate, req, (CommitUpdatesReply r) -> {
 					if (Log.isLoggable(Level.INFO)) {
-						Timestamp test = req.getTimestamp();
-						if (test == null) {
-							System.out.println("aqui");
-						}
 						Log.info("FINISH COMMIT------->>" + r.getStatus() + " FOR : " + req.getTimestamp());
 					}
 					semaphore.release();
@@ -155,7 +138,7 @@ public class StorageHelper {
 		@Override
 		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
 				boolean create, Class<V> classOfV) throws VersionNotFoundException {
-			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, uid, true);
+			FetchObjectRequest req = new FetchObjectRequest(grantedRequests, LOCK_MANAGER, uid, true);
 
 			FetchObjectReply reply = stub.request(surrogate, req);
 
@@ -177,7 +160,7 @@ public class StorageHelper {
 		}
 
 		@SuppressWarnings("unchecked")
-		public <V extends CRDT<V>> ManagedCRDT<V> getMostRecent(CRDTIdentifier id, boolean create, Class<V> classOfV)
+		public <V extends CRDT<V>> ManagedCRDT<V> getLatestVersion(CRDTIdentifier id, boolean create, Class<V> classOfV)
 				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, id, true);
