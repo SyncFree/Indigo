@@ -29,7 +29,6 @@ import swift.dc.Defaults;
 import swift.dc.Sequencer;
 import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
-import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.InitializeResources;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
@@ -83,10 +82,13 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 			logger.info("Commit timestamp " + request.getTimestamp() + " " + request.getCommitUpdatesRequest());
 		super.onReceive(conn, request);
 		// Only do release on local-DC commit messages and if it used locks
-		if (request.getCommitUpdatesRequest() instanceof IndigoCommitRequest) {
-			if (((IndigoCommitRequest) request.getCommitUpdatesRequest()).withLocks())
-				lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
-		}
+		// if (request.getCommitUpdatesRequest() instanceof IndigoCommitRequest)
+		// {
+		// if (((IndigoCommitRequest)
+		// request.getCommitUpdatesRequest()).withLocks())
+		// lockManagerNode.onReceive(null, new
+		// ReleaseResourcesRequest(request.getCltTimestamp()));
+		// }
 	}
 
 	@Override

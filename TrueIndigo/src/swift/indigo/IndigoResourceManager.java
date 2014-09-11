@@ -338,6 +338,7 @@ final public class IndigoResourceManager {
 		}
 		CausalityClock readClock = storage.getLocalSnapshotClockCopy();
 		readClock.intersect(cachedValue.getClock());
+		readClock.merge(resourceCRDT.getPruneClock());
 		return (Resource<V>) cachedValue.getVersion(readClock, handle);
 	}
 
@@ -444,11 +445,12 @@ final public class IndigoResourceManager {
 		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts, handle);
 		// TODO: Not a very smart "contains" check - should look for requests
 		// for the same keys
-		if (transferRequests.size() > 0 && !transferQueue.contains(transferRequests)) {
-			transferQueue.addAll(transferRequests);
+		synchronized (transferRequests) {
+			if (transferRequests.size() > 0 && !transferQueue.contains(transferRequests)) {
+				transferQueue.addAll(transferRequests);
+			}
 		}
 	}
-
 	/**
 	 * Request permissions for all resources not available locally.
 	 * 

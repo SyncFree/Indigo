@@ -100,20 +100,17 @@ public class StorageHelper {
 		public void commit() {
 			try {
 
-				System.out.println("COMMIT " + this.toString());
 				Timings.mark();
 				final CommitUpdatesRequest req;
 				List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
 				if (!updates.isEmpty()) {
-					System.out.println("UPDATES NOT EMPTY " + updates.size());
 					commitTs = sequencer.clocks.newTimestamp();
 
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
 							updates);
 					req.setTimestamp(commitTs);
 				} else {
-					System.out.println("UPDATES EMPTY");
 					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
 							snapshot, updates);
 					Thread.currentThread().dumpStack();

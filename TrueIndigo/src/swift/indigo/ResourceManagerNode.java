@@ -128,21 +128,24 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			@Override
 			public void run() {
 				while (active) {
-					if (outgoingMessages.size() > 0) {
-						TransferResourcesRequest request = null;
+					TransferResourcesRequest request = null;
+					Endpoint endpoint = null;
+					synchronized (outgoingMessages) {
 						if (outgoingMessages.size() > 0) {
 							request = outgoingMessages.remove();
-						} else
-							continue;
-						Endpoint endpoint = endpoints.get(request.getDestination());
-						if (logger.isLoggable(Level.INFO))
-							logger.info("Asking resources: " + request);
-						stub.send(endpoint, request);
-					} else {
-						try {
-							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
+							endpoint = endpoints.get(request.getDestination());
+							if (logger.isLoggable(Level.INFO))
+								logger.info("Asking resources: " + request);
+						}
+						if (request != null) {
+							stub.send(endpoint, request);
+						} else {
+							try {
+								Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 						}
 					}
 				}
