@@ -93,8 +93,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		initLogging();
 
-		final SimpleMessageBalacing messageBalancing = new SimpleMessageBalacing(DEFAULT_REQUEST_TRANSFER_RATIO,
-				incomingRequestsQueue, transferRequestsQueue);
+		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue,
+				transferRequestsQueue);
 
 		// Incoming requests processor thread
 		new Thread(new Runnable() {
@@ -383,6 +383,35 @@ class SimpleMessageBalacing {
 				return transferQueue.remove();
 			}
 		} else
+			return null;
+	}
+
+	public String toString() {
+		return "REQ: " + requestQueue + " TRANS: " + transferQueue;
+	}
+}
+
+class TransferFirstMessageBalacing {
+
+	enum OPType {
+		TRANSFER, REQUEST
+	}
+
+	private Queue<IndigoOperation> requestQueue;
+	private Queue<TransferResourcesRequest> transferQueue;
+
+	public TransferFirstMessageBalacing(Queue<IndigoOperation> requestQueue,
+			Queue<TransferResourcesRequest> transferQueue) {
+		this.requestQueue = requestQueue;
+		this.transferQueue = transferQueue;
+	}
+
+	public IndigoOperation nextOp() {
+		if (transferQueue.size() > 0)
+			return transferQueue.remove();
+		else if (requestQueue.size() > 0)
+			return requestQueue.remove();
+		else
 			return null;
 	}
 
