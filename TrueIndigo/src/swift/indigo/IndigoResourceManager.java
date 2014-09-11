@@ -48,6 +48,7 @@ final public class IndigoResourceManager {
 	private final IndigoSequencerAndResourceManager sequencer;
 
 	private Map<CRDTIdentifier, ManagedCRDT<?>> cache;
+	private Map<CRDTIdentifier, Resource<?>> active;
 	private Map<CRDTIdentifier, List<ResourceRequest<?>>> toBeReleased;
 	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
@@ -72,6 +73,7 @@ final public class IndigoResourceManager {
 		this.storage = new StorageHelper(sequencer, surrogate, resourceMgrId, isMaster);
 
 		this.cache = new ConcurrentHashMap<>();
+		this.active = new ConcurrentHashMap<>();
 		this.lockTable = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
 
@@ -203,18 +205,13 @@ final public class IndigoResourceManager {
 				// Execute the operations in soft-state
 				for (ResourceRequest<?> req_i : request.getResources()) {
 					if (req_i instanceof CounterReservation) {
-						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache
-								.get(req_i.getResourceId());
-						// TODO: This must be optimized do avoid repeating the
-						// interects
-						CausalityClock readClock = storage.getLocalSnapshotClockCopy();
-						readClock.intersect(cachedCRDT.getClock());
-						BoundedCounterAsResource latestVersion = (BoundedCounterAsResource) cachedCRDT.getVersion(
-								readClock, handle);
+						BoundedCounterAsResource latestVersion = (BoundedCounterAsResource) active.get(req_i
+								.getResourceId());
 						boolean result = latestVersion.decrement((int) req_i.getResource(), req_i.getRequesterId());
 						CRDTObjectUpdatesGroup<BoundedCounterAsResource> updates = (CRDTObjectUpdatesGroup<BoundedCounterAsResource>) handle.ops
 								.get(req_i.getResourceId());
-						// Still not sure nothing bad happens :)
+						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache
+								.get(req_i.getResourceId());
 						if (result == false || updates == null || updates.getOperations().size() == 0) {
 							System.out.println("UPDATES ZERO???? " + result);
 							System.exit(0);
@@ -243,7 +240,6 @@ final public class IndigoResourceManager {
 		}
 		return generateDenyMessage(unsatified, snapshot);
 	}
-
 	private void printResourcesState(Map<CRDTIdentifier, Resource<?>> unsatified) {
 		for (Entry<CRDTIdentifier, Resource<?>> un_i : unsatified.entrySet()) {
 			if (logger.isLoggable(Level.INFO))
@@ -339,7 +335,9 @@ final public class IndigoResourceManager {
 		CausalityClock readClock = storage.getLocalSnapshotClockCopy();
 		readClock.intersect(cachedValue.getClock());
 		readClock.merge(resourceCRDT.getPruneClock());
-		return (Resource<V>) cachedValue.getVersion(readClock, handle);
+		Resource<V> resource = (Resource<V>) cachedValue.getVersion(readClock, handle);
+		active.put(resource.getUID(), resource);
+		return resource;
 	}
 
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, _TxnHandle handle)
@@ -432,9 +430,18 @@ final public class IndigoResourceManager {
 
 		for (ResourceRequest req : request.getResources()) {
 			ManagedCRDT<?> cachedCRDT = cache.get(req.getResourceId());
-			if (cachedCRDT == null
-					|| !((Resource<?>) cachedCRDT.getLatestVersion(handle)).checkRequest(sequencer.siteId, req)) {
+			if (cachedCRDT == null) {
 				nonCached.add(req);
+			} else {
+				CausalityClock readClock = storage.getLocalSnapshotClockCopy();
+				readClock.intersect(cachedCRDT.getClock());
+				readClock.merge(cachedCRDT.getPruneClock());
+				Resource<?> resource = (Resource<?>) cachedCRDT.getVersion(readClock, handle);
+				if (!resource.checkRequest(sequencer.siteId, req)) {
+					nonCached.add(req);
+				} else {
+					active.put(req.getResourceId(), resource);
+				}
 			}
 		}
 
