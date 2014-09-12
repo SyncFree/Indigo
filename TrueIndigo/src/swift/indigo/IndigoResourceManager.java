@@ -171,6 +171,10 @@ final public class IndigoResourceManager {
 					logger.warning("VersionException " + e.getMessage());
 					storage.endTxn(handle, mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
+				} catch (java.lang.IllegalStateException e) {
+					logger.warning("IllegalStateException " + e.getMessage());
+					storage.endTxn(handle, mustUpdate);
+					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
 
 				boolean satisfies = resource.checkRequest(sequencer.siteId, req);
