@@ -334,7 +334,7 @@ final public class IndigoResourceManager {
 		}
 		CausalityClock readClock = storage.getLocalSnapshotClockCopy();
 		readClock.intersect(cachedValue.getClock());
-		readClock.merge(resourceCRDT.getPruneClock());
+		// readClock.merge(resourceCRDT.getPruneClock());
 		Resource<V> resource = (Resource<V>) cachedValue.getVersion(readClock, handle);
 		active.put(resource.getUID(), resource);
 		return resource;
@@ -435,7 +435,7 @@ final public class IndigoResourceManager {
 			} else {
 				CausalityClock readClock = storage.getLocalSnapshotClockCopy();
 				readClock.intersect(cachedCRDT.getClock());
-				readClock.merge(cachedCRDT.getPruneClock());
+				// readClock.merge(cachedCRDT.getPruneClock());
 				Resource<?> resource = (Resource<?>) cachedCRDT.getVersion(readClock, handle);
 				if (!resource.checkRequest(sequencer.siteId, req)) {
 					nonCached.add(req);
