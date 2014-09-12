@@ -16,6 +16,7 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 		implements
 			ConsumableResource<Integer> {
 
+	private static final Integer TRANSFER_THRESHOLD = 500;
 	private BoundedCounterCRDT<LowerBoundCounterCRDT> counter;
 
 	public BoundedCounterAsResource() {
@@ -178,6 +179,11 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 
 	public Queue<Pair<String, Integer>> preferenceList(String excludeSiteId) {
 		return counter.preferenceList(excludeSiteId);
+	}
+
+	@Override
+	public boolean overThreshold(String ownerId, ResourceRequest<Integer> request) {
+		return (counter.availableSiteId(ownerId) - TRANSFER_THRESHOLD) >= request.getResource();
 	}
 
 }

@@ -36,4 +36,6 @@ public interface Resource<T> {
 
 	boolean releaseShare(String ownerId);
 
+	boolean overThreshold(String ownerId, ResourceRequest<T> request);
+
 }

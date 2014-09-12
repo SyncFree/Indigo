@@ -347,7 +347,9 @@ final public class IndigoResourceManager {
 		// If requests can be satisfied at the caller according the local
 		// state, do not transfer... update is on the way
 		String requestMsg = "";
-		if (!resource.checkRequest(request.getRequesterId(), (ResourceRequest<T>) request)) {
+		// if (!resource.checkRequest(request.getRequesterId(),
+		// (ResourceRequest<T>) request)) {
+		if (!resource.overThreshold(request.getRequesterId(), (ResourceRequest<T>) request)) {
 			ResourceRequest request_policy = transferPolicy(request, resource);
 			if (request_policy != null) {
 
