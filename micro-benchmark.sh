@@ -6,31 +6,43 @@ SOURCE_ROOT="/Users/balegas/workspace/java/swiftcloud-indigo/"
 
 REGION_NAME=(
 	"US-EAST"
+	"US-WEST"
+	"EUROPE"
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-165-37-211.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-1-89.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-165-37-211.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-183-1-89.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-165-83-167.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-165-37-211.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-1-89.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-165-83-167.compute-1.amazonaws.com"
+	"ec2-54-165-37-211.compute-1.amazonaws.com"
+	"ec2-54-183-1-89.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-245-216.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-83-157.compute-1.amazonaws.com"
+	"ec2-54-165-32-74.compute-1.amazonaws.com"
+	"ec2-54-183-78-103.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-247-140.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-165-83-167.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-165-37-211.compute-1.amazonaws.com:29876/"
 
 
 #LOCAL OVERRIDE
@@ -48,12 +60,13 @@ SHEPARD_URL="tcp://ec2-54-165-83-167.compute-1.amazonaws.com:29876/"
 
 
 TABLE="table"
-N_KEYS=(1000)
-N_REGIONS=(1)
-N_THREADS=(1 10 20 40 50 60 80 100 120 140 160 180 200)
+N_KEYS=(1)
+N_REGIONS=(2)
+N_THREADS=(10)
 MODE=("-indigo")
 DISTRIBUTION="uniform"
-INIT_VAL=9999999
+INIT_VAL=20000
+
 #<Clients> #<Command>
 ssh_command() {
 	hosts=($1)
@@ -67,7 +80,6 @@ ssh_command() {
 		IFS=$OIFS
 	done
 }
-
 
 kill_all() {
 #	cmd="rm -fr crdtdb/results/*"
@@ -91,12 +103,14 @@ rsync_source() {
 
 get_results() {
 	servers=("$@")
-	cmd="rsync -r "		
+	CMD="rsync -r "		
 	for h in ${servers[@]}; do
-		cmd=$cmd" "$USERNAME"@"$h":results* "$SOURCE_ROOT"../indigo_results/"
+		cmd=$CMD" "$USERNAME"@"$h":results* "$SOURCE_ROOT"../indigo_results/"
 		$cmd
 	done
 }
+
+#function join { local IFS="$1"; shift; echo "$*"; }
 
 #Process options
 while getopts "abc:d:n:r:t:v:k" optname
@@ -191,16 +205,16 @@ do
 				echo $m" MODE"
 				echo $DISTRIBUTION" DISTRIBUTION"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
+				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"-no_provisioning/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
-				sequencers=(${SEQUENCERS[@]:0:$i})
+				sequencers=${SEQUENCERS[@]:0:$i}
 				servers=(${SERVERS[@]:0:$i})
 				server_machines=(${SERVER_MACHINES[@]:0:$i})
 				echo "SERVERS "$servers
 				ri=0;
 				for h in ${server_machines[@]}; do
-					cmd=$CMD" -startDC -siteId "${REGION_NAME[$((ri))]}" -sequencers "${sequencers[@]}" -servers "${servers[@]}" "$m
+					cmd=$CMD" -startDC -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -servers "${servers[@]}" "$m
 					ri=`expr $ri + 1`
 					echo "Start DC "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " > dc_console.log" &
@@ -209,18 +223,19 @@ do
 				sleep 5
 
 				master=${SERVER_MACHINES[0]}
-				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
+				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
 				echo "Init data "$master" CMD "$cmd
 				ssh $USERNAME@$master "nohup "$cmd
+				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
 				
-				sleep 5
+				sleep 10
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" > client_console.log" &
@@ -249,7 +264,6 @@ do
 					cmd="$awk | $RUN_STATS $CDF"
 					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
 					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
-
 
 					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
 					cmd="$awk | $RUN_STATS $TPSL"

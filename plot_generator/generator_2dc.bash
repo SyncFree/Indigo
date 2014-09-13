@@ -1,14 +1,14 @@
-#gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t10-v9999999_CDF.ps
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t10-v9999999_CDF.ps
 
-#gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t1-v9999999_CDF.ps
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t1-v9999999_CDF.ps
 
-#gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-#			plot_generator/latencyCDF-Per-Semantics.gnuplot > k1-r1-t1-v9999999_CDF.ps
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > k1-r1-t1-v9999999_CDF.ps
 
 FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*US-EAST*
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-indigo-US-EAST.dat
