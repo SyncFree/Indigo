@@ -93,8 +93,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		initLogging();
 
-		final SimpleMessageBalacing messageBalancing = new SimpleMessageBalacing(DEFAULT_REQUEST_TRANSFER_RATIO,
-				incomingRequestsQueue, transferRequestsQueue);
+		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue,
+				transferRequestsQueue);
 
 		// Incoming requests processor thread
 		new Thread(new Runnable() {
