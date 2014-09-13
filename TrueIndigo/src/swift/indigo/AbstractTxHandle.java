@@ -28,6 +28,7 @@ import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import sys.KryoLib;
 
 abstract public class AbstractTxHandle implements TxnHandle {
 
@@ -43,13 +44,15 @@ abstract public class AbstractTxHandle implements TxnHandle {
 		this.status = TxnStatus.PENDING;
 	}
 
-	protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
-			boolean create, Class<V> classOfV) throws VersionNotFoundException;
+	protected AbstractTxHandle copy() {
+		return KryoLib.copy(this);
+	}
+
+	protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException;
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
-			NoSuchObjectException, VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 		V res = (V) cache.get(id);
 		if (res == null)
@@ -59,9 +62,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	}
 
 	@Override
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
-			ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-			VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 		return get(id, create, classOfV);
 	}
 
@@ -116,8 +117,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	@Override
 	public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
 		synchronized (this) {
-			CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState,
-					snapshot);
+			CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState, snapshot);
 			if (ops.put(id, group) != null) {
 				throw new IllegalStateException("CRDT creation was preceded by some other operation:" + id);
 			}
@@ -156,8 +156,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	protected Map<CRDTIdentifier, CRDT<?>> cache = new HashMap<CRDTIdentifier, CRDT<?>>();
 
 	@Override
-	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids,
-			final BulkGetProgressListener listener) {
+	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids, final BulkGetProgressListener listener) {
 		return bulkGet(subscribeUpdates, ids.toArray(new CRDTIdentifier[ids.size()]));
 	}
 

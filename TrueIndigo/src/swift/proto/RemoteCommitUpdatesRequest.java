@@ -1,13 +1,9 @@
 package swift.proto;
 
-import java.util.Set;
-
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
 public class RemoteCommitUpdatesRequest extends CommitUpdatesRequest {
-
-	public transient Set<String> pendingStability;
 
 	public RemoteCommitUpdatesRequest() {
 	}

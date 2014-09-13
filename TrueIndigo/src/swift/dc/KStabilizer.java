@@ -3,9 +3,14 @@ package swift.dc;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_ISDOMINATED;
 import static sys.Context.Networking;
 
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
@@ -16,7 +21,6 @@ import sys.net.api.Service;
 import sys.net.impl.Url;
 import sys.utils.Args;
 import sys.utils.ConcurrentHashSet;
-
 public class KStabilizer {
 	static Logger Log = Logger.getLogger(Server.class.getName());
 
@@ -25,7 +29,7 @@ public class KStabilizer {
 
 	final Map<String, Endpoint> sites;
 
-	final Map<CommitUpdatesRequest, Long> blockedTransactions;
+	final Map<String, Deque<CommitUpdatesRequest>> blockedTransactions;
 
 	KStabilizer(Server server) {
 		this.server = server;
@@ -47,28 +51,50 @@ public class KStabilizer {
 			listener.run();
 
 		final RemoteCommitUpdatesRequest rr = new RemoteCommitUpdatesRequest(req);
-		rr.pendingStability = new ConcurrentHashSet<>(sites.keySet());
+		Set<String> stable = new ConcurrentHashSet<>();
 		sites.forEach((siteId, endpoint) -> {
 			stub.asyncRequest(endpoint, rr, reply -> {
-				rr.pendingStability.remove(siteId);
+				stable.add(siteId);
 
-				if (sites.size() - rr.pendingStability.size() == req.kStability())
+				if (stable.size() == req.kStability()) {
 					listener.run();
-
+				}
 			});
 		});
 	}
-
 	void blockTransaction(CommitUpdatesRequest req) {
-		blockedTransactions.put(req, 0L);
+		req.blkTime = System.currentTimeMillis();
+		getBlocked(req).addLast(req);
+		System.out.println(server.siteId + "   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>BLOCKING: " + req.getCltTimestamp() + "   " + req.getTimestamp() + "  deps:  " + req.getDependencyClock() + " now:" + server.clocks.currentClockCopy());
 	}
+
 	void checkBlockedTransactions() {
+
 		CausalityClock clock = server.clocks.currentClockCopy();
-		blockedTransactions.forEach((req, v) -> {
-			if (clock.compareTo(req.getDependencyClock()) != CMP_ISDOMINATED) {
-				blockedTransactions.remove(req);
-				server.doOneCommit(server.getSession(req.getClientId()), req);
-			}
+		blockedTransactions.values().parallelStream().forEach(txns -> {
+			System.out.println("!!!!! NOW:" + clock + " txns  " + blockedTransactions);
+			List<CommitUpdatesRequest> done = new ArrayList<>();
+
+			for (CommitUpdatesRequest req : txns)
+				if (clock.compareTo(req.getDependencyClock()) != CMP_ISDOMINATED) {
+					done.add(req);
+					System.out.println("@@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
+					server.doOneCommit(server.getSession(req.getClientId()), req);
+				} else
+					break;
+
+			txns.removeAll(done);
 		});
+
+	}
+	private Deque<CommitUpdatesRequest> getBlocked(CommitUpdatesRequest req) {
+		String key = req.getCltTimestamp().getIdentifier();
+		Deque<CommitUpdatesRequest> res = blockedTransactions.get(key), nres;
+		if (res == null) {
+			res = blockedTransactions.putIfAbsent(key, nres = new ConcurrentLinkedDeque<>());
+			if (res == null)
+				res = nres;
+		}
+		return res;
 	}
 }

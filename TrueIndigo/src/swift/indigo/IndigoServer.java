@@ -84,7 +84,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 	}
 
 	public long registerSnapshot(CausalityClock snapshot) {
-		super.clocks.updateCurrentClock(snapshot);
+		super.updateCurrentClock(snapshot);
 		long serial = snapshots.incrementAndGet();
 		Snapshots.register(serial, snapshot);
 		return serial;
@@ -100,7 +100,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 			logger.info("FetchObjectRequest client = " + request.getClientId() + " id: " + request.getUid());
 		}
 
-		clocks.updateCurrentClock(request.getDcClock());
+		super.updateCurrentClock(request.getDcClock());
 
 		if (request.hasSubscription())
 			getSession(request.getClientId()).subscribe(request.getUid());

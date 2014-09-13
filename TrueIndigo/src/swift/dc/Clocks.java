@@ -84,11 +84,11 @@ final public class Clocks {
 		}
 	}
 
-	public void updateCurrentClock(CausalityClock thatClock) {
+	CMP_CLOCK updateCurrentClock(CausalityClock thatClock) {
 		// System.err.println(owner + " Before:" + currentClock + " thatClock:"
 		// + thatClock);
 		synchronized (currentClock) {
-			this.currentClock.merge(thatClock);
+			return this.currentClock.merge(thatClock);
 		}
 	}
 

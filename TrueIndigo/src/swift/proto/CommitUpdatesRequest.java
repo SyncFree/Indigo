@@ -45,6 +45,8 @@ public class CommitUpdatesRequest extends ClientRequest {
 
 	transient Envelope source;
 
+	public transient long blkTime;
+
 	public CommitUpdatesRequest() {
 	}
 
