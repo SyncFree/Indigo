@@ -90,10 +90,15 @@ public class StorageHelper {
 	class _TxnHandle extends AbstractTxHandle {
 
 		protected Timestamp commitTs;
+		protected CausalityClock readTimestamp;
 
 		_TxnHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
 			super(snapshot, cltTimestamp);
-			grantedRequests.merge(snapshot);
+			synchronized (grantedRequests) {
+				grantedRequests.merge(snapshot);
+				this.readTimestamp = grantedRequests.clone();
+			}
+
 		}
 
 		@Override

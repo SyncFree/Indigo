@@ -175,7 +175,7 @@ final public class IndigoResourceManager {
 					storage.endTxn(handle, mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				} catch (java.lang.IllegalStateException e) {
-					logger.warning("IllegalStateException " + e.getMessage());
+					logger.warning("IllegalStateException - " + e.getMessage());
 					storage.endTxn(handle, mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
@@ -225,7 +225,8 @@ final public class IndigoResourceManager {
 						}
 						updates.addSystemTimestamp(txnTs);
 						cachedCRDT.execute(updates, CRDTOperationDependencyPolicy.IGNORE);
-						System.out.println("After applying " + cachedCRDT.getClock());
+						// System.out.println("After applying " +
+						// cachedCRDT.getClock());
 						if (logger.isLoggable(Level.INFO))
 							logger.info(cachedCRDT.getLatestVersion(handle) + " OBJ:" + cachedCRDT.getClock()
 									+ " SNAP:" + handle.snapshot + " LOCAL:" + storage.getLocalSnapshotClockCopy());
@@ -341,18 +342,23 @@ final public class IndigoResourceManager {
 				cachedValue = resourceCRDT;
 			} else {
 				cachedValue.merge(resourceCRDT);
+				// System.out.printf("Cached Value after merge %s with %s\n",
+				// cachedValue, resourceCRDT);
 			}
 		} else {
 			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
 
 		}
 		if (cachedValue != null) {
-			if (!readFromStorage)
-				readClock.intersect(cachedValue.getClock());
+			readClock.intersect(cachedValue.getClock());
+			readClock.intersect(handle.readTimestamp);
 			// readClock.merge(resourceCRDT.getPruneClock());
+			// System.out.printf("Request %s %s, readClock %s, snapshot %s, cachedVersion %s, \n",
+			// readFromStorage,
+			// request, readClock, storage.getLocalSnapshotClockCopy(),
+			// cachedValue.getClock());
 			resource = (Resource<V>) cachedValue.getVersion(readClock, handle);
-			System.out.printf("Request %s, readClock %s, snapshot %s, cachedVersion %s, \n", request, readClock,
-					storage.getLocalSnapshotClockCopy(), cachedValue.getClock());
+
 		}
 		return resource;
 	}
