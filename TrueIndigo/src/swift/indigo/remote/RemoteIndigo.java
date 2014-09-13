@@ -251,7 +251,7 @@ public class RemoteIndigo implements Indigo {
 			} else {
 				super.status = TxnStatus.COMMITTED_LOCAL;
 				if (hasResources) {
-					System.out.println("CANT HAPPEN " + cltTimestamp + timestamp);
+					System.out.printf("CANT HAPPEN  CLT_TS %s, TS %s, SNAPSHOT %s", cltTimestamp, timestamp, snapshot);
 					try {
 						Thread.sleep(500);
 					} catch (InterruptedException e) {
@@ -263,7 +263,6 @@ public class RemoteIndigo implements Indigo {
 				rollback();
 			}
 		}
-
 		@Override
 		@SuppressWarnings({"unchecked"})
 		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,

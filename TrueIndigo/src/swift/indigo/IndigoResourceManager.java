@@ -48,7 +48,7 @@ final public class IndigoResourceManager {
 	private final IndigoSequencerAndResourceManager sequencer;
 
 	private Map<CRDTIdentifier, ManagedCRDT<?>> cache;
-	private Map<CRDTIdentifier, Resource<?>> active;
+	// private Map<CRDTIdentifier, Resource<?>> active;
 	private Map<CRDTIdentifier, List<ResourceRequest<?>>> toBeReleased;
 	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
@@ -73,7 +73,7 @@ final public class IndigoResourceManager {
 		this.storage = new StorageHelper(sequencer, surrogate, resourceMgrId, isMaster);
 
 		this.cache = new ConcurrentHashMap<>();
-		this.active = new ConcurrentHashMap<>();
+		// this.active = new ConcurrentHashMap<>();
 		this.lockTable = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
 
@@ -151,6 +151,7 @@ final public class IndigoResourceManager {
 		acquireLocks(request.getResources());
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
+		Map<CRDTIdentifier, Resource<?>> active = new HashMap<>();
 
 		// Only set this variable to true if request fails (no effect on the
 		// client)
@@ -161,12 +162,14 @@ final public class IndigoResourceManager {
 			_TxnHandle handle = storage.beginTxn(request.getClientTs());
 			snapshot = handle.snapshot;
 			logger.info("Acquire started on  " + request.getClientTs() + " " + snapshot);
-			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle);
+			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle, active);
+			// AcquireResourcesRequest modifiedRequest = request;
 			// Test resource's availability
 			Resource resource;
 			for (ResourceRequest<?> req : modifiedRequest.getResources()) {
 				try {
-					resource = getResourceAndUpdateCache(req, handle);
+					resource = getResourceAndUpdateCache(req, handle, true);
+					active.put(resource.getUID(), resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("VersionException " + e.getMessage());
 					storage.endTxn(handle, mustUpdate);
@@ -205,7 +208,7 @@ final public class IndigoResourceManager {
 			}
 
 			else {
-
+				Timestamp txnTs = storage.recordNewEvent();
 				// Execute the operations in soft-state
 				for (ResourceRequest<?> req_i : request.getResources()) {
 					if (req_i instanceof CounterReservation) {
@@ -220,7 +223,9 @@ final public class IndigoResourceManager {
 							System.out.println("UPDATES ZERO???? " + result);
 							System.exit(0);
 						}
+						updates.addSystemTimestamp(txnTs);
 						cachedCRDT.execute(updates, CRDTOperationDependencyPolicy.IGNORE);
+						System.out.println("After applying " + cachedCRDT.getClock());
 						if (logger.isLoggable(Level.INFO))
 							logger.info(cachedCRDT.getLatestVersion(handle) + " OBJ:" + cachedCRDT.getClock()
 									+ " SNAP:" + handle.snapshot + " LOCAL:" + storage.getLocalSnapshotClockCopy());
@@ -229,8 +234,6 @@ final public class IndigoResourceManager {
 				}
 
 				storage.endTxn(handle, false);
-				Timestamp txnTs = storage.recordNewEvent();
-
 				return new AcquireResourcesReply(request.getClientTs(), txnTs, snapshot,
 						new LinkedList<CRDTObjectUpdatesGroup<?>>(), request.getResources());
 			}
@@ -325,28 +328,37 @@ final public class IndigoResourceManager {
 		}
 	}
 
-	private <V extends CRDT<V>> Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request, _TxnHandle handle)
-			throws SwiftException, IncompatibleTypeException {
-		ManagedCRDT<V> resourceCRDT = (ManagedCRDT<V>) storage.getResource(request, handle);
-
-		ManagedCRDT<V> cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
-		if (cachedValue == null) {
-			cache.put(request.getResourceId(), resourceCRDT);
-			cachedValue = resourceCRDT;
-		} else {
-			cachedValue.merge(resourceCRDT);
-		}
+	private <V extends CRDT<V>> Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request, _TxnHandle handle,
+			boolean readFromStorage) throws SwiftException, IncompatibleTypeException {
+		ManagedCRDT<V> cachedValue;
+		Resource<V> resource = null;
 		CausalityClock readClock = storage.getLocalSnapshotClockCopy();
-		readClock.intersect(cachedValue.getClock());
-		// readClock.merge(resourceCRDT.getPruneClock());
-		Resource<V> resource = (Resource<V>) cachedValue.getVersion(readClock, handle);
-		active.put(resource.getUID(), resource);
+		if (readFromStorage) {
+			ManagedCRDT<V> resourceCRDT = (ManagedCRDT<V>) storage.getResource(request, handle);
+			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
+			if (cachedValue == null) {
+				cache.put(request.getResourceId(), resourceCRDT);
+				cachedValue = resourceCRDT;
+			} else {
+				cachedValue.merge(resourceCRDT);
+			}
+		} else {
+			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
+
+		}
+		if (cachedValue != null) {
+			if (!readFromStorage)
+				readClock.intersect(cachedValue.getClock());
+			// readClock.merge(resourceCRDT.getPruneClock());
+			resource = (Resource<V>) cachedValue.getVersion(readClock, handle);
+			System.out.printf("Request %s, readClock %s, snapshot %s, cachedVersion %s, \n", request, readClock,
+					storage.getLocalSnapshotClockCopy(), cachedValue.getClock());
+		}
 		return resource;
 	}
-
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, _TxnHandle handle)
 			throws SwiftException, IncompatibleTypeException {
-		Resource resource = getResourceAndUpdateCache(request, handle);
+		Resource resource = getResourceAndUpdateCache(request, handle, true);
 		TRANSFER_STATUS result = TRANSFER_STATUS.FAIL;
 		// If requests can be satisfied at the caller according the local
 		// state, do not transfer... update is on the way
@@ -426,28 +438,20 @@ final public class IndigoResourceManager {
 	 * 
 	 * @param request
 	 *            the requested resources
+	 * @param active
 	 * @return the requests that cannot be satisfied using local information.
 	 * @throws SwiftException
 	 * @throws IncompatibleTypeException
 	 */
-	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request, _TxnHandle handle)
-			throws SwiftException, IncompatibleTypeException {
+	private AcquireResourcesRequest preProcessRequest(AcquireResourcesRequest request, _TxnHandle handle,
+			Map<CRDTIdentifier, Resource<?>> active) throws SwiftException, IncompatibleTypeException {
 		HashSet<ResourceRequest<?>> nonCached = new HashSet<ResourceRequest<?>>();
-
 		for (ResourceRequest req : request.getResources()) {
-			ManagedCRDT<?> cachedCRDT = cache.get(req.getResourceId());
-			if (cachedCRDT == null) {
+			Resource<?> resource = getResourceAndUpdateCache(req, handle, false);
+			if (resource == null || (!resource.checkRequest(sequencer.siteId, req))) {
 				nonCached.add(req);
 			} else {
-				CausalityClock readClock = storage.getLocalSnapshotClockCopy();
-				readClock.intersect(cachedCRDT.getClock());
-				// readClock.merge(cachedCRDT.getPruneClock());
-				Resource<?> resource = (Resource<?>) cachedCRDT.getVersion(readClock, handle);
-				if (!resource.checkRequest(sequencer.siteId, req)) {
-					nonCached.add(req);
-				} else {
-					active.put(req.getResourceId(), resource);
-				}
+				active.put(req.getResourceId(), resource);
 			}
 		}
 
