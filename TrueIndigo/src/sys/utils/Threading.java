@@ -1,5 +1,7 @@
 package sys.utils;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -43,6 +45,34 @@ final public class Threading {
 		res.setName(Thread.currentThread() + "." + name);
 		res.setDaemon(daemon);
 		return res;
+	}
+
+	static public Thread newThread(String name, boolean daemon, boolean useOwnLoader, Runnable r) {
+		Thread res = new Thread(r);
+		res.setName(Thread.currentThread() + "." + name);
+		res.setDaemon(daemon);
+		if (useOwnLoader) {
+			res.setContextClassLoader(new CustomClassLoader(ClassLoader.getSystemClassLoader()));
+		}
+		return res;
+	}
+
+	public static void invokeStaticMethod(String className, String method, Object... args) {
+		try {
+			Class<?> targetClass = Thread.currentThread().getContextClassLoader().loadClass(className);
+			Method targetMethod = null;
+			for (Method m : targetClass.getMethods())
+				if (m.getName().equals(method)) {
+					targetMethod = m;
+					break;
+				}
+
+			System.err.println(targetMethod + " args: " + Arrays.asList(args));
+			if (targetMethod != null)
+				targetMethod.invoke(null, args);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	static public void sleep(long ms) {
@@ -179,6 +209,16 @@ final public class Threading {
 		ReentrantLock lock = locks.get(id), newLock;
 		if (lock == null) {
 			lock = locks.putIfAbsent(id, newLock = new ReentrantLock(true));
+			if (lock == null)
+				lock = newLock;
+		}
+		lock.lock();
+	}
+
+	public static void lock(Object id, boolean fair) {
+		ReentrantLock lock = locks.get(id), newLock;
+		if (lock == null) {
+			lock = locks.putIfAbsent(id, newLock = new ReentrantLock(fair));
 			if (lock == null)
 				lock = newLock;
 		}
