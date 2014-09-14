@@ -22,6 +22,7 @@ import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import swift.indigo.remote.RemoteIndigo;
+import sys.utils.Threading;
 
 public class IndigoMultipleServersCounterTest {
 
@@ -39,19 +40,48 @@ public class IndigoMultipleServersCounterTest {
 	@Before
 	public void init2DC() {
 		if (!started) {
-			TestsUtil.startDC1Server("DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{
-					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{
-					"tcp://*:" + 32001 + "/DC_A/", "tcp://*:" + 32002 + "/DC_B"});
-			TestsUtil.startDC1Server("DC_B", "DC_A", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{
-					"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{
-					"tcp://*:" + 32001 + "/DC_A", "tcp://*:" + 32002 + "/DC_B"});
-			started = true;
+			Threading.newThread(
+					"DC_A",
+					false,
+					true,
+					() -> {
 
+						Threading.invokeStaticMethod("swift.application.test.TestsUtil", "startDC1Server", "DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001,
+								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A/", "tcp://*:" + 32002 + "/DC_B"});
+
+						// TestsUtil.startDC1Server("DC_A", "DC_A", 31001,
+						// 32001, 33001, 34001, 35001, 36001, new
+						// String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" +
+						// 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 +
+						// "/DC_A/",
+						// "tcp://*:" + 32002 + "/DC_B"});
+
+					}).start();
+
+			Threading.newThread(
+					"DC_B",
+					false,
+					true,
+					() -> {
+						Threading.invokeStaticMethod("swift.application.test.TestsUtil", "startDC1Server", "DC_B", "DC_A", 31002, 32002, 33002, 34002, 35002, 36002,
+								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A", "tcp://*:" + 32002 + "/DC_B"});
+
+						// TestsUtil.startDC1Server("DC_B", "DC_A", 31002,
+						// 32002, 33002, 34002, 35002, 36002, new
+						// String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" +
+						// 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 +
+						// "/DC_A",
+						// "tcp://*:" + 32002 + "/DC_B"});
+
+					}).start();
+
+			Threading.sleep(5000);
 			stub1 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));
 			stub2 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36002/DC_B/"));
+			started = true;
+
 		}
 	}
-
 	@Before
 	public void init() throws InterruptedException, SwiftException {
 		key++;
@@ -246,8 +276,7 @@ public class IndigoMultipleServersCounterTest {
 		decrementCycleNThreads2DC(1000, 10);
 	}
 
-	public void decrementCycleNThreads2DC(int initValue, int nThreadsByDC) throws SwiftException, InterruptedException,
-			BrokenBarrierException {
+	public void decrementCycleNThreads2DC(int initValue, int nThreadsByDC) throws SwiftException, InterruptedException, BrokenBarrierException {
 		int count = initValue;
 		CRDTIdentifier id = new CRDTIdentifier(table, key + "");
 		final AtomicInteger sum1 = new AtomicInteger();
