@@ -68,8 +68,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private Logger logger;
 
-	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate,
-			final Map<String, Endpoint> endpoints) {
+	public ResourceManagerNode(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, final Map<String, Endpoint> endpoints) {
 
 		// Outgoing transfers queue
 		Queue<TransferResourcesRequest> outgoingMessages = new LinkedList<>();
@@ -93,8 +92,9 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		initLogging();
 
-		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue,
-				transferRequestsQueue);
+		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue, transferRequestsQueue);
+
+		ConcurrentHashMap<String, Long> sentTransfters = new ConcurrentHashMap<>();
 
 		// Incoming requests processor thread
 		new Thread(new Runnable() {
@@ -134,18 +134,21 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 						if (outgoingMessages.size() > 0) {
 							request = outgoingMessages.remove();
 						}
-					}
-					if (request != null) {
-						endpoint = endpoints.get(request.getDestination());
-						if (logger.isLoggable(Level.INFO))
-							logger.info("Asking resources: " + request);
-						stub.send(endpoint, request);
-					} else {
-						try {
-							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+						if (request != null) {
+							String key = request.key();
+							long now = System.currentTimeMillis();
+							Long ts = sentTransfters.get(key);
+							if (ts == null || (now - ts) > 100) {
+								sentTransfters.put(key, now);
+								stub.send(endpoint, request);
+							}
+						} else {
+							try {
+								Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
 						}
 					}
 				}
@@ -347,8 +350,7 @@ class SimpleMessageBalacing {
 	private Queue<IndigoOperation> requestQueue;
 	private Queue<TransferResourcesRequest> transferQueue;
 
-	public SimpleMessageBalacing(int requestTransferRatio, Queue<IndigoOperation> requestQueue,
-			Queue<TransferResourcesRequest> transferQueue) {
+	public SimpleMessageBalacing(int requestTransferRatio, Queue<IndigoOperation> requestQueue, Queue<TransferResourcesRequest> transferQueue) {
 		this.ratio = requestTransferRatio;
 		this.requestQueue = requestQueue;
 		this.transferQueue = transferQueue;
@@ -403,8 +405,7 @@ class TransferFirstMessageBalacing {
 	private Queue<IndigoOperation> requestQueue;
 	private Queue<TransferResourcesRequest> transferQueue;
 
-	public TransferFirstMessageBalacing(Queue<IndigoOperation> requestQueue,
-			Queue<TransferResourcesRequest> transferQueue) {
+	public TransferFirstMessageBalacing(Queue<IndigoOperation> requestQueue, Queue<TransferResourcesRequest> transferQueue) {
 		this.requestQueue = requestQueue;
 		this.transferQueue = transferQueue;
 	}
@@ -426,4 +427,5 @@ class TransferFirstMessageBalacing {
 	public String toString() {
 		return "REQ: " + requestQueue + " TRANS: " + transferQueue;
 	}
+
 }

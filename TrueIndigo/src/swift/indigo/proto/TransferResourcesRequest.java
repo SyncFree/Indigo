@@ -23,8 +23,7 @@ public class TransferResourcesRequest extends IndigoOperation {
 
 	}
 
-	public TransferResourcesRequest(String requesterId, String destinationId, Timestamp cltTimestamp,
-			Collection<ResourceRequest<?>> resources, int transferSeqNumber) {
+	public TransferResourcesRequest(String requesterId, String destinationId, Timestamp cltTimestamp, Collection<ResourceRequest<?>> resources, int transferSeqNumber) {
 		super(requesterId);
 		this.resources = new TreeSet<ResourceRequest<?>>(resources);
 		this.requesterId = requesterId;
@@ -32,8 +31,7 @@ public class TransferResourcesRequest extends IndigoOperation {
 		this.transferSeqNumber = transferSeqNumber;
 	}
 
-	public TransferResourcesRequest(String requesterId, String destinationId, int transferSeqNumber,
-			Collection<ResourceRequest<?>> resources) {
+	public TransferResourcesRequest(String requesterId, String destinationId, int transferSeqNumber, Collection<ResourceRequest<?>> resources) {
 		super(requesterId);
 		this.resources = (SortedSet<ResourceRequest<?>>) resources;
 		this.destinationId = destinationId;
@@ -114,5 +112,13 @@ public class TransferResourcesRequest extends IndigoOperation {
 
 	public Collection<ResourceRequest<?>> getResources() {
 		return resources;
+	}
+
+	public String key() {
+		StringBuilder sb = new StringBuilder().append(destinationId);
+		getResources().forEach(i -> {
+			sb.append(i.getResourceId());
+		});
+		return sb.toString();
 	}
 }
