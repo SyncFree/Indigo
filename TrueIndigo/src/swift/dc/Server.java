@@ -231,7 +231,9 @@ public class Server implements SurrogateProtocol {
 
 	@Override
 	public void onReceive(final Envelope src, final RemoteCommitUpdatesRequest req) {
-		System.out.println(siteId + " >>>>>>>>GOT K COMMIT FOR: " + req.getTimestamp() + " deps: " + req.getDependencyClock());
+		if (Log.isLoggable(Level.INFO))
+			Log.info(siteId + " >>>>>>>>GOT K COMMIT FOR: " + req.getTimestamp() + " deps: " + req.getDependencyClock());
+
 		this.onReceive(Envelope.DISCARD, (CommitUpdatesRequest) req);
 		src.reply(new RemoteCommitUpdatesReply());
 	}

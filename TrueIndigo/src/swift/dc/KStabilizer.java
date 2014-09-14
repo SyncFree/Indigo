@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
@@ -42,7 +43,6 @@ public class KStabilizer {
 
 		this.blockedTransactions = new ConcurrentHashMap<>();
 
-		System.err.println(sites);
 		Log.info("Remote ENDPOINTS: " + sites);
 	}
 
@@ -65,24 +65,27 @@ public class KStabilizer {
 	void blockTransaction(CommitUpdatesRequest req) {
 		req.blkTime = System.currentTimeMillis();
 		getBlocked(req).addLast(req);
-		System.out.println(server.siteId + "   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>BLOCKING: " + req.getCltTimestamp() + "   " + req.getTimestamp() + "  deps:  " + req.getDependencyClock() + " now:" + server.clocks.currentClockCopy());
+		if (Log.isLoggable(Level.INFO))
+			Log.info(server.siteId + "   >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>BLOCKING: " + req.getCltTimestamp() + "   " + req.getTimestamp() + "  deps:  " + req.getDependencyClock() + " now:" + server.clocks.currentClockCopy());
 	}
 
 	void checkBlockedTransactions() {
-
 		CausalityClock clock = server.clocks.currentClockCopy();
 		blockedTransactions.values().parallelStream().forEach(txns -> {
-			System.out.println("!!!!! NOW:" + clock + " txns  " + blockedTransactions);
+
 			List<CommitUpdatesRequest> done = new ArrayList<>();
 
 			for (CommitUpdatesRequest req : txns)
 				if (clock.compareTo(req.getDependencyClock()) != CMP_ISDOMINATED) {
 					done.add(req);
-					System.out.println("@@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
+					if (Log.isLoggable(Level.INFO))
+						Log.info(server.siteId + " @@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
 					server.doOneCommit(server.getSession(req.getClientId()), req);
-				} else
+				} else {
+					if (Log.isLoggable(Level.INFO))
+						Log.info(server.siteId + "now: " + clock + " @@@@ Still blocked  deps:" + req.getDependencyClock() + " after: " + (System.currentTimeMillis() - req.blkTime));
 					break;
-
+				}
 			txns.removeAll(done);
 		});
 
