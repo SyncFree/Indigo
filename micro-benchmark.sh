@@ -11,36 +11,38 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-165-16-21.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-241-92.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-165-16-21.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-241-92.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-165-16-21.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-241-92.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-77-245-216.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-165-16-21.compute-1.amazonaws.com"
-	"ec2-54-183-241-92.us-west-1.compute.amazonaws.com"
+	"ec2-54-165-234-165.compute-1.amazonaws.com"
+	"ec2-54-183-104-62.us-west-1.compute.amazonaws.com"
+	"ec2-54-194-50-172.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-84-228-160.compute-1.amazonaws.com"
-	"ec2-54-183-241-88.us-west-1.compute.amazonaws.com"
+	"ec2-54-165-234-164.compute-1.amazonaws.com"
+	"ec2-54-183-56-99.us-west-1.compute.amazonaws.com"
+	"ec2-54-194-50-146.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-165-16-21.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-165-234-165.compute-1.amazonaws.com:29876/"
 
 
 #LOCAL OVERRIDE
@@ -61,10 +63,10 @@ TABLE="table"
 #N_KEYS=(1 10 100 1000 10000)
 N_KEYS=(1000)
 #N_REGIONS=(1)
-N_REGIONS=(2)
+N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(1 10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200)
-MODE=("-indigo" "-weak")
+N_THREADS=(10 60)
+MODE=("-indigo")
 DISTRIBUTION="uniform"
 INIT_VAL=9999999
 
@@ -181,8 +183,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 	done
 
 CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
-LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
-LOG=""
+LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks_info.properties"
 CMD="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
 SHEPARD="java "$CLASSPATH" "$LOG" sys.shepard.PatientShepard"
 echo "####################################################"
@@ -232,7 +233,7 @@ do
 				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
 				
-				sleep 10
+				sleep 30
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})

@@ -27,10 +27,13 @@ FILES=$RES_DIR/results-indigo-k1000-r2-t*-v9999999-uniform*/TPSL/*US-EAST*
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-indigo-US-EAST.dat
 
 FILES=$RES_DIR/results-weak-k1000-r2-t*-v9999999-uniform*/TPSL/*US-EAST* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-weak-US-WEST.dat
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-weak-US-EAST.dat
 
 FILES=$RES_DIR/results-indigo-k1000-r2-t*-v9999999-uniform*/TPSL/*US-WEST*
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-indigo-US-WEST.dat
+
+FILES=$RES_DIR/results-weak-k1000-r2-t*-v9999999-uniform*/TPSL/*US-WEST*
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-weak-US-WEST.dat
 
 #rm $RES_DIR/results-*-k1000-r2-t*-v9999999-uniform/*tmp
 #rm $RES_DIR/results-*-k1000-r2-t*-v9999999-uniform/*ALL.log
@@ -60,7 +63,6 @@ java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FI
 
 gnuplot -e "iuse='TPS_T-k1000-r2-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k1000-r2-v9999999-weak-US-EAST.dat'" \
 		-e "iusw='TPS_T-k1000-r2-v9999999-indigo-US-WEST.dat'" -e "wusw='TPS_T-k1000-r2-v9999999-weak-US-WEST.dat'" \
-#		-e "ia='TPS_T-k1000-r2-v9999999-indigo-ALL.dat'" -e "wa='TPS_T-k1000-r2-v9999999-weak-ALL.dat'" \
 			plot_generator/TPS_Threads_Multi.gnuplot > $OUT_DIR/TPS_T-k1000-r2.ps
 
 

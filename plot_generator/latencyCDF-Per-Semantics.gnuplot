@@ -5,7 +5,7 @@ set xlabel "Latency [ ms ]";
 set ylabel "Cumulative Ocurrences [ % ]";
 set mxtics;
 set mytics;
-set xr [0:100];
+set xr [0:300];
 set yr [0:100];
 
 set key right bottom;
