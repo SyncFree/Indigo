@@ -34,7 +34,7 @@ public class Args {
 
 	static Map<String, String[]> _args = new HashMap<>();
 
-	static String[] _current;
+	static String[] _current = new String[0];
 
 	static public void use(String[] args) {
 		_current = args;
