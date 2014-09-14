@@ -47,7 +47,7 @@ public class IndigoMultipleServersCounterTest {
 					() -> {
 
 						Threading.invokeStaticMethod("swift.application.test.TestsUtil", "startDC1Server", "DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001,
-								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A/", "tcp://*:" + 32002 + "/DC_B"});
+								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32002 + "/DC_B"});
 
 						// TestsUtil.startDC1Server("DC_A", "DC_A", 31001,
 						// 32001, 33001, 34001, 35001, 36001, new
@@ -64,7 +64,7 @@ public class IndigoMultipleServersCounterTest {
 					true,
 					() -> {
 						Threading.invokeStaticMethod("swift.application.test.TestsUtil", "startDC1Server", "DC_B", "DC_A", 31002, 32002, 33002, 34002, 35002, 36002,
-								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A", "tcp://*:" + 32002 + "/DC_B"});
+								new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A"});
 
 						// TestsUtil.startDC1Server("DC_B", "DC_A", 31002,
 						// 32002, 33002, 34002, 35002, 36002, new
