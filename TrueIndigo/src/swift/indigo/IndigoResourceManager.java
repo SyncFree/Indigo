@@ -52,7 +52,7 @@ final public class IndigoResourceManager {
 	private Map<CRDTIdentifier, List<ResourceRequest<?>>> toBeReleased;
 	private Map<CRDTIdentifier, ReentrantLock> lockTable;
 
-	private transient Queue<TransferResourcesRequest> transferQueue;
+	private Queue<TransferResourcesRequest> transferQueue;
 
 	private final boolean isMaster;
 
@@ -169,6 +169,11 @@ final public class IndigoResourceManager {
 			for (ResourceRequest<?> req : modifiedRequest.getResources()) {
 				try {
 					resource = getResourceAndUpdateCache(req, handle, true);
+					if (resource == null) {
+						logger.warning("VALUE NOT AVAILABLE - aborting transaction");
+						storage.endTxn(handle, mustUpdate);
+						return new AcquireResourcesReply(AcquireReply.NO, snapshot);
+					}
 					active.put(resource.getUID(), resource);
 				} catch (VersionNotFoundException e) {
 					logger.warning("VersionException " + e.getMessage());
@@ -337,7 +342,7 @@ final public class IndigoResourceManager {
 		if (readFromStorage) {
 			ManagedCRDT<V> resourceCRDT = (ManagedCRDT<V>) storage.getResource(request, handle);
 			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
-			if (cachedValue == null) {
+			if (cachedValue == null && resourceCRDT != null) {
 				cache.put(request.getResourceId(), resourceCRDT);
 				cachedValue = resourceCRDT;
 			} else {
@@ -468,7 +473,7 @@ final public class IndigoResourceManager {
 		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts, handle);
 		// TODO: Not a very smart "contains" check - should look for requests
 		// for the same keys
-		synchronized (transferRequests) {
+		synchronized (transferQueue) {
 			if (transferRequests.size() > 0 && !transferQueue.contains(transferRequests)) {
 				transferQueue.addAll(transferRequests);
 			}
