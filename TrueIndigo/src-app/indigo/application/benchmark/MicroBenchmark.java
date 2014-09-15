@@ -44,6 +44,12 @@ public class MicroBenchmark {
 			InterruptedException, BrokenBarrierException {
 		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s.\n",
 				nThreadsByDC, maxThinkTime, DC_ID, DC_ADDRESS);
+		final String dc_id;
+		if (Args.contains("-weak")) {
+			dc_id = "GLOBAL";
+		} else {
+			dc_id = DC_ID;
+		}
 		Semaphore sem = new Semaphore(nThreadsByDC);
 		sem.acquire(nThreadsByDC);
 		for (int i = 0; i < nThreadsByDC; i++) {
@@ -56,7 +62,7 @@ public class MicroBenchmark {
 						while (result) {
 							String key = nKeys > 1 ? distribution.sample() + "" : "1";
 							CRDTIdentifier id = new CRDTIdentifier(table + "", key);
-							result = getValueDecrement(id, 1, stub, DC_ID);
+							result = getValueDecrement(id, 1, stub, dc_id);
 							Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
 						}
 					} catch (SwiftException e) {
@@ -76,7 +82,6 @@ public class MicroBenchmark {
 		System.out.println("All clients stopped");
 		System.exit(0);
 	}
-
 	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId)
 			throws SwiftException {
 		long opId = profiler.startOp(resultsLogName, "OP");
@@ -293,7 +298,13 @@ public class MicroBenchmark {
 				int initValue = Args.valueOf("-initValue", 1000);
 				int valueVariation = Args.valueOf("-valueVar", 0);
 				Indigo stub = RemoteIndigo.getInstance(DC_ADDRESS);
-				initCounters(nKeys, table, initValue, valueVariation, DC_ID, stub);
+				final String dc_id;
+				if (Args.contains("-weak")) {
+					dc_id = "GLOBAL";
+				} else {
+					dc_id = DC_ID;
+				}
+				initCounters(nKeys, table, initValue, valueVariation, dc_id, stub);
 			}
 
 			if (Args.contains("-run")) {
