@@ -133,6 +133,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 					synchronized (outgoingMessages) {
 						if (outgoingMessages.size() > 0) {
 							request = outgoingMessages.remove();
+							endpoint = endpoints.get(request.getDestination());
 						}
 						if (request != null) {
 							String key = request.key();
