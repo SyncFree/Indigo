@@ -1,61 +1,66 @@
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t10-v9999999_CDF.ps
+# ATTENTION: INPUT DIR CANNOT USE "-" character
 
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t1-v9999999_CDF.ps
+RES_DIR=$1
+OUT_DIR=$2
 
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-			plot_generator/latencyCDF-Per-Semantics.gnuplot > k1-r1-t1-v9999999_CDF.ps
+#Plot for each data-center individually
 
-FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*US-EAST*
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-indigo-US-EAST.dat
+gnuplot -e "iuse='$RES_DIR/results-indigo-k1000-r2-t20-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+	 	-e "wuse='$RES_DIR/results-weak-k1000-r2-t20-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > $OUT_DIR"k1000-r2-t20_CDF_US-EAST.ps"
 
-#FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*US-WEST*
-#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-indigo-US-WEST.dat
+gnuplot -e "iuse='$RES_DIR/results-indigo-k1000-r2-t40-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+	 	-e "wuse='$RES_DIR/results-weak-k1000-r2-t40-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > $OUT_DIR"k1000-r2-t40_CDF_US-EAST.ps"
 
-#FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*EUROPE*
-#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-indigo-EUROPE.dat
+gnuplot -e "iuse='$RES_DIR/results-indigo-k1000-r2-t20-v9999999-uniform/CDF/micro_benchmark_results_US-WEST.dat'" \
+	 	-e "wuse='$RES_DIR/results-weak-k1000-r2-t20-v9999999-uniform/CDF/micro_benchmark_results_US-WEST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > $OUT_DIR"k1000-r2-t20_CDF_US-WEST.ps"
 
-FILES=../indigo_results/results-weak-k100-r1-t*-v9999999-uniform/TPSL/*US-EAST* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-weak-US-EAST.dat
+gnuplot -e "iuse='$RES_DIR/results-indigo-k1000-r2-t40-v9999999-uniform/CDF/micro_benchmark_results_US-WEST.dat'" \
+	 	-e "wuse='$RES_DIR/results-weak-k1000-r2-t40-v9999999-uniform/CDF/micro_benchmark_results_US-WEST.dat'" \
+			plot_generator/latencyCDF-Per-Semantics.gnuplot > $OUT_DIR"k1000-r2-t40_CDF_US-WEST.ps"
 
-#FILES=../indigo_results/results-weak-k100-r1-t*-v9999999-uniform/TPSL/*US-WEST* 
-#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-weak-US-WEST.dat
+#Plot TPS/#Thread for all data-centers and commulative
 
-#FILES=../indigo_results/results-weak-k100-r1-t*-v9999999-uniform/TPSL/*EUROPE* 
-#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-weak-EUROPE.dat
+FILES=$RES_DIR/results-indigo-k1000-r2-t*-v9999999-uniform*/TPSL/*US-EAST*
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-indigo-US-EAST.dat
 
-FILES=../indigo_results/results-*-k100-r1-t*-v9999999-uniform/*.log
+FILES=$RES_DIR/results-weak-k1000-r2-t*-v9999999-uniform*/TPSL/*US-EAST* 
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-weak-US-WEST.dat
 
-for f in ${FILES[@]}
-do
-	dir=`dirname $f`
-	cat $f | sort -k 2 | grep -v '^-' | grep -v 'OP_NAME' > $dir"/micro_benchmark_results_ALL.log"
-done 
+FILES=$RES_DIR/results-indigo-k1000-r2-t*-v9999999-uniform*/TPSL/*US-WEST*
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-indigo-US-WEST.dat
 
-FILES=../indigo_results/results-indigo-k*-r1-t*-v9999999-uniform/*ALL* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-indigo-ALL.dat
+#rm $RES_DIR/results-*-k1000-r2-t*-v9999999-uniform/*tmp
+#rm $RES_DIR/results-*-k1000-r2-t*-v9999999-uniform/*ALL.log
+#FILES=$RES_DIR/results-*-k1000-r2-t*-v9999999-uniform/*.log
 
-FILES=../indigo_results/results-weak-k*-r1-t*-v9999999-uniform/*ALL* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-weak-ALL.dat
+#for f in ${FILES[@]}
+#do
+#	dir=`dirname $f`
+#	cat $f | grep -v '^-' | grep -v 'OP_NAME' | grep -v '^$' >> $dir/tmp 
+#done 
 
-gnuplot -e "iuse='TPS_T-k100-r1-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k100-r1-v9999999-weak-US-EAST.dat'" \
-			plot_generator/TPS_Threads.gnuplot > TPS_T-k100-r1-v9999999.ps
+#for f in "$RES_DIR"results-*-k1000-r2-t*-v9999999-uniform/*tmp
+#do
+#	dir=`dirname $f`
+#	cat $f | sort -k 2 > $dir"/micro_benchmark_results_ALL.log"
+#	rm $dir/*tmp
+#	awk -F '\t' '{print $2" "$4}' $dir/micro_benchmark_results_ALL.log | java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tpsl $dir/micro_benchmark_results_ALL.log > $dir/TPSL/micro_benchmark_results_ALL.dat
+	
+#done
 
-#gnuplot -e "iuse='TPS_T-k100-r1-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k100-r1-v9999999-weak-US-EAST.dat'" \
-#		-e "iusw='TPS_T-k100-r1-v9999999-indigo-US-WEST.dat'" -e "wusw='TPS_T-k100-r1-v9999999-weak-US-WEST.dat'" \
-#		-e "ie='TPS_T-k100-r1-v9999999-indigo-EUROPE.dat'" -e "we='TPS_T-k100-r1-v9999999-weak-EUROPE.dat'" \
-#		-e "ia='TPS_T-k100-r1-v9999999-indigo-ALL.dat'" -e "wa='TPS_T-k100-r1-v9999999-weak-ALL.dat'" \
-#			plot_generator/TPS_Threads.gnuplot > TPS_T-k100-r1-t1-v9999999_CDF.ps
+#FILES=$RES_DIR/results-indigo-k1000-r2-t*-v9999999-uniform/TPSL/*ALL* 
+#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-indigo-ALL.dat
 
-FILES=../indigo_results/results-indigo-k1000-r1-t*-v9999999-uniform/TPSL/*US-EAST*
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted > TPS_T-k1000-r1-v9999999-indigo-US-EAST.dat
+#FILES=$RES_DIR/results-weak-k1000-r2-t*-v9999999-uniform/*ALL* 
+#java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r2-v9999999-weak-ALL.dat
 
-FILES=../indigo_results/results-weak-k1000-r1-t*-v9999999-uniform/TPSL/*US-EAST* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r1-v9999999-weak-US-EAST.dat
 
-gnuplot -e "iuse='TPS_T-k1000-r1-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k1000-r1-v9999999-weak-US-EAST.dat'" \
-			plot_generator/TPS_Threads.gnuplot > TPS_T-k1000-r1-v9999999.ps
+gnuplot -e "iuse='TPS_T-k1000-r2-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k1000-r2-v9999999-weak-US-EAST.dat'" \
+		-e "iusw='TPS_T-k1000-r2-v9999999-indigo-US-WEST.dat'" -e "wusw='TPS_T-k1000-r2-v9999999-weak-US-WEST.dat'" \
+#		-e "ia='TPS_T-k1000-r2-v9999999-indigo-ALL.dat'" -e "wa='TPS_T-k1000-r2-v9999999-weak-ALL.dat'" \
+			plot_generator/TPS_Threads_Multi.gnuplot > $OUT_DIR/TPS_T-k1000-r2.ps
+
+

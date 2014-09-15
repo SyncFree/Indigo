@@ -20,6 +20,6 @@ set clip points;
 set pointinterval 1;
 set decimalsign locale;
 
-plot  iuse using 1:($2*100) title "Indigo: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 7, \
-	  wuse using 1:($2*100) title "Causal: US-E" with linespoints pointinterval 1 lw 4 ps 2 pt 3
+plot  iuse using 1:($2*100) title "Indigo" with linespoints pointinterval 1 lw 4 ps 2 pt 7 pi 3, \
+	  wuse using 1:($2*100) title "Causal" with linespoints pointinterval 1 lw 4 ps 2 pt 3 pi 3
 

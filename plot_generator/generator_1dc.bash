@@ -1,20 +1,20 @@
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t10-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
 			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t10-v9999999_CDF.ps
 
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k100-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
 			plot_generator/latencyCDF-Per-Semantics.gnuplot > k100-r1-t1-v9999999_CDF.ps
 
-gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
-	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_US-EAST.dat'" \
+gnuplot -e "iuse='/Users/balegas/workspace/java/indigo_results/results-indigo-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
+	 	-e "wuse='/Users/balegas/workspace/java/indigo_results/results-weak-k1-r1-t1-v9999999-uniform/CDF/micro_benchmark_results_EUROPE.dat'" \
 			plot_generator/latencyCDF-Per-Semantics.gnuplot > k1-r1-t1-v9999999_CDF.ps
 
-FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*US-EAST*
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-indigo-US-EAST.dat
+FILES=../indigo_results/results-indigo-k100-r1-t*-v9999999-uniform/TPSL/*EUROPE*
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-indigo-EUROPE.dat
 
-FILES=../indigo_results/results-weak-k100-r1-t*-v9999999-uniform/TPSL/*US-EAST* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-weak-US-EAST.dat
+FILES=../indigo_results/results-weak-k100-r1-t*-v9999999-uniform/TPSL/*EUROPE* 
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k100-r1-v9999999-weak-EUROPE.dat
 
 FILES=../indigo_results/results-*-k100-r1-t*-v9999999-uniform/*.log
 
@@ -30,14 +30,14 @@ java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FI
 FILES=../indigo_results/results-weak-k*-r1-t*-v9999999-uniform/*ALL* 
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > TPS_T-k100-r1-v9999999-weak-ALL.dat
 
-gnuplot -e "iuse='TPS_T-k100-r1-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k100-r1-v9999999-weak-US-EAST.dat'" \
+gnuplot -e "iuse='TPS_T-k100-r1-v9999999-indigo-EUROPE.dat'" -e "wuse='TPS_T-k100-r1-v9999999-weak-EUROPE.dat'" \
 			plot_generator/TPS_Threads.gnuplot > TPS_T-k100-r1-v9999999.ps
 
-FILES=../indigo_results/results-indigo-k1000-r1-t*-v9999999-uniform/TPSL/*US-EAST*
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted > TPS_T-k1000-r1-v9999999-indigo-US-EAST.dat
+FILES=../indigo_results/results-indigo-k1000-r1-t*-v9999999-uniform/TPSL/*EUROPE*
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted > TPS_T-k1000-r1-v9999999-indigo-EUROPE.dat
 
-FILES=../indigo_results/results-weak-k1000-r1-t*-v9999999-uniform/TPSL/*US-EAST* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r1-v9999999-weak-US-EAST.dat
+FILES=../indigo_results/results-weak-k1000-r1-t*-v9999999-uniform/TPSL/*EUROPE* 
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tps -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > TPS_T-k1000-r1-v9999999-weak-EUROPE.dat
 
-gnuplot -e "iuse='TPS_T-k1000-r1-v9999999-indigo-US-EAST.dat'" -e "wuse='TPS_T-k1000-r1-v9999999-weak-US-EAST.dat'" \
+gnuplot -e "iuse='TPS_T-k1000-r1-v9999999-indigo-EUROPE.dat'" -e "wuse='TPS_T-k1000-r1-v9999999-weak-EUROPE.dat'" \
 			plot_generator/TPS_Threads.gnuplot > TPS_T-k1000-r1-v9999999.ps
