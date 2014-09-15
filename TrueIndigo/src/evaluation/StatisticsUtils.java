@@ -46,6 +46,7 @@ public class StatisticsUtils {
 	public static void getTPSandTPL() {
 		boolean warmUpComplete = false;
 		long startTime = -1;
+		long lastStart = -1;
 		int count = 0;
 		long totalLatencies = 0;
 
@@ -65,6 +66,7 @@ public class StatisticsUtils {
 					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
 						count++;
 						totalLatencies += opTime;
+						lastStart = opStartTime;
 					} else {
 						// Just take results in one minute
 						break;
@@ -73,7 +75,8 @@ public class StatisticsUtils {
 			} else
 				scanner.nextLine();
 		}
-		int TPS = count / 60;
+		int duration = (int) ((lastStart - startTime) / ONE_SECOND_IN_NANOS);
+		int TPS = count / duration;
 		long AVGLatencyNanos = (totalLatencies / count);
 		scanner.close();
 		System.out.printf("START\tTPS\tTPL\n");
@@ -83,7 +86,8 @@ public class StatisticsUtils {
 	public static void createTPS(String filter, String[] files) throws FileNotFoundException {
 		System.out.printf("THREADS\tAVG_TPS\n");
 		for (String file : files) {
-			int idxI = file.indexOf("-t");
+			System.err.println("Processing file " + file);
+			int idxI = file.indexOf(filter);
 			int idxF = file.indexOf("-", idxI + 1);
 			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
 			long avg = average_column(1, file);
