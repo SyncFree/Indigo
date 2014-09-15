@@ -86,6 +86,7 @@ public class MicroBenchmark {
 			throws SwiftException {
 		long opId = profiler.startOp(resultsLogName, "OP");
 		int counterValue = -999;
+		int availableSite = -999;
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 		resources.add(new CounterReservation(siteId, id, units));
 		boolean result = false;
@@ -98,13 +99,14 @@ public class MicroBenchmark {
 					System.out.println("FAILED");
 				}
 				counterValue = x.getValue();
+				availableSite = x.getSiteResource(siteId);
 			}
 		} catch (IndigoImpossibleExcpetion e) {
 			result = false;
 		} finally {
 			stub.endTxn();
 		}
-		profiler.endOp(resultsLogName, opId, counterValue + "", result + "");
+		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "");
 		return result;
 	}
 
@@ -349,7 +351,7 @@ public class MicroBenchmark {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS");
+		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS", "AVAILABLE");
 
 	}
 }
