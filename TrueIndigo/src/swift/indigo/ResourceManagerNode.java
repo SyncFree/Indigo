@@ -265,10 +265,21 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	@Override
 	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
-		AcquireResourcesReply reply = replies.get(request);
+		AcquireResourcesReply reply = replies.get(request.getClientTs());
 		if (reply == null || !reply.isReleased()) {
 			if (!isDuplicate(request)) {
-				incomingRequestsQueue.add(request);
+				boolean hasLock = false;
+				for (ResourceRequest<?> resource : reply.getResourcesRequest()) {
+					if (resource instanceof LockReservation) {
+						hasLock = true;
+						break;
+					}
+				}
+				if (hasLock)
+					incomingRequestsQueue.add(request);
+				else {
+					reply.setReleased();
+				}
 			}
 		}
 	}
