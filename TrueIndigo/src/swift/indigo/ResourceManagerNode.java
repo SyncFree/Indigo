@@ -30,8 +30,11 @@ import sys.net.api.Service;
 import sys.utils.Args;
 import sys.utils.ConcurrentHashSet;
 import sys.utils.Profiler;
+import sys.utils.Threading;
 
 public class ResourceManagerNode implements ReservationsProtocolHandler {
+
+	static final int DUPLICATE_TRANSFER_FILTER_WINDOW = 100;
 
 	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 1;
 
@@ -94,67 +97,41 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue, transferRequestsQueue);
 
-		ConcurrentHashMap<String, Long> sentTransfters = new ConcurrentHashMap<>();
+		ConcurrentHashMap<String, Long> recentTransfers = new ConcurrentHashMap<>();
 
 		// Incoming requests processor thread
-		new Thread(new Runnable() {
 
-			@Override
-			public void run() {
-				while (active) {
-					IndigoOperation request;
-					request = messageBalancing.nextOp();
-					if (request != null) {
-						workers.execute(new Runnable() {
-							@Override
-							public void run() {
-								request.deliverTo(thisManager);
-							}
-						});
-					} else {
-						try {
-							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-				}
+		new Thread(() -> {
+			while (active) {
+				IndigoOperation request = messageBalancing.nextOp();
+				if (request != null)
+					workers.execute(() -> {
+						request.deliverTo(thisManager);
+					});
+				else
+					Threading.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
 			}
 		}).start();
 
-		// Transfer requests thread
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				while (active) {
-					TransferResourcesRequest request = null;
-					Endpoint endpoint = null;
-					synchronized (outgoingMessages) {
-						if (outgoingMessages.size() > 0) {
-							request = outgoingMessages.remove();
-						}
+		new Thread(() -> {
+			while (active) {
+				TransferResourcesRequest request;
+				synchronized (outgoingMessages) {
+					while (outgoingMessages.isEmpty())
+						Threading.waitOn(outgoingMessages, 10 * DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+					request = outgoingMessages.poll();
+				}
+				if (request != null) {
+					String key = request.key();
+					long now = System.currentTimeMillis();
+					Long ts = recentTransfers.get(key);
+					if (ts == null || (now - ts) > DUPLICATE_TRANSFER_FILTER_WINDOW) {
+						recentTransfers.put(key, now);
+						Endpoint endpoint = endpoints.get(request.getDestination());
+						stub.send(endpoint, request);
 					}
-					if (request != null) {
-						String key = request.key();
-						long now = System.currentTimeMillis();
-						Long ts = sentTransfters.get(key);
-						if (ts == null || (now - ts) > 100) {
-							sentTransfters.put(key, now);
-							stub.send(endpoint, request);
-						}
-					} else {
-						try {
-							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-
 				}
 			}
-
 		}).start();
 
 	}
@@ -226,15 +203,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (request.getResources().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			if (checkAcquireAlreadyProcessed(request) != null) {
-				if (logger.isLoggable(Level.INFO))
-					logger.info("Received an already processed message: " + request + " REPLY: "
-							+ replies.get(request.getClientTs()));
-				reply = replies.get(request.getClientTs());
-			} else if (isDuplicate(request)) {
+			if (isDuplicate(request)) {
 				if (logger.isLoggable(Level.INFO))
 					logger.info("ignore duplicate request: " + request);
 				// reply = replies.get(request.getClientTs());
+			} else if (checkAcquireAlreadyProcessed(request) != null) {
+				if (logger.isLoggable(Level.INFO))
+					logger.info("Received an already processed message: " + request + " REPLY: " + replies.get(request.getClientTs()));
+				reply = replies.get(request.getClientTs());
 			} else {
 				synchronized (incomingRequestsQueue) {
 					incomingRequestsQueue.add(request);
