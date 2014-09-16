@@ -11,18 +11,18 @@ import java.util.Queue;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
+import swift.application.test.TestsUtil;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.BoundedCounterAsResource;
-import swift.crdt.EscrowableTokenCRDT;
 import swift.crdt.EscrowableTokenCRDTWithLocks;
-import swift.crdt.NonNegativeBoundedCounterAsResource;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.ManagedCRDT;
@@ -34,10 +34,10 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
-import swift.utils.LogSiteFormatter;
 import swift.utils.Pair;
 import sys.net.api.Endpoint;
 import sys.utils.Args;
+import sys.utils.Profiler;
 import sys.utils.Threading;
 
 final public class IndigoResourceManager {
@@ -58,6 +58,10 @@ final public class IndigoResourceManager {
 
 	private int transferSeqNumber;
 
+	private static String profilerName = "resource_manager";
+
+	private static Profiler profiler;
+
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 		this.transferQueue = transferQueue;
 		this.sequencer = sequencer;
@@ -75,18 +79,34 @@ final public class IndigoResourceManager {
 		// this.active = new ConcurrentHashMap<>();
 		this.lockTable = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
+		logger = Logger.getLogger(IndigoResourceManager.class.getName());
+		initLogger_dc();
+	}
 
-		ConsoleHandler handler = new ConsoleHandler();
-		handler.setFormatter(new LogSiteFormatter(sequencer.siteId));
-		logger = Logger.getLogger(this.getClass().getName() + "." + sequencer.siteId);
-		logger.setUseParentHandlers(false);
-		logger.addHandler(handler);
-
-		if (logger.isLoggable(Level.INFO))
-			logger.info("ENDPOINTS: " + endpoints);
-
-		this.storage.registerType(CounterReservation.class, NonNegativeBoundedCounterAsResource.class);
-		this.storage.registerType(LockReservation.class, EscrowableTokenCRDT.class);
+	private static void initLogger_dc() {
+		Logger logger = Logger.getLogger(profilerName);
+		profiler = Profiler.getInstance();
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/resource_manager_log" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+				profiler.printMessage(profilerName, TestsUtil.dumpArgs());
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(0);
+			}
+		}
+		profiler.printHeaderWithCustomFields(profilerName, "MSG");
 
 	}
 
