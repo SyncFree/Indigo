@@ -133,25 +133,25 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 					synchronized (outgoingMessages) {
 						if (outgoingMessages.size() > 0) {
 							request = outgoingMessages.remove();
-							endpoint = endpoints.get(request.getDestination());
-						}
-						if (request != null) {
-							String key = request.key();
-							long now = System.currentTimeMillis();
-							Long ts = sentTransfters.get(key);
-							if (ts == null || (now - ts) > 100) {
-								sentTransfters.put(key, now);
-								stub.send(endpoint, request);
-							}
-						} else {
-							try {
-								Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
 						}
 					}
+					if (request != null) {
+						String key = request.key();
+						long now = System.currentTimeMillis();
+						Long ts = sentTransfters.get(key);
+						if (ts == null || (now - ts) > 100) {
+							sentTransfters.put(key, now);
+							stub.send(endpoint, request);
+						}
+					} else {
+						try {
+							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+
 				}
 			}
 
@@ -226,15 +226,15 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (request.getResources().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			if (isDuplicate(request)) {
-				if (logger.isLoggable(Level.INFO))
-					logger.info("ignore duplicate request: " + request);
-				// reply = replies.get(request.getClientTs());
-			} else if (checkAcquireAlreadyProcessed(request) != null) {
+			if (checkAcquireAlreadyProcessed(request) != null) {
 				if (logger.isLoggable(Level.INFO))
 					logger.info("Received an already processed message: " + request + " REPLY: "
 							+ replies.get(request.getClientTs()));
 				reply = replies.get(request.getClientTs());
+			} else if (isDuplicate(request)) {
+				if (logger.isLoggable(Level.INFO))
+					logger.info("ignore duplicate request: " + request);
+				// reply = replies.get(request.getClientTs());
 			} else {
 				synchronized (incomingRequestsQueue) {
 					incomingRequestsQueue.add(request);
