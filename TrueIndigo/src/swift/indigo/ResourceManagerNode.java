@@ -227,15 +227,14 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
 			if (isDuplicate(request)) {
-				// if (logger.isLoggable(Level.INFO))
-				// logger.info("Message is already enqueued: " + request);
-				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
+				if (logger.isLoggable(Level.INFO))
+					logger.info("ignore duplicate request: " + request);
+				// reply = replies.get(request.getClientTs());
 			} else if (checkAcquireAlreadyProcessed(request) != null) {
-				// if (logger.isLoggable(Level.INFO))
-				// logger.info("Received an already processed message: " +
-				// request + " REPLY: "
-				// + replies.get(request.getClientTs()));
-				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
+				if (logger.isLoggable(Level.INFO))
+					logger.info("Received an already processed message: " + request + " REPLY: "
+							+ replies.get(request.getClientTs()));
+				reply = replies.get(request.getClientTs());
 			} else {
 				synchronized (incomingRequestsQueue) {
 					incomingRequestsQueue.add(request);
