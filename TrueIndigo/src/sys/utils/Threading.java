@@ -119,13 +119,29 @@ final public class Threading {
 		return null;
 	}
 
-	static public <T> void put(SynchronousQueue<T> queue, T val) {
-		while (true)
+	static public <T> void offer(SynchronousQueue<T> queue, T val, int timeout) {
+		try {
+			queue.offer(val, timeout, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+		}
+	}
+	// static public <T> void put(SynchronousQueue<T> queue, T val) {
+	// while (true)
+	// try {
+	// queue.put(val);
+	// return;
+	// } catch (InterruptedException e) {
+	// }
+	// }
+
+	static public <T> void add(SynchronousQueue<T> queue, T val) {
+		while (true) {
 			try {
-				queue.put(val);
-				return;
-			} catch (InterruptedException e) {
+				queue.add(val);
+			} catch (IllegalStateException x) {
 			}
+			return;
+		}
 	}
 
 	static public void notifyOn(Object o) {

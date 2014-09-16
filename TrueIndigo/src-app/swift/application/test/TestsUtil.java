@@ -17,22 +17,19 @@ import swift.indigo.IndigoServer;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import sys.utils.Args;
+import sys.utils.Threading;
 
 public class TestsUtil {
 
-	public static void startDC1Server(String siteId, String masterId, int sequencerPort, int serverPort,
-			int serverPort4Seq, int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers,
-			String[] otherServers) {
+	public static void startDC1Server(String siteId, String masterId, int sequencerPort, int serverPort, int serverPort4Seq, int DHTPort, int pubSubPort, int indigoPort, String[] otherSequencers, String[] otherServers) {
 
 		List<String> argsSeq = new LinkedList<String>();
-		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url",
-				"tcp://*:" + sequencerPort, "-server", "tcp://*:" + serverPort, "-sequencers"}));
+		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server", "tcp://*:" + serverPort, "-sequencers"}));
 		argsSeq.addAll(Arrays.asList(otherSequencers));
 		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
 
 		List<String> argsServer = new LinkedList<String>();
-		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer",
-				"tcp://*:" + sequencerPort, "-url4seq", "" + serverPort4Seq, "-dht", "tcp://*:" + DHTPort, "-pubsub",
+		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer", "tcp://*:" + sequencerPort, "-url4seq", "" + serverPort4Seq, "-dht", "tcp://*:" + DHTPort, "-pubsub",
 				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
 
 		List<String> servers = new ArrayList<>();
@@ -41,6 +38,8 @@ public class TestsUtil {
 				servers.add(server);
 		}
 		argsServer.addAll(servers);
+
+		Threading.sleep(5000);
 		IndigoServer.main(argsServer.toArray(new String[]{}));
 	}
 
@@ -74,8 +73,7 @@ public class TestsUtil {
 		return x.getValue();
 	}
 
-	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId)
-			throws SwiftException {
+	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 		resources.add(new CounterReservation(siteId, id, units));
 		boolean result = false;

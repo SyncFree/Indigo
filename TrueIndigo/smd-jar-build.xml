@@ -18,6 +18,7 @@
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/netty-all-4.0.19.Final.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/kryo-2.24.1.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/junit-4.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/indigo/TrueIndigo/lib/commons-math3-3.3.jar"/>
         </jar>
     </target>
 </project>

@@ -148,7 +148,6 @@ final public class IndigoResourceManager {
 	// }
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
 		acquireLocks(request.getResources());
-
 		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> active = new HashMap<>();

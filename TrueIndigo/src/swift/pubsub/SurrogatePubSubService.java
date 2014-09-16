@@ -58,6 +58,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
 		};
 
 		Endpoint localEndpoint = Networking.resolve(Args.valueOf("-pubsub", Defaults.PUBSUB_URL));
+		System.err.println(localEndpoint);
 		this.stub = Networking.bind(localEndpoint, this.handler);
 	}
 

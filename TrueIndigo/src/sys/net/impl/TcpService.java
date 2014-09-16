@@ -7,10 +7,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -114,6 +114,7 @@ public class TcpService implements Service, MessageHandler {
 			t.printStackTrace();
 		}
 	}
+
 	@Override
 	public <T> T request(Endpoint dst, Message m) {
 		return request(Integer.MAX_VALUE, dst, m);
@@ -121,17 +122,18 @@ public class TcpService implements Service, MessageHandler {
 
 	@Override
 	public <T> T request(int retries, Endpoint dst, Message m) {
-		T res;
-		SynchronousQueue<T> queue = new SynchronousQueue<T>();
+		AtomicReference<T> replyRef = new AtomicReference<T>(null);
 		do {
-			asyncRequest(dst, m, (T reply) -> {
-				Threading.put(queue, reply);
-			});
-			res = Threading.poll(queue, defaultTimeout);
-		} while (--retries >= 0 && res == null);
-		return res;
+			synchronized (replyRef) {
+				asyncRequest(dst, m, (T reply) -> {
+					replyRef.set(reply);
+					Threading.synchronizedNotifyAllOn(replyRef);
+				});
+				Threading.waitOn(replyRef, defaultTimeout);
+			}
+		} while (--retries >= 0 && replyRef.get() == null);
+		return replyRef.get();
 	}
-
 	@Override
 	public <T> void asyncRequest(Endpoint dst, Message m, Handler<T> replyHandler) {
 		ServicePacket pkt = new ServicePacket(m, replyHandler);
