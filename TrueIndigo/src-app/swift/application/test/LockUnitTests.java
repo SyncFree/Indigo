@@ -11,45 +11,54 @@ import org.junit.Before;
 import org.junit.Test;
 
 import swift.api.CRDTIdentifier;
+import swift.crdt.EscrowableTokenCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
-import swift.indigo.Defaults;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoSequencerAndResourceManager;
-import swift.indigo.IndigoServer;
 import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.RemoteIndigo;
+import sys.utils.Args;
 
 public class LockUnitTests {
 
 	static Indigo stub;
-	static String hostname = "X";
+	static String DC_ID = "DC_A";
 	static String serversAdresses = "localhost";
 	static String table = "REGISTER";
 	static char key = 'A';
+	private String MASTER_ID;
 
 	@Before
 	public void init() throws InterruptedException, SwiftException {
 		key++;
 		if (stub == null) {
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", hostname, "-severs", serversAdresses});
-			IndigoServer.main(new String[0]);
-			Thread.sleep(1000);
-			stub = RemoteIndigo.getInstance(Networking.resolve("localhost", Defaults.REMOTE_INDIGO_URL));
+			System.out.printf("Start DataCenter: %s", DC_ID);
+			DC_ID = Args.valueOf("-siteId", "X");
+			MASTER_ID = Args.valueOf("-master", DC_ID);
+			int sequencerPort = Args.valueOf("-seqPort", 31001);
+			int serverPort = Args.valueOf("-srvPort", 32001);
+			int serverPortForSequencer = Args.valueOf("-sFs", 33001);
+			int dhtPort = Args.valueOf("-dhtPort", 34001);
+			int pubSubPort = Args.valueOf("-pubSubPort", 35001);
+			int indigoPort = Args.valueOf("-indigoPort", 36001);
+			String[] otherSequencers = Args.valueOf("-sequencers", new String[]{"tcp://*/31001/" + DC_ID + "/"});
+			String[] otherServers = Args.valueOf("-servers", new String[]{"tcp://*/32001/" + DC_ID + "/"});
+
+			TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
+					pubSubPort, indigoPort, otherSequencers, otherServers);
+
+			stub = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
 		}
 		initKey();
 	}
 
 	public void initKey() throws SwiftException {
-		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new LockReservation(hostname, new CRDTIdentifier("LOCK", "A"), ShareableLock.ALLOW));
-		stub.beginTxn(resources);
+		stub.beginTxn();
+		EscrowableTokenCRDT obj = stub.get(new CRDTIdentifier("LOCK", "A"), true, EscrowableTokenCRDT.class);
 		stub.endTxn();
-
 	}
-
 	public static void doOp(String siteId, String key, String value, ShareableLock lock, long sleepBeforeCommit)
 			throws Exception {
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
@@ -85,17 +94,26 @@ public class LockUnitTests {
 	// Gets an exclusive lock and executes the operation
 	@Test
 	public void simpleSetStringTest() throws Exception {
-		doOp(hostname, "" + key, "A", ShareableLock.EXCLUSIVE_ALLOW, 0);
+		doOp(DC_ID, "" + key, "A", ShareableLock.EXCLUSIVE_ALLOW, 0);
 		getValue("" + key, "A");
+	}
+
+	// Gets an exclusive lock and executes the operation
+	@Test
+	public void mutatesLockTest() throws Exception {
+		doOp(DC_ID, "" + key, "A", ShareableLock.EXCLUSIVE_ALLOW, 0);
+		getValue("" + key, "A");
+		doOp(DC_ID, "" + key, "B", ShareableLock.FORBID, 0);
+		getValue("" + key, "B");
 	}
 
 	@Test
 	public void impossibleToGetLockTest() throws Exception {
-		doThreadOp(hostname, "" + key, "VALUE", ShareableLock.ALLOW, 5000);
+		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.ALLOW, 5000);
 
 		// Request lock concurrently, while the first is active
-		doThreadOp(hostname, "" + key, "VALUE", ShareableLock.FORBID, 0);
-		doThreadOp(hostname, "" + key, "VALUE", ShareableLock.EXCLUSIVE_ALLOW, 0);
+		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.FORBID, 0);
+		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.EXCLUSIVE_ALLOW, 0);
 
 		Thread.sleep(12000);
 	}
@@ -115,5 +133,4 @@ public class LockUnitTests {
 	public void close() {
 		// Should Stop the nodes.
 	}
-
 }
