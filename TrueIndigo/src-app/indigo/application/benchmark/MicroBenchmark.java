@@ -40,10 +40,8 @@ public class MicroBenchmark {
 	private static Profiler profiler;
 	private static String MASTER_ID;
 
-	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException,
-			InterruptedException, BrokenBarrierException {
-		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s.\n",
-				nThreadsByDC, maxThinkTime, DC_ID, DC_ADDRESS);
+	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException, InterruptedException, BrokenBarrierException {
+		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s.\n", nThreadsByDC, maxThinkTime, DC_ID, DC_ADDRESS);
 		final String dc_id;
 		if (Args.contains("-weak")) {
 			dc_id = "GLOBAL";
@@ -82,8 +80,7 @@ public class MicroBenchmark {
 		System.out.println("All clients stopped");
 		System.exit(0);
 	}
-	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId)
-			throws SwiftException {
+	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
 		long opId = profiler.startOp(resultsLogName, "OP");
 		int counterValue = -999;
 		int availableSite = -999;
@@ -106,6 +103,7 @@ public class MicroBenchmark {
 		} finally {
 			stub.endTxn();
 		}
+		System.out.println(DC_ID + " " + counterValue + " " + result + " " + availableSite + " ");
 		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "");
 		return result;
 	}
@@ -118,8 +116,7 @@ public class MicroBenchmark {
 		distribution = new ZipfDistribution(sampleSize, exponent);
 	}
 
-	public static void initCounters(int nKeys, String table, int initValue, int valueVariation, String ownerId,
-			Indigo stub) throws SwiftException {
+	public static void initCounters(int nKeys, String table, int initValue, int valueVariation, String ownerId, Indigo stub) throws SwiftException {
 		System.out.println("Initializing Counters");
 		int transactionSize = 100;
 		LinkedList<ResourceRequest<?>> counterRequests = new LinkedList<ResourceRequest<?>>();
@@ -142,7 +139,7 @@ public class MicroBenchmark {
 			}
 		}
 		System.out.println("Finished initializing Counters");
-		if (!Args.contains("-startDC"))
+		if (!Args.contains("-startDC") && !Args.contains("-dontExit"))
 			System.exit(0);
 	}
 
@@ -164,8 +161,7 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
-				pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
 	}
 
 	public static void startLocalDC1() {
@@ -181,13 +177,12 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
-				pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
 	}
 
 	public static void startLocalDC2() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
-		DC_ID = Args.valueOf("-siteId", "X");
+		DC_ID = Args.valueOf("-siteId", "Y");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31002);
 		int serverPort = Args.valueOf("-srvPort", 32002);
@@ -198,13 +193,12 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
-				pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
 	}
 
 	public static void startLocalDC3() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
-		DC_ID = Args.valueOf("-siteId", "X");
+		DC_ID = Args.valueOf("-siteId", "Z");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31003);
 		int serverPort = Args.valueOf("-srvPort", 32003);
@@ -215,8 +209,7 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
-				pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
 	}
 
 	public static void main(String[] args) {
@@ -328,7 +321,7 @@ public class MicroBenchmark {
 
 	}
 
-	private static void initLogger() {
+	static void initLogger() {
 		Logger logger = Logger.getLogger(resultsLogName);
 		profiler = Profiler.getInstance();
 		if (logger.isLoggable(Level.FINEST)) {
