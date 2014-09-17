@@ -74,14 +74,14 @@ public class RemoteIndigo implements Indigo {
 	RemoteIndigo(Endpoint server) {
 		this.server = server;
 		this.stub = Networking.stub();
-		this.stubId = this.stub.localEndpoint().url();
+		// this.stubId = this.stub.localEndpoint().url();
+		this.stubId = Long.toString(System.nanoTime(), 32);
 		this.emulateWeakConsistency = Args.contains("-weak") || false;
 		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
 		if (profiler == null) {
 			initializeProfiling(resultsLogName);
 		}
 	}
-
 	private void initializeProfiling(String resultsLogName) {
 		profiler = Profiler.getInstance();
 		Logger logger = Logger.getLogger(resultsLogName);

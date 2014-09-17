@@ -203,25 +203,24 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (request.getResources().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			if (isDuplicate(request)) {
-				if (logger.isLoggable(Level.INFO))
-					logger.info("ignore duplicate request: " + request);
-				// reply = replies.get(request.getClientTs());
-			} else if (checkAcquireAlreadyProcessed(request) != null) {
+			if (checkAcquireAlreadyProcessed(request) != null) {
 				if (logger.isLoggable(Level.INFO))
 					logger.info("Received an already processed message: " + request + " REPLY: " + replies.get(request.getClientTs()));
 				reply = replies.get(request.getClientTs());
 			} else {
-				synchronized (incomingRequestsQueue) {
-					incomingRequestsQueue.add(request);
+				if (isDuplicate(request)) {
+					if (logger.isLoggable(Level.INFO))
+						logger.info("ignore duplicate request: " + request);
+				} else {
+					synchronized (incomingRequestsQueue) {
+						incomingRequestsQueue.add(request);
+					}
 				}
 			}
-
 		}
 		if (reply != null)
 			conn.reply(reply);
 	}
-
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
 		// if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
