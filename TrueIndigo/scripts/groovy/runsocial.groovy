@@ -2,11 +2,11 @@
 //usr/bin/env groovy -classpath .:scripts/groovy "$0" $@; exit $?
 
 import static lib.Tools.*
-import static lib.Topology.*
 
-import lib.Topology
-import lib.SwiftBase
-import lib.SwiftSocial
+import swift.Topology
+import swift.SwiftBase
+import swift.SwiftSocial
+import static swift.Topology.*
 
 def __ = onControlC({
     pnuke(AllMachines, "java", 60)
@@ -21,23 +21,26 @@ PlanetLab = [
     'planetlab-4.imperial.ac.uk',
     'planetlab1.xeno.cl.cam.ac.uk',
     'planetlab2.xeno.cl.cam.ac.uk',
+    'inriarennes1.irisa.fr',
+    'inriarennes2.irisa.fr',
 ]
 
 // Optional argument - limit of scouts number
-if (args.length < 2) {
-	err.println "missing args..."
+if (args.length < 1) {
+	System.err.println "missing args..."
     System.exit(1)
 }
 
 
-PerDCClientNodesLimit = Integer.valueOf(args[0])
-Threads = Integer.valueOf(args[1])
+Threads = Integer.valueOf(args[0])
 
 DC_1 = DC([PlanetLab[0]], [PlanetLab[1]])
 DC_2 = DC([PlanetLab[2]], [PlanetLab[3]])
+DC_3 = DC([PlanetLab[4]], [PlanetLab[5]])
 
 Scouts1 = SGroup( PlanetLab[2..3], DC_1 )
-Scouts2 = SGroup( PlanetLab[0..1], DC_2 )
+Scouts2 = SGroup( PlanetLab[4..5], DC_2 )
+Scouts3 = SGroup( PlanetLab[0..1], DC_3 )
 
 Scouts = ( Topology.scouts() ).unique()
 

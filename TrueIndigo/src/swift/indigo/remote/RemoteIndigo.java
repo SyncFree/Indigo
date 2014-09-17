@@ -106,8 +106,7 @@ public class RemoteIndigo implements Indigo {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES", "CLIENT_TS", "SNAPSHOT",
-				"SERVER_TIME");
+		profiler.printHeaderWithCustomFields(resultsLogName, "RESULT", "RETRIES", "CLIENT_TS", "SNAPSHOT", "SERVER_TIME");
 	}
 
 	public TxnHandle getTxnHandle() {
@@ -145,24 +144,26 @@ public class RemoteIndigo implements Indigo {
 			int retryCount = 0;
 			for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
 				AcquireResourcesReply reply = stub.request(server, request);
-				if (reply != null && reply.acquiredResources() || resources.size() == 0) {
-					if (Log.isLoggable(Level.INFO))
-						Log.info("Received reply for " + txnTimestamp + " " + reply);
-					handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
-					profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount,
-							txnTimestamp + "", reply.getSnapshot().toString(), reply.getPhysicalClock() + "");
-					// if (resources.size() != 0)
-					// lastTSWithGrantedLocks = txnTimestamp;
-					break;
-				} else if (reply.isImpossible()) {
-					throw new IndigoImpossibleExcpetion();
-				} else {
-					retryCount++;
-					Threading.sleep(delay);
+				if (reply != null) {
+					System.err.println(">>>>>" + reply + " for: " + request.getClientTs());
+					if (reply.acquiredResources() || resources.size() == 0) {
+						if (Log.isLoggable(Level.INFO))
+							Log.info("Received reply for " + txnTimestamp + " " + reply);
+						handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
+						profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp + "", reply.getSnapshot().toString(), reply.getPhysicalClock() + "");
+						// if (resources.size() != 0)
+						// lastTSWithGrantedLocks = txnTimestamp;
+						break;
+					} else if (reply.isImpossible()) {
+						throw new IndigoImpossibleExcpetion();
+					}
 				}
+				retryCount++;
+				Threading.sleep(delay);
 			}
 		}
 	}
+
 	public void endTxn() {
 		if (handle != null)
 			handle.commit();
@@ -175,13 +176,11 @@ public class RemoteIndigo implements Indigo {
 		handle = null;
 	}
 
-	public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
-			VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 		return get(id, false, null);
 	}
 
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
-			NoSuchObjectException, VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 		V obj = (V) handle.get(id, create, classOfV);
 		Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj + " " + obj.getClock());
 		return obj;
@@ -227,25 +226,20 @@ public class RemoteIndigo implements Indigo {
 			List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
 			if (!updates.isEmpty()) {
-				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot,
-						updates, withLocks);
+				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates, withLocks);
 				req.setTimestamp(timestamp);
 
 				final Semaphore semaphore = new Semaphore(0);
 				if (Log.isLoggable(Level.INFO))
 					Log.info("Going to send commit request for: " + req);
-				stub.asyncRequest(
-						server,
-						req,
-						(CommitUpdatesReply reply) -> {
-							// System.out.println("Received Reply for: " +
-							// cltTimestamp);
-							if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
-								Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : "
-										+ reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
+				stub.asyncRequest(server, req, (CommitUpdatesReply reply) -> {
+					// System.out.println("Received Reply for: " +
+					// cltTimestamp);
+						if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
+							Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : " + reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
 
-							semaphore.release();
-						});
+						semaphore.release();
+					});
 				semaphore.acquireUninterruptibly();
 				super.status = TxnStatus.COMMITTED_GLOBAL;
 			} else {
@@ -265,8 +259,7 @@ public class RemoteIndigo implements Indigo {
 		}
 		@Override
 		@SuppressWarnings({"unchecked"})
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
-				boolean create, Class<V> classOfV) {
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) {
 
 			FetchObjectVersionRequest req = new FetchObjectVersionRequest(stubId, uid, version, false);
 

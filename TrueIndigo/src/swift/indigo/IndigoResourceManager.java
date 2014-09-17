@@ -479,9 +479,8 @@ final public class IndigoResourceManager {
 		// TODO: Not a very smart "contains" check - should look for requests
 		// for the same keys
 		synchronized (transferQueue) {
-			if (transferRequests.size() > 0 && !transferQueue.contains(transferRequests)) {
-				transferQueue.addAll(transferRequests);
-			}
+			transferQueue.addAll(transferRequests);
+			Threading.notifyAllOn(transferQueue);
 		}
 	}
 	/**

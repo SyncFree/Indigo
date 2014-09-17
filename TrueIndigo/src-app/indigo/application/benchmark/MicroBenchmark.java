@@ -2,6 +2,7 @@ package indigo.application.benchmark;
 
 import static sys.Context.Networking;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -156,7 +157,7 @@ public class MicroBenchmark {
 		int serverPort = Args.valueOf("-srvPort", 32001);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
-		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
+		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
@@ -215,6 +216,7 @@ public class MicroBenchmark {
 	public static void main(String[] args) {
 		try {
 			Args.use(args);
+			System.err.println(Arrays.asList(args));
 			nKeys = Args.valueOf("-nKeys", 1);
 			DC_ID = Args.valueOf("-siteId", "X");
 			table = Args.valueOf("-table", "COUNTER_A");
