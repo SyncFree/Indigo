@@ -366,6 +366,7 @@ final public class IndigoResourceManager {
 		if (cachedValue != null) {
 			readClock.intersect(cachedValue.getClock());
 			readClock.intersect(handle.readTimestamp);
+			// readClock.merge(cachedValue.getPruneClock());
 			// readClock.merge(resourceCRDT.getPruneClock());
 			// System.out.printf("Request %s %s, readClock %s, snapshot %s, cachedVersion %s, \n",
 			// readFromStorage,
@@ -430,7 +431,7 @@ final public class IndigoResourceManager {
 	private ResourceRequest<?> transferPolicy(ResourceRequest<?> request, Resource<?> resource) {
 		if (request instanceof CounterReservation) {
 			CounterReservation counterReq = (CounterReservation) request;
-			int availableLocally = (int) resource.getCurrentResource();
+			int availableLocally = (int) resource.getSiteResource(sequencer.siteId);
 			int requested = counterReq.getResource();
 			// If request can be satisfied retrieve max(request ,
 			// half-permission)
