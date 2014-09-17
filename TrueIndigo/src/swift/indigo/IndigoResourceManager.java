@@ -240,7 +240,7 @@ final public class IndigoResourceManager {
 						CRDTObjectUpdatesGroup<BoundedCounterAsResource> updates = (CRDTObjectUpdatesGroup<BoundedCounterAsResource>) handle.ops.get(req_i.getResourceId());
 						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache.get(req_i.getResourceId());
 						if (result == false || updates == null || updates.getOperations().size() == 0) {
-							System.out.println("UPDATES ZERO???? " + result);
+							System.out.println("UPDATES ZERO???? " + result + "/" + latestVersion.getClock() + "/" + latestVersion);
 							System.exit(0);
 						}
 						updates.addSystemTimestamp(txnTs);
@@ -347,7 +347,7 @@ final public class IndigoResourceManager {
 	private <V extends CRDT<V>> Resource<?> getResourceAndUpdateCache(ResourceRequest<?> request, _TxnHandle handle, boolean readFromStorage) throws SwiftException, IncompatibleTypeException {
 		ManagedCRDT<V> cachedValue;
 		Resource<V> resource = null;
-		CausalityClock readClock = storage.getLocalSnapshotClockCopy();
+		CausalityClock readClock = handle.readTimestamp;
 		if (readFromStorage) {
 			ManagedCRDT<V> resourceCRDT = (ManagedCRDT<V>) storage.getResource(request, handle);
 			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
@@ -365,7 +365,6 @@ final public class IndigoResourceManager {
 		}
 		if (cachedValue != null) {
 			readClock.intersect(cachedValue.getClock());
-			readClock.intersect(handle.readTimestamp);
 			// readClock.merge(cachedValue.getPruneClock());
 			// readClock.merge(resourceCRDT.getPruneClock());
 			// System.out.printf("Request %s %s, readClock %s, snapshot %s, cachedVersion %s, \n",
