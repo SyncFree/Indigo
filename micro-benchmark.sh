@@ -66,7 +66,7 @@ N_KEYS=(1000)
 N_REGIONS=(3)
 #N_THREADS=(60)
 N_THREADS=(10 60)
-MODE=("-indigo")
+MODE=("-indigo" )
 DISTRIBUTION="uniform"
 INIT_VAL=9999999
 
@@ -217,11 +217,15 @@ do
 				echo "SERVERS "$servers
 				ri=0;
 				for h in ${server_machines[@]}; do
-					cmd=$CMD" -startDC -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -servers "${servers[@]}" "$m
-					ri=`expr $ri + 1`
-					echo "Start DC "$h "CMD" $cmd
-					ssh $USERNAME@$h "nohup "$cmd " > dc_console.log" &
+					cmd=$CMD" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" "$m
+					echo "Start Sequencer "$h "CMD" $cmd
+					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_sequencer_console.log" &
+					cmd=$CMD" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -servers "${servers[@]}" "$m
+					echo "Start Server "$h "CMD" $cmd
+					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
+					
 #					ssh $USERNAME@$h "nohup "$cmd " > dc_console.log" &
+					ri=`expr $ri + 1`
 				done
 				
 				sleep 5
@@ -242,7 +246,7 @@ do
 					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
-					ssh $USERNAME@$h "nohup "$cmd" > client_console.log" &
+					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
 #					ssh $USERNAME@$h "nohup "$cmd" > client_console.log" &
 				done
 

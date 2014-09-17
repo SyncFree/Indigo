@@ -104,7 +104,8 @@ public class MicroBenchmark {
 		} finally {
 			stub.endTxn();
 		}
-		System.out.println(DC_ID + " " + counterValue + " " + result + " " + availableSite + " ");
+		// System.out.println(DC_ID + " " + counterValue + " " + result + " " +
+		// availableSite + " ");
 		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "");
 		return result;
 	}
@@ -149,7 +150,17 @@ public class MicroBenchmark {
 		x.increment(amount, siteId);
 	}
 
-	public static void startDC() {
+	public static void startSequencer() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31001);
+		int serverPort = Args.valueOf("-srvPort", 32001);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+	}
+
+	public static void startServer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
@@ -159,10 +170,9 @@ public class MicroBenchmark {
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
-		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
 	}
 
 	public static void startLocalDC1() {
@@ -178,7 +188,9 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+
 	}
 
 	public static void startLocalDC2() {
@@ -194,7 +206,9 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+
 	}
 
 	public static void startLocalDC3() {
@@ -210,7 +224,8 @@ public class MicroBenchmark {
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
 	}
 
 	public static void main(String[] args) {
@@ -277,18 +292,26 @@ public class MicroBenchmark {
 				Args.use(args);
 			}
 
-			if (Args.contains("-startDC")) {
+			if (Args.contains("-startServer")) {
 				Thread dc = new Thread(new Runnable() {
 
 					@Override
 					public void run() {
-						startDC();
+						startServer();
 					}
 				});
 				dc.start();
-				Thread.sleep(1000);
-				// Reset args after starting DC
-				Args.use(args);
+			}
+
+			if (Args.contains("-startSequencer")) {
+				Thread sequencer = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startSequencer();
+					}
+				});
+				sequencer.start();
 			}
 
 			if (Args.contains("-init")) {
