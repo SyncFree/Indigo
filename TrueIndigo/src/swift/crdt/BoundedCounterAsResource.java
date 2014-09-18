@@ -112,6 +112,11 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 	}
 
 	@Override
+	public int availableSiteId(String siteId) {
+		return counter.availableSiteId(siteId);
+	}
+
+	@Override
 	public BoundedCounterAsResource copy() {
 		return new BoundedCounterAsResource(id, counter.copy());
 	}
