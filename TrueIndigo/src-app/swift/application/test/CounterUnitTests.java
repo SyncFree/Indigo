@@ -35,7 +35,6 @@ public class CounterUnitTests {
 	static String DC_B = "DC_B";
 	static boolean started;
 
-	@Before
 	public void init1DC() {
 		if (!started) {
 			TestsUtil.startDC1Server(DC_A, DC_A, 31001, 32001, 33001, 34001, 35001, 3600, new String[]{"tcp://*:"
@@ -51,16 +50,6 @@ public class CounterUnitTests {
 	public void init() throws InterruptedException, SwiftException {
 		key++;
 		init1DC();
-		initKey(stub11, DC_A);
-	}
-
-	public void initKey(Indigo stub, String siteId) throws SwiftException {
-		// List<ResourceRequest<?>> resources = new
-		// LinkedList<ResourceRequest<?>>();
-		// resources.add(new CounterReservation(siteId, new
-		// CRDTIdentifier(table, "" + key), 0));
-		// stub.beginTxn(resources);
-		// stub.endTxn();
 	}
 
 	@Test

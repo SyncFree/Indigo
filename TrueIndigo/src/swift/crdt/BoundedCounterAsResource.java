@@ -12,11 +12,8 @@ import swift.indigo.ResourceRequest;
 import swift.indigo.TRANSFER_STATUS;
 import swift.utils.Pair;
 
-public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterAsResource>
-		implements
-			ConsumableResource<Integer> {
+public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterAsResource> implements ConsumableResource<Integer> {
 
-	private static final Integer TRANSFER_THRESHOLD = 500;
 	private BoundedCounterCRDT<LowerBoundCounterCRDT> counter;
 
 	public BoundedCounterAsResource() {
@@ -115,6 +112,11 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 	}
 
 	@Override
+	public int availableSiteId(String siteId) {
+		return counter.availableSiteId(siteId);
+	}
+
+	@Override
 	public BoundedCounterAsResource copy() {
 		return new BoundedCounterAsResource(id, counter.copy());
 	}
@@ -179,11 +181,6 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 
 	public Queue<Pair<String, Integer>> preferenceList(String excludeSiteId) {
 		return counter.preferenceList(excludeSiteId);
-	}
-
-	@Override
-	public boolean overThreshold(String ownerId, ResourceRequest<Integer> request) {
-		return (counter.availableSiteId(ownerId) - TRANSFER_THRESHOLD) >= request.getResource();
 	}
 
 }

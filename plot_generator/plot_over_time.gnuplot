@@ -2,13 +2,13 @@
 #set label 1 "XXX - scout at DC" font "Helvetica,16" at 1,950;
 set terminal postscript size 10.0, 7.0 enhanced monochrome dashed font "Helvetica,24" linewidth 1;
 set xlabel "Time [seconds]";
-#set ylabel "Latency [ms]";
+set ylabel "Latency [ms]";
 set mxtics;
 set mytics;
 set xr [*:*];
-set yr [*:*];
+set yr [1:300];
 
-set key right bottom;
+set key left top;
 #set grid xtics ytics lt 30 lt 30;
 set label;
 set clip points;
@@ -22,12 +22,21 @@ stats iuse using 1:2
 start_e=STATS_min_x
 stats iusw using 1:2
 start_w=STATS_min_x
+stats ieur using 1:2
+start_eur=STATS_min_x
+
+set y2tics;
+set y2range [1:1500];
 
 
-plot iuser using ($1-start_e)/1000000000:2 title "Retries US-EAST [#]" with lines lc "#444444", \
-iuse using ($1-start_e)/1000000000:2 title "Latency US-EAST [ms]" ps 2 pt 1,\
-iuswr using ($1-start_w)/1000000000:2 title "Retries US-WEST [#]" with lines lc "#444444", \
-iusw using ($1-start_w)/1000000000:2 title "Latency US-WEST [ms]" ps 2 pt 1\
-;
+plot iuse using ($1-start_e)/1000000000:2 title "US-EAST" ps 3 pt 1 axes x1y1,\
+iusw using ($1-start_w)/1000000000:2 title "US-WEST" ps 3 pt 2 axes x1y1,\
+ieur using ($1-start_eur)/1000000000:2 title "EUROPE" ps 3 pt 3 axes x1y1,\
+ruse using ($1-start_e)/1000000000:2 title "" w l lt 1 lc rgb "#77777" axes x1y2,\
+rusw using ($1-start_w)/1000000000:2 title "" w l lt 1 lc rgb "#55555" axes x1y2,\
+reur using ($1-start_eur)/1000000000:2 title "" w l lt 1 lc rgb "#22222" axes x1y2;
+
+
+
 
 

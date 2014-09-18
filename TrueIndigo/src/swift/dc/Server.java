@@ -99,8 +99,7 @@ public class Server implements SurrogateProtocol {
 		ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(512);
 		crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);
 		crdtExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-
-		Tasks.every(1.0, () -> {
+		Tasks.every(0.05, () -> {
 			endpoint4servers.asyncRequest(sequencer, new CurrentClockRequest(serverId), (CurrentClockReply r) -> {
 				this.updateCurrentClock(r.getClock());
 			});
@@ -231,8 +230,8 @@ public class Server implements SurrogateProtocol {
 
 	@Override
 	public void onReceive(final Envelope src, final RemoteCommitUpdatesRequest req) {
-		if (Log.isLoggable(Level.INFO))
-			Log.info(siteId + " >>>>>>>>GOT K COMMIT FOR: " + req.getTimestamp() + " deps: " + req.getDependencyClock());
+		// System.out.println(siteId + " >>>>>>>>GOT K COMMIT FOR: " +
+		// req.getTimestamp() + " deps: " + req.getDependencyClock());
 
 		this.onReceive(Envelope.DISCARD, (CommitUpdatesRequest) req);
 		src.reply(new RemoteCommitUpdatesReply());
@@ -248,7 +247,7 @@ public class Server implements SurrogateProtocol {
 	protected void doOneCommit(final ClientSession session, final CommitUpdatesRequest req) {
 
 		if (Log.isLoggable(Level.INFO)) {
-			Log.info("CommitUpdatesRequest: doProcessOneCommit: client = " + req.getClientId() + ":ts=" + req.getCltTimestamp() + ":nops=" + req.getObjectUpdateGroups().size());
+			Log.info("CommitUpdatesRequest: doProcessOneCommit: cltTs = " + req.getCltTimestamp() + " :ts=" + req.getTimestamp() + " :nops=" + req.getObjectUpdateGroups().size());
 		}
 
 		final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();

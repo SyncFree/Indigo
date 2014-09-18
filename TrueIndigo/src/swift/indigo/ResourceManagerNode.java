@@ -30,9 +30,9 @@ import sys.net.api.Service;
 import sys.utils.Args;
 import sys.utils.ConcurrentHashSet;
 import sys.utils.Profiler;
+import sys.utils.Threading;
 
 public class ResourceManagerNode implements ReservationsProtocolHandler {
-
 	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 1;
 
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
@@ -93,68 +93,33 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		initLogging();
 
 		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue, transferRequestsQueue);
-
-		ConcurrentHashMap<String, Long> sentTransfters = new ConcurrentHashMap<>();
-
 		// Incoming requests processor thread
-		new Thread(new Runnable() {
 
-			@Override
-			public void run() {
-				while (active) {
-					IndigoOperation request;
-					request = messageBalancing.nextOp();
-					if (request != null) {
-						workers.execute(new Runnable() {
-							@Override
-							public void run() {
-								request.deliverTo(thisManager);
-							}
-						});
-					} else {
-						try {
-							Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-					}
-				}
+		new Thread(() -> {
+			while (active) {
+				IndigoOperation request = messageBalancing.nextOp();
+				if (request != null)
+					workers.execute(() -> {
+						request.deliverTo(thisManager);
+					});
+				else
+					Threading.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
 			}
 		}).start();
 
-		// Transfer requests thread
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				while (active) {
-					TransferResourcesRequest request = null;
-					Endpoint endpoint = null;
-					synchronized (outgoingMessages) {
-						if (outgoingMessages.size() > 0) {
-							request = outgoingMessages.remove();
-							endpoint = endpoints.get(request.getDestination());
-						}
-						if (request != null) {
-							String key = request.key();
-							long now = System.currentTimeMillis();
-							Long ts = sentTransfters.get(key);
-							if (ts == null || (now - ts) > 100) {
-								sentTransfters.put(key, now);
-								stub.send(endpoint, request);
-							}
-						} else {
-							try {
-								Thread.sleep(DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						}
-					}
+		new Thread(() -> {
+			while (active) {
+				TransferResourcesRequest request;
+				synchronized (outgoingMessages) {
+					while (outgoingMessages.isEmpty())
+						Threading.waitOn(outgoingMessages, 10 * DEFAULT_QUEUE_PROCESSING_WAIT_TIME);
+					request = outgoingMessages.poll();
+				}
+				if (request != null) {
+					Endpoint endpoint = endpoints.get(request.getDestination());
+					stub.send(endpoint, request);
 				}
 			}
-
 		}).start();
 
 	}
@@ -164,7 +129,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}
 
 		TRANSFER_STATUS reply = manager.transferResources(request);
-
 		// Never keep reply
 		// if (reply.hasTransferred()) {
 		// alreadyProcessedTransfers.put(request.getClientTs(), request);
@@ -226,27 +190,24 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (request.getResources().size() == 0) {
 			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
 		} else {
-			if (isDuplicate(request)) {
-				// if (logger.isLoggable(Level.INFO))
-				// logger.info("Message is already enqueued: " + request);
-				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
-			} else if (checkAcquireAlreadyProcessed(request) != null) {
-				// if (logger.isLoggable(Level.INFO))
-				// logger.info("Received an already processed message: " +
-				// request + " REPLY: "
-				// + replies.get(request.getClientTs()));
-				reply = new AcquireResourcesReply(AcquireReply.REPEATED, sequencer.clocks.currentClockCopy());
+			if (checkAcquireAlreadyProcessed(request) != null) {
+				if (logger.isLoggable(Level.INFO))
+					logger.info("Received an already processed message: " + request + " REPLY: " + replies.get(request.getClientTs()));
+				reply = replies.get(request.getClientTs());
 			} else {
-				synchronized (incomingRequestsQueue) {
-					incomingRequestsQueue.add(request);
+				if (isDuplicate(request)) {
+					if (logger.isLoggable(Level.INFO))
+						logger.info("ignore duplicate request: " + request);
+				} else {
+					synchronized (incomingRequestsQueue) {
+						incomingRequestsQueue.add(request);
+					}
 				}
 			}
-
 		}
 		if (reply != null)
 			conn.reply(reply);
 	}
-
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
 		// if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {

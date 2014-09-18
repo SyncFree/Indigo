@@ -65,6 +65,7 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 
 	public void bind(boolean daemon) {
 		try {
+
 			ServerSocketChannel ssc = ServerSocketChannel.open();
 			ssc.bind(new InetSocketAddress(url.getPort(-1)));
 			Threading.newThread(daemon, () -> {
@@ -79,6 +80,7 @@ final public class TcpServiceEndpoint extends ServiceEndpoint {
 			InetSocketAddress addr = (InetSocketAddress) ssc.getLocalAddress();
 			localEndpoint = Networking.resolve(String.format("tcp://%s:%s", IP.localHostAddressString(), addr.getPort()));
 		} catch (IOException x) {
+			System.err.println("----------->>>>>>   " + url.getPort(-1));
 			x.printStackTrace();
 		}
 	}
