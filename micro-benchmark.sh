@@ -61,14 +61,14 @@ SHEPARD_URL="tcp://ec2-54-165-234-165.compute-1.amazonaws.com:29876/"
 
 TABLE="table"
 #N_KEYS=(1 10 100 1000 10000)
-N_KEYS=(1000)
+N_KEYS=(1)
 #N_REGIONS=(1)
 N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(10 60)
+N_THREADS=(1)
 MODE=("-indigo" )
 DISTRIBUTION="uniform"
-INIT_VAL=9999999
+INIT_VAL=5000
 
 #<Clients> #<Command>
 ssh_command() {
@@ -183,7 +183,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 	done
 
 CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
-LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks_info.properties"
+LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
 CMD="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
 SHEPARD="java "$CLASSPATH" "$LOG" sys.shepard.PatientShepard"
 echo "####################################################"
@@ -208,7 +208,7 @@ do
 				echo $m" MODE"
 				echo $DISTRIBUTION" DISTRIBUTION"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"-no_provisioning/"
+				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencers=${SEQUENCERS[@]:0:$i}
@@ -220,6 +220,7 @@ do
 					cmd=$CMD" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" "$m
 					echo "Start Sequencer "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_sequencer_console.log" &
+					sleep 2
 					cmd=$CMD" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -servers "${servers[@]}" "$m
 					echo "Start Server "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
@@ -228,7 +229,7 @@ do
 					ri=`expr $ri + 1`
 				done
 				
-				sleep 5
+				sleep 10
 
 				master=${SERVER_MACHINES[0]}
 				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
@@ -237,7 +238,7 @@ do
 				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
 				
-				sleep 30
+				sleep 10
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
