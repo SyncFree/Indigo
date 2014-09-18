@@ -12,4 +12,6 @@ public interface ResourceRequest<T> extends Comparable<ResourceRequest<T>> {
 
 	void setClientTs(Timestamp ts);
 
+	public String key();
+
 }

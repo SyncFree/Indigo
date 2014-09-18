@@ -71,7 +71,12 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 	@Override
 	public void setClientTs(Timestamp ts) {
 		this.ts = ts;
+	}
 
+	public String key() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(resourceId.toString());
+		return sb.toString();
 	}
 
 }

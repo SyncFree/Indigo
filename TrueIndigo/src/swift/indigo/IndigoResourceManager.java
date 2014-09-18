@@ -62,6 +62,14 @@ final public class IndigoResourceManager {
 
 	private static Profiler profiler;
 
+	static final int DUPLICATE_TRANSFER_FILTER_WINDOW = 500;
+
+	private static final int GRANT_THRESHOLD = 500;
+
+	private static final int REQUEST_THRESHOLD = 100;
+
+	ConcurrentHashMap<String, Long> recentTransfers = new ConcurrentHashMap<>();
+
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 		this.transferQueue = transferQueue;
 		this.sequencer = sequencer;
@@ -366,7 +374,6 @@ final public class IndigoResourceManager {
 		if (cachedValue != null) {
 			readClock.intersect(cachedValue.getClock());
 			// readClock.merge(cachedValue.getPruneClock());
-			// readClock.merge(resourceCRDT.getPruneClock());
 			// System.out.printf("Request %s %s, readClock %s, snapshot %s, cachedVersion %s, \n",
 			// readFromStorage,
 			// request, readClock, storage.getLocalSnapshotClockCopy(),
@@ -382,9 +389,9 @@ final public class IndigoResourceManager {
 		// If requests can be satisfied at the caller according the local
 		// state, do not transfer... update is on the way
 		String requestMsg = "";
-		if (!resource.checkRequest(request.getRequesterId(), (ResourceRequest<T>) request)) {
-			// if (!resource.overThreshold(request.getRequesterId(),
-			// (ResourceRequest<T>) request)) {
+		// if (!resource.checkRequest(request.getRequesterId(),
+		// (ResourceRequest<T>) request)) {
+		if (((int) resource.getSiteResource(request.getRequesterId())) - GRANT_THRESHOLD <= 0) {
 			ResourceRequest request_policy = transferPolicy(request, resource);
 			if (request_policy != null) {
 
@@ -474,13 +481,26 @@ final public class IndigoResourceManager {
 
 	}
 	private void performProvisioning(AcquireResourcesRequest request, Timestamp ts, _TxnHandle handle) {
-		List<TransferResourcesRequest> transferRequests = provisionPolicy(request, ts, handle);
+		Collection<ResourceRequest<?>> candidates = new LinkedList<>();
+		for (ResourceRequest<?> req_i : request.getResources()) {
+			String key = req_i.key();
+			long now = System.currentTimeMillis();
+			Long tts = recentTransfers.get(key);
+			if (tts == null || (now - tts) > DUPLICATE_TRANSFER_FILTER_WINDOW) {
+				recentTransfers.put(key, now);
+				candidates.add(req_i);
+			}
+		}
+
+		List<TransferResourcesRequest> transferRequests = provisionPolicy(new AcquireResourcesRequest(request.getClientId(), request.getClientTs(), candidates), ts, handle);
 		// TODO: Not a very smart "contains" check - should look for requests
 		// for the same keys
+
 		synchronized (transferQueue) {
 			transferQueue.addAll(transferRequests);
 			Threading.notifyAllOn(transferQueue);
 		}
+
 	}
 	/**
 	 * Request permissions for all resources not available locally.
@@ -496,7 +516,7 @@ final public class IndigoResourceManager {
 			// if (logger.isLoggable(Level.INFO))
 			// logger.info("Checking permissions for " + resource +
 			// " and request " + req);
-			if (!resource.checkRequest(sequencer.siteId, req_i)) {
+			if (((int) resource.getSiteResource(sequencer.siteId)) - REQUEST_THRESHOLD <= 0) {
 				Queue<Pair<String, ?>> pref = resource.preferenceList(sequencer.siteId);
 				LinkedList<Pair<String, ResourceRequest<?>>> contactList = new LinkedList<Pair<String, ResourceRequest<?>>>();
 				// TODO: ups... shortcut. Must abstract this and can make it

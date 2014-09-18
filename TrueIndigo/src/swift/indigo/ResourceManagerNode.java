@@ -33,9 +33,6 @@ import sys.utils.Profiler;
 import sys.utils.Threading;
 
 public class ResourceManagerNode implements ReservationsProtocolHandler {
-
-	static final int DUPLICATE_TRANSFER_FILTER_WINDOW = 100;
-
 	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 1;
 
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
@@ -96,9 +93,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		initLogging();
 
 		final TransferFirstMessageBalacing messageBalancing = new TransferFirstMessageBalacing(incomingRequestsQueue, transferRequestsQueue);
-
-		ConcurrentHashMap<String, Long> recentTransfers = new ConcurrentHashMap<>();
-
 		// Incoming requests processor thread
 
 		new Thread(() -> {
@@ -122,14 +116,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 					request = outgoingMessages.poll();
 				}
 				if (request != null) {
-					String key = request.key();
-					long now = System.currentTimeMillis();
-					Long ts = recentTransfers.get(key);
-					if (ts == null || (now - ts) > DUPLICATE_TRANSFER_FILTER_WINDOW) {
-						recentTransfers.put(key, now);
-						Endpoint endpoint = endpoints.get(request.getDestination());
-						stub.send(endpoint, request);
-					}
+					Endpoint endpoint = endpoints.get(request.getDestination());
+					stub.send(endpoint, request);
 				}
 			}
 		}).start();
@@ -141,7 +129,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		}
 
 		TRANSFER_STATUS reply = manager.transferResources(request);
-
 		// Never keep reply
 		// if (reply.hasTransferred()) {
 		// alreadyProcessedTransfers.put(request.getClientTs(), request);

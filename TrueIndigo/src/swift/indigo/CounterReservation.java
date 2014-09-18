@@ -75,4 +75,10 @@ public class CounterReservation implements ResourceRequest<Integer> {
 		}
 	}
 
+	public String key() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(resourceId.toString());
+		return sb.toString();
+	}
+
 }
