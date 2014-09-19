@@ -96,13 +96,15 @@ public class StatisticsUtils {
 	}
 
 	private static void createLatencyForTPS(String filter, String[] files) throws FileNotFoundException {
-		System.out.printf("TPS\tLAT\n");
+		System.out.printf("THREADS\tTPS\tLAT\n");
 		for (String file : files) {
+			System.err.println("Processing file " + file);
 			int idxI = file.indexOf(filter);
-			int idxF = file.indexOf("-", idxI);
-			int nThreads = Integer.parseInt(file.substring(idxI, idxF));
-			long avg = average_column(2, file);
-			System.out.printf("%s\t%s\n", nThreads, avg);
+			int idxF = file.indexOf("-", idxI + 1);
+			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
+			long avgTP = average_column(1, file);
+			long avgLat = average_column(2, file);
+			System.out.printf("%s\t%s\t%s\n", nThreads, avgTP, avgLat);
 		}
 	}
 
