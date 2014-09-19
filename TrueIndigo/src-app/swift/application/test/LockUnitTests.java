@@ -1,10 +1,9 @@
 package swift.application.test;
 
 import static org.junit.Assert.assertEquals;
+import static swift.application.test.TestsUtil.doOp;
+import static swift.application.test.TestsUtil.doThreadOp;
 import static sys.Context.Networking;
-
-import java.util.LinkedList;
-import java.util.List;
 
 import org.junit.After;
 import org.junit.Before;
@@ -16,16 +15,16 @@ import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
-import swift.indigo.LockReservation;
-import swift.indigo.ResourceRequest;
 import swift.indigo.remote.RemoteIndigo;
 import sys.utils.Args;
+import sys.utils.Threading;
 
 public class LockUnitTests {
 
-	static Indigo stub;
+	static Indigo stub1, stub2, stub3;
 	static String DC_ID = "DC_A";
 	static String serversAdresses = "localhost";
+	static String LOCK_TABLE = "LOCK";
 	static String table = "REGISTER";
 	static char key = 'A';
 	private String MASTER_ID;
@@ -33,7 +32,7 @@ public class LockUnitTests {
 	@Before
 	public void init() throws InterruptedException, SwiftException {
 		key++;
-		if (stub == null) {
+		if (stub1 == null || stub2 == null) {
 			System.out.printf("Start DataCenter: %s", DC_ID);
 			DC_ID = Args.valueOf("-siteId", "X");
 			MASTER_ID = Args.valueOf("-master", DC_ID);
@@ -46,87 +45,70 @@ public class LockUnitTests {
 			String[] otherSequencers = Args.valueOf("-sequencers", new String[]{"tcp://*/31001/" + DC_ID + "/"});
 			String[] otherServers = Args.valueOf("-servers", new String[]{"tcp://*/32001/" + DC_ID + "/"});
 
-			TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort,
-					pubSubPort, indigoPort, otherSequencers, otherServers);
+			TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
 
-			stub = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
+			stub1 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
+			stub2 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
+			stub3 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
 		}
 		initKey();
 	}
 
 	public void initKey() throws SwiftException {
-		stub.beginTxn();
-		EscrowableTokenCRDT obj = stub.get(new CRDTIdentifier("LOCK", "A"), true, EscrowableTokenCRDT.class);
-		stub.endTxn();
-	}
-	public static void doOp(String siteId, String key, String value, ShareableLock lock, long sleepBeforeCommit)
-			throws Exception {
-		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		LockReservation request = new LockReservation(siteId, new CRDTIdentifier("LOCK", "A"), lock);
-		resources.add(request);
-
-		stub.beginTxn(resources);
-		LWWRegisterCRDT<String> register = (LWWRegisterCRDT<String>) stub.get(new CRDTIdentifier(table, key), true,
-				LWWRegisterCRDT.class);
-		register.set(value);
-
-		Thread.sleep(sleepBeforeCommit);
-
-		stub.endTxn();
-
-	}
-
-	public static void doThreadOp(final String siteId, final String key, final String value, final ShareableLock lock,
-			final long sleepBeforeCommit) {
-		new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					doOp(siteId, key, value, lock, sleepBeforeCommit);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-		}).start();
+		stub1.beginTxn();
+		stub1.get(new CRDTIdentifier("LOCK", key + ""), true, EscrowableTokenCRDT.class);
+		stub1.endTxn();
 	}
 
 	// Gets an exclusive lock and executes the operation
 	@Test
 	public void simpleSetStringTest() throws Exception {
-		doOp(DC_ID, "" + key, "A", ShareableLock.EXCLUSIVE_ALLOW, 0);
-		getValue("" + key, "A");
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, key + "");
+		CRDTIdentifier idValue = new CRDTIdentifier(table, key + "");
+		doOp(DC_ID, idLock, idValue, "A", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
+		compareValue(idValue, "A", stub1);
 	}
 
 	// Gets an exclusive lock and executes the operation
 	@Test
 	public void mutatesLockTest() throws Exception {
-		doOp(DC_ID, "" + key, "A", ShareableLock.EXCLUSIVE_ALLOW, 0);
-		getValue("" + key, "A");
-		doOp(DC_ID, "" + key, "B", ShareableLock.FORBID, 0);
-		getValue("" + key, "B");
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, key + "");
+		CRDTIdentifier idValue = new CRDTIdentifier(table, key + "");
+		doOp(DC_ID, idLock, idValue, "A", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
+		compareValue(idValue, "A", stub1);
+		doOp(DC_ID, idLock, idValue, "B", ShareableLock.FORBID, stub1, 0);
+		compareValue(idValue, "B", stub1);
+	}
+
+	@Test
+	public void multipleSharedAndMutateTest() throws Exception {
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, key + "");
+		CRDTIdentifier idValue = new CRDTIdentifier(table, key + "");
+		doThreadOp(DC_ID, idLock, idValue, "MODIFIED", ShareableLock.ALLOW, stub1, 10000);
+		doThreadOp(DC_ID, idLock, idValue, "MODIFIED", ShareableLock.ALLOW, stub2, 10000);
+		doOp(DC_ID, idLock, idValue, "VALUE", ShareableLock.EXCLUSIVE_ALLOW, stub3, 0);
+		Threading.sleep(1000);
+		compareValue(idValue, "VALUE", stub1);
 	}
 
 	@Test
 	public void impossibleToGetLockTest() throws Exception {
-		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.ALLOW, 5000);
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, key + "");
+		CRDTIdentifier idValue = new CRDTIdentifier(table, key + "");
+		doThreadOp(DC_ID, idLock, idValue, "VALUE", ShareableLock.ALLOW, stub1, 5000);
 
 		// Request lock concurrently, while the first is active
-		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.FORBID, 0);
-		doThreadOp(DC_ID, "" + key, "VALUE", ShareableLock.EXCLUSIVE_ALLOW, 0);
+		doThreadOp(DC_ID, idLock, idValue, "VALUE", ShareableLock.FORBID, stub1, 0);
+		doThreadOp(DC_ID, idLock, idValue, "VALUE", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
 
 		Thread.sleep(12000);
 	}
 
-	public void getValue(String key, String expected) throws SwiftException {
+	private void compareValue(CRDTIdentifier id, String expected, Indigo stub) throws SwiftException {
 		stub.beginTxn();
-		LWWRegisterCRDT<String> x = (LWWRegisterCRDT<String>) stub.get(new CRDTIdentifier(table, key), false,
-				LWWRegisterCRDT.class);
-
+		LWWRegisterCRDT<String> x = (LWWRegisterCRDT<String>) stub.get(id, false, LWWRegisterCRDT.class);
 		assertEquals(expected, x.getValue());
-
 		stub.endTxn();
-
 	}
 
 	@After

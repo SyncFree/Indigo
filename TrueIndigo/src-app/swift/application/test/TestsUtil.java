@@ -9,11 +9,14 @@ import java.util.List;
 
 import swift.api.CRDTIdentifier;
 import swift.crdt.BoundedCounterAsResource;
+import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.IndigoSequencerAndResourceManager;
 import swift.indigo.IndigoServer;
+import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import sys.utils.Args;
@@ -126,6 +129,32 @@ public class TestsUtil {
 		}
 		return result.toString();
 
+	}
+
+	public static void doOp(String siteId, CRDTIdentifier idLock, CRDTIdentifier idValue, String value, ShareableLock lock, Indigo stub, long sleepBeforeCommit) throws Exception {
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
+		LockReservation request = new LockReservation(siteId, idLock, lock);
+		resources.add(request);
+		stub.beginTxn(resources);
+		LWWRegisterCRDT<String> register = (LWWRegisterCRDT<String>) stub.get(idValue, true, LWWRegisterCRDT.class);
+		register.set(value);
+		Thread.sleep(sleepBeforeCommit);
+		stub.endTxn();
+
+	}
+
+	public static void doThreadOp(final String siteId, final CRDTIdentifier idLock, CRDTIdentifier idValue, final String value, final ShareableLock lock, final Indigo stub, final long sleepBeforeCommit) {
+		new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					doOp(siteId, idLock, idValue, value, lock, stub, sleepBeforeCommit);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}).start();
 	}
 
 }

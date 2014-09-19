@@ -56,8 +56,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 		this.owners = new HashMap<String, Set<TripleTimestamp>>();
 	}
 
-	public EscrowableTokenCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, ShareableLock type,
-			Map<String, Set<TripleTimestamp>> owners) {
+	public EscrowableTokenCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, ShareableLock type, Map<String, Set<TripleTimestamp>> owners) {
 		super(id, txn, clock);
 		this.type = type;
 		this.owners = owners;
@@ -108,12 +107,10 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	}
 
 	public TRANSFER_STATUS updateOwnership(String ownerId, String requesterId, ShareableLock requestType) {
-		Log.info(String.format("ownerId=%s requesterId=%s, requestType=%s, this=%s, canMudate=%s, canUpdate=%s",
-				ownerId, requesterId, requestType, this, canMutateLock(ownerId), canShare(ownerId, requestType)));
+		Log.info(String.format("ownerId=%s requesterId=%s, requestType=%s, this=%s, canMudate=%s, canUpdate=%s", ownerId, requesterId, requestType, this, canMutateLock(ownerId), canShare(ownerId, requestType)));
 
 		if (canMutateLock(ownerId)) {
-			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, requestType, nextTimestamp(),
-					requestType.isExclusive());
+			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, requestType, nextTimestamp(), requestType.isExclusive());
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
 			return TRANSFER_STATUS.SUCCESS;
@@ -121,8 +118,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 		if (canShare(ownerId, requestType)) {
 			boolean isTransfer = requestType.isExclusive();
-			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, this.type, nextTimestamp(),
-					isTransfer);
+			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, this.type, nextTimestamp(), isTransfer);
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
 			Log.info("SHARED " + requestType + " WITH: " + requesterId + " NOW:" + this);
@@ -139,9 +135,6 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 			return;
 		}
 
-		if (!canUpdateSharedLock(op.ownerId(), op.getType()))
-			throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
-
 		// TODO: Does underlying layer ensures only once? Otherwise needs to
 		// check that the current TS << Request TS. The same for JustRelease
 		if (op.isTransfer())
@@ -153,9 +146,12 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 		if (tsRequester == null) {
 			tsRequester = new HashSet<TripleTimestamp>();
 			owners.put(op.requesterId(), tsRequester);
-
 			tsRequester.add(op.getTimestamp());
 		}
+
+		if (!canUpdateSharedLock(op.ownerId(), op.getType()))
+			throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
+
 	}
 	public void setTxnHandle(TxnHandle handle) {
 		super.txn = handle;
