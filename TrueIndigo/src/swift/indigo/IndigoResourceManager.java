@@ -205,9 +205,11 @@ final public class IndigoResourceManager {
 				// If a resource cannot be satisfied, free it locally.
 				// This is necessary to make the token converge
 				if (req instanceof LockReservation && !satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
-					resource.releaseShare(sequencer.siteId);
+					boolean released = resource.releaseShare(sequencer.siteId);
 					satisfies = resource.checkRequest(sequencer.siteId, req);
-					mustUpdate = true;
+					if (released) {
+						mustUpdate = true;
+					}
 				}
 
 				if (!satisfies) {
@@ -224,7 +226,18 @@ final public class IndigoResourceManager {
 
 			if (unsatified.size() != 0) {
 				printResourcesState(unsatified);
-				storage.endTxnAndGetUpdates(handle, mustUpdate);
+				// This only occurs for locks --- Can't we put the replaying of
+				// operations in the finally?
+				if (mustUpdate) {
+					Timestamp txnTs = storage.recordNewEvent();
+					for (CRDTObjectUpdatesGroup<?> updates : handle.getUpdates()) {
+						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache.get(updates.getTargetUID());
+						updates.addSystemTimestamp(txnTs);
+						cachedCRDT.execute((CRDTObjectUpdatesGroup<BoundedCounterAsResource>) updates, CRDTOperationDependencyPolicy.IGNORE);
+					}
+					storage.endTxnAndGetUpdates(handle, mustUpdate);
+				}
+
 				return generateDenyMessage(unsatified, snapshot);
 			}
 
@@ -418,6 +431,7 @@ final public class IndigoResourceManager {
 				needsTransference = true;
 			}
 		} else if (request instanceof LockReservation) {
+			doReleaseResources(request.getResourceId(), handle.snapshot);
 			if (!resource.checkRequest(request.getRequesterId(), request)) {
 				needsTransference = true;
 			}
@@ -457,7 +471,10 @@ final public class IndigoResourceManager {
 
 				if (result.equals(TRANSFER_STATUS.FAIL)) {
 					if (!resource.isSingleOwner(sequencer.siteId)) {
-						resource.releaseShare(sequencer.siteId);
+						if (resource.releaseShare(sequencer.siteId)) {
+							// Makes reply partial, so that it is stores.
+							result = TRANSFER_STATUS.PARTIAL;
+						}
 					}
 				}
 

@@ -1,6 +1,7 @@
 package swift.application.test;
 
 import static org.junit.Assert.assertEquals;
+import static swift.application.test.TestsUtil.doOp;
 import static swift.application.test.TestsUtil.doThreadOp;
 import static sys.Context.Networking;
 
@@ -54,6 +55,7 @@ public class IndigoThreeServersLockTest {
 		key++;
 	}
 
+	@SuppressWarnings("unchecked")
 	public void initKey(Indigo stub) throws SwiftException {
 		stub.beginTxn();
 		CRDTIdentifier id = new CRDTIdentifier(LOCK_TABLE, key + "");
@@ -119,19 +121,59 @@ public class IndigoThreeServersLockTest {
 		assertEquals(ShareableLock.FORBID, newType);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Test
-	public void testTransferenceAndAcquireDifferentType() throws SwiftException, InterruptedException {
+	public void testTransferenceAndAcquireDifferentType() throws Exception {
 		initKey(stub1);
 		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, "" + key);
 		CRDTIdentifier idValue = new CRDTIdentifier(table, "" + key);
 		doThreadOp("DC_B", idLock, idValue, "MODIFIED", ShareableLock.FORBID, stub2, 3000);
 		Threading.sleep(1000);
-		doThreadOp("DC_A", idLock, idValue, "MODIFIED FINAL", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
-		Threading.sleep(2000);
+		doOp("DC_A", idLock, idValue, "MODIFIED FINAL", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
 		stub1.beginTxn();
 		String value = (String) stub1.get(idValue, false, LWWRegisterCRDT.class).getValue();
 		stub1.endTxn();
 		assertEquals("MODIFIED FINAL", value);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testAcquireMultipleExclusiveType() throws SwiftException, InterruptedException {
+		initKey(stub1);
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, "" + key);
+		CRDTIdentifier idValue = new CRDTIdentifier(table, "" + key);
+		doThreadOp("DC_A", idLock, idValue, "1", ShareableLock.EXCLUSIVE_ALLOW, stub1, 1000);
+		Threading.sleep(3000);
+		doThreadOp("DC_B", idLock, idValue, "2", ShareableLock.EXCLUSIVE_ALLOW, stub2, 1000);
+		Threading.sleep(3000);
+		doThreadOp("DC_C", idLock, idValue, "3", ShareableLock.EXCLUSIVE_ALLOW, stub3, 1000);
+		Threading.sleep(3000);
+		stub1.beginTxn();
+		String value = (String) stub1.get(idValue, false, LWWRegisterCRDT.class).getValue();
+		stub1.endTxn();
+		assertEquals("3", value);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSharedAndExclusive() throws Exception {
+		initKey(stub1);
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, "" + key);
+		CRDTIdentifier idValue = new CRDTIdentifier(table, "" + key);
+		doThreadOp("DC_A", idLock, idValue, "1", ShareableLock.FORBID, stub1, 1000);
+		doThreadOp("DC_B", idLock, idValue, "1", ShareableLock.FORBID, stub2, 0);
+		Threading.sleep(5000);
+		doOp("DC_C", idLock, idValue, "3", ShareableLock.EXCLUSIVE_ALLOW, stub3, 0);
+		Thread.sleep(2000);
+		stub1.beginTxn();
+		String value = (String) stub1.get(idValue, false, LWWRegisterCRDT.class).getValue();
+		assertEquals("3", value);
+		stub1.endTxn();
+		stub3.beginTxn();
+		value = (String) stub3.get(idValue, false, LWWRegisterCRDT.class).getValue();
+		stub3.endTxn();
+		assertEquals("3", value);
+
 	}
 
 }

@@ -48,6 +48,7 @@ public class IndigoTwoServersLockTest {
 		key++;
 	}
 
+	@SuppressWarnings("unchecked")
 	public void initKey(Indigo stub) throws SwiftException {
 		stub.beginTxn();
 		CRDTIdentifier id = new CRDTIdentifier(LOCK_TABLE, key + "");
@@ -76,23 +77,24 @@ public class IndigoTwoServersLockTest {
 	@Test
 	public void testLocalChangeType() throws SwiftException, InterruptedException {
 		initKey(stub1);
-		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, "" + key);
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new LockReservation("DC_A", id, ShareableLock.FORBID));
+		resources.add(new LockReservation("DC_A", idLock, ShareableLock.FORBID));
 		stub1.beginTxn(resources);
-		stub1.get(id, false, EscrowableTokenCRDT.class).getValue();
+		stub1.get(idLock, false, EscrowableTokenCRDT.class).getValue();
 		stub1.endTxn();
 	}
 
 	@Test
 	public void testTransferenceSameType() throws SwiftException, InterruptedException {
 		initKey(stub1);
-		CRDTIdentifier id = new CRDTIdentifier(LOCK_TABLE, "" + key);
+		CRDTIdentifier idLock = new CRDTIdentifier(LOCK_TABLE, "" + key);
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new LockReservation("DC_B", id, ShareableLock.ALLOW));
+		resources.add(new LockReservation("DC_B", idLock, ShareableLock.ALLOW));
 		stub2.beginTxn(resources);
-		stub2.get(id, false, EscrowableTokenCRDT.class).getValue();
+		ShareableLock value = stub2.get(idLock, false, EscrowableTokenCRDT.class).getValue();
 		stub2.endTxn();
+		assertEquals(ShareableLock.ALLOW, value);
 	}
 
 	@Test
@@ -106,7 +108,6 @@ public class IndigoTwoServersLockTest {
 		Threading.sleep(5000);
 		stub1.beginTxn();
 		ShareableLock newType = stub1.get(idLock, false, EscrowableTokenCRDT.class).getValue();
-		System.out.println(newType);
 		stub1.endTxn();
 		assertEquals(ShareableLock.FORBID, newType);
 	}
@@ -121,6 +122,7 @@ public class IndigoTwoServersLockTest {
 		doThreadOp("DC_A", idLock, idValue, "MODIFIED FINAL", ShareableLock.EXCLUSIVE_ALLOW, stub1, 0);
 		Threading.sleep(2000);
 		stub1.beginTxn();
+		@SuppressWarnings("unchecked")
 		String value = (String) stub1.get(idValue, false, LWWRegisterCRDT.class).getValue();
 		stub1.endTxn();
 		assertEquals("MODIFIED FINAL", value);

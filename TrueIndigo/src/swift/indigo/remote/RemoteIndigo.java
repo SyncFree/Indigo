@@ -121,10 +121,6 @@ public class RemoteIndigo implements Indigo {
 	@Override
 	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
 		Timestamp txnTimestamp = tsSource.generateNew();
-		// while (txnTimestamp.equals(lastTSWithGrantedLocks)) {
-		// Log.warning("Repeated Timestamp " + lastTSWithGrantedLocks);
-		// txnTimestamp = tsSource.generateNewForced();
-		// }
 
 		AcquireResourcesRequest request;
 		if (emulateWeakConsistency) {
@@ -142,17 +138,14 @@ public class RemoteIndigo implements Indigo {
 				hasResources = true;
 
 			int retryCount = 0;
-			for (int delay = /* 20 */250;; delay = Math.min(1000, 2 * delay)) {
+			for (int delay = 250;; delay = Math.min(1000, 2 * delay)) {
 				AcquireResourcesReply reply = stub.request(server, request);
 				if (reply != null) {
-					System.err.println(">>>>>" + reply + " for: " + request.getClientTs());
 					if (reply.acquiredResources() || resources.size() == 0) {
 						if (Log.isLoggable(Level.INFO))
 							Log.info("Received reply for " + txnTimestamp + " " + reply);
 						handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
 						profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp + "", reply.getSnapshot().toString(), reply.getPhysicalClock() + "");
-						// if (resources.size() != 0)
-						// lastTSWithGrantedLocks = txnTimestamp;
 						break;
 					} else if (reply.isImpossible()) {
 						throw new IndigoImpossibleExcpetion();

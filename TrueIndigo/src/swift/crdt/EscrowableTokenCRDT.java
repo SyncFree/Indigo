@@ -149,7 +149,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 			tsRequester.add(op.getTimestamp());
 		}
 
-		if (!canUpdateSharedLock(op.ownerId(), op.getType()))
+		if (!canUpdateSharedLock(op.requesterId(), op.getType()))
 			throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
 
 	}
