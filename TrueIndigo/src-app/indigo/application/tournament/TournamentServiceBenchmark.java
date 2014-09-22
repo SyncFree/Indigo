@@ -25,16 +25,21 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import swift.application.test.TestsUtil;
 import swift.indigo.Defaults;
 import swift.indigo.Indigo;
 import swift.indigo.IndigoSequencerAndResourceManager;
 import swift.indigo.IndigoServer;
 import swift.indigo.remote.RemoteIndigo;
-import sys.shepard.Shepard;
+import sys.shepard.PatientShepard;
 import sys.utils.Args;
 import sys.utils.IP;
+import sys.utils.Profiler;
 import sys.utils.Progress;
 import sys.utils.Tasks;
 import sys.utils.Threading;
@@ -48,31 +53,29 @@ import sys.utils.Threading;
  */
 public class TournamentServiceBenchmark extends TournamentServiceApp {
 	private static Logger Log = Logger.getLogger(TournamentServiceBenchmark.class.getName());
-
-	private String shepard;
+	private static String resultsLogName = "TournamentBenchmark";
+	private static Profiler profiler;
 
 	public void initDB(String[] args) {
 
-		final String siteId = Args.valueOf(args, "-name", "X");
-		final String surrogate = Args.valueOf(args, "-server", "localhost");
+		final String siteId = Args.valueOf(args, "-siteId", (String) null);
+		final String surrogate = Args.valueOf(args, "-server", (String) null);
 
-		String sitesArg = Args.valueOf(args, "-partition", "1/1");
+		String sitesArg = Args.valueOf(args, "-partitions", "1/1");
 		int numberOfSites = Integer.valueOf(sitesArg.split("/")[1]);
 
-		List<String> players = super.populateWorkloadFromConfig(numberOfSites);
-
-		final int PARTITION_SIZE = 1000;
-		int partitions = (int) Math.ceil(players.size() / (double) PARTITION_SIZE);
-		ExecutorService threadPool = Executors.newFixedThreadPool(4);
+		List<String> commands = super.populateWorkloadFromConfig(numberOfSites);
+		final int N_INIT_WORKERS = 1;
+		int partitionSize = (int) Math.ceil(commands.size() / N_INIT_WORKERS);
+		ExecutorService threadPool = Executors.newFixedThreadPool(N_INIT_WORKERS);
 
 		final AtomicInteger counter = new AtomicInteger(0);
-		for (int i = 0; i < partitions; i++) {
-			int lo = i * PARTITION_SIZE, hi = (i + 1) * PARTITION_SIZE;
-			final List<String> partition = players.subList(lo, Math.min(hi, players.size()));
+		for (int i = 0; i < N_INIT_WORKERS; i++) {
+			int lo = i * partitionSize, hi = (i + 1) * partitionSize;
+			final List<String> partition = commands.subList(lo, Math.min(hi, commands.size()));
 			threadPool.execute(new Runnable() {
 				public void run() {
-					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate,
-							Defaults.REMOTE_INDIGO_URL));
+					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate, Defaults.REMOTE_INDIGO_URL));
 					TournamentServiceBenchmark.super.initTournaments(stub, partition, counter, numOps, siteId);
 				}
 			});
@@ -84,19 +87,20 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 	public void doBenchmark(String[] args) {
 
-		// IO.redirect("stdout.txt", "stderr.txt");
-
-		final String siteId = Args.valueOf(args, "-name", "X");
-		final String server = Args.valueOf(args, "-server", "localhost");
+		Args.use(args);
+		final String siteId = Args.valueOf(args, "-siteId", (String) null);
+		final String server = Args.valueOf(args, "-server", (String) null);
 
 		Log.info(IP.localHostname() + "/ starting...");
 
 		int concurrentSessions = Args.valueOf(args, "-threads", 1);
-		String partitions = Args.valueOf(args, "-partition", "1/1");
+		String partitions = Args.valueOf(args, "-partitions", "1/1");
 		int site = Integer.valueOf(partitions.split("/")[0]);
 		int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
-		shepard = Args.valueOf(args, "-shepard", "");
+		if (Args.contains("-shepard")) {
+			PatientShepard.sheepJoinHerd(Args.valueOf("-shepard", ""));
+		};
 
 		Log.info(IP.localHostAddress() + " connecting to: " + server);
 
@@ -106,11 +110,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		bufferedOutput.printf(";\tsite=%s\n", site);
 		bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
 		bufferedOutput.printf(";\tSurrogate=%s\n", server);
-		bufferedOutput.printf(";\tShepard=%s\n", shepard);
 		bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
-
-		if (!shepard.isEmpty())
-			Shepard.sheepJoinHerd(shepard);
 
 		// Kick off all sessions, throughput is limited by
 		// concurrentSessions.
@@ -127,8 +127,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(new Random().nextInt(1000));
 					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
-					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId),
-							sessionId, commands, false);
+					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId), sessionId, commands, false);
 				}
 			});
 		}
@@ -141,13 +140,40 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
 		Log.info("Session threads completed.");
 	}
+
+	static void initLogger() {
+		Logger logger = Logger.getLogger(resultsLogName);
+		profiler = Profiler.getInstance();
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/tournament_results" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(0);
+			}
+		}
+		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS", "AVAILABLE");
+	}
+
 	public static void main(String[] args) {
 
 		TournamentServiceBenchmark instance = new TournamentServiceBenchmark();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X"});
-			IndigoServer.main(new String[]{"-name", "X"});
+			IndigoSequencerAndResourceManager.main(new String[]{"-siteId", "X"});
+			IndigoServer.main(new String[]{"-siteId", "X"});
 
 			args = new String[]{"-server", "localhost", "-name", "X", "-threads", "1"};
 
@@ -161,6 +187,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 			exit(0);
 		}
 		if (args[0].equals("-run")) {
+			initLogger();
 			instance.doBenchmark(args);
 			exit(0);
 		}
