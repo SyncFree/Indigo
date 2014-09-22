@@ -388,8 +388,6 @@ final public class IndigoResourceManager {
 				cachedValue = resourceCRDT;
 			} else {
 				cachedValue.merge(resourceCRDT);
-				// System.out.printf("Cached Value after merge %s with %s\n",
-				// cachedValue, resourceCRDT);
 			}
 		} else {
 			cachedValue = (ManagedCRDT<V>) cache.get(request.getResourceId());
@@ -398,17 +396,13 @@ final public class IndigoResourceManager {
 		if (cachedValue != null) {
 			readClock.intersect(cachedValue.getClock());
 			readClock.merge(cachedValue.getPruneClock());
-			// System.out.printf("Request %s %s, readClock %s, snapshot %s, cachedVersion %s, \n",
-			// readFromStorage,
-			// request, readClock, storage.getLocalSnapshotClockCopy(),
-			// cachedValue.getClock());
 			if (request instanceof LockReservation) {
 				LocalLock lock = locks.get(request.getResourceId());
 				V resourceCRDT = cachedValue.getVersion(readClock, handle);
 				if (lock == null) {
 					locks.put(request.getResourceId(), new LocalLock((ShareableLock) resourceCRDT.getValue()));
 				} else {
-					lock.updateType((ShareableLock) resourceCRDT.getValue());
+					doReleaseResources(request.getResourceId(), readClock);
 				}
 				return (Resource<V>) resourceCRDT;
 			} else {
@@ -448,12 +442,6 @@ final public class IndigoResourceManager {
 						return result;
 				}
 				TRANSFER_STATUS transferred = resource.transferOwnership(sequencer.siteId, request.getRequesterId(), request_policy);
-
-				// If transference succeeded and is a lock request, apply the
-				// type on the lock
-				if (request instanceof LockReservation && transferred.equals(TRANSFER_STATUS.SUCCESS)) {
-					locks.get(request.getResourceId()).updateType((ShareableLock) request.getResource());
-				}
 
 				// If the request from the policy is less than the original, is
 				// just a partial request
