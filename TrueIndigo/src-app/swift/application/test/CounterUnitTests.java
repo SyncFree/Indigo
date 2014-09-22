@@ -35,14 +35,14 @@ public class CounterUnitTests {
 	static String DC_B = "DC_B";
 	static boolean started;
 
+	@Before
 	public void init1DC() {
 		if (!started) {
-			TestsUtil.startDC1Server(DC_A, DC_A, 31001, 32001, 33001, 34001, 35001, 3600, new String[]{"tcp://*:"
-					+ 31001 + "/" + DC_A + "/"}, new String[]{});
+			TestsUtil.startDC1Server("DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{"tcp://*:" + 31001 + "/DC_A/"}, new String[]{});
 			started = true;
 
-			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
-			stub12 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
+			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));
+			stub12 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));
 		}
 	}
 
@@ -82,6 +82,15 @@ public class CounterUnitTests {
 	}
 
 	@Test
+	public void decrementNoResources() throws SwiftException {
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 0, stub11, DC_A);
+		assertEquals(false, decrement(id, 10, stub11, DC_A));
+		increment(id, 0, stub11, DC_A);
+		increment(id, 0, stub11, DC_A);
+	}
+
+	@Test
 	public void decrementSucceeds() throws SwiftException, InterruptedException {
 		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
 		increment(id, 10, stub11, DC_A);
@@ -110,8 +119,7 @@ public class CounterUnitTests {
 		decrementCycleNThreads1DC(10000, 100);
 	}
 
-	public void decrementCycleNThreads1DC(int initValue, int nThreads) throws SwiftException, InterruptedException,
-			BrokenBarrierException {
+	public void decrementCycleNThreads1DC(int initValue, int nThreads) throws SwiftException, InterruptedException, BrokenBarrierException {
 		int count = initValue;
 		final AtomicInteger sum = new AtomicInteger();
 		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);

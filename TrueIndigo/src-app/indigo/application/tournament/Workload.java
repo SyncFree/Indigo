@@ -20,9 +20,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import sys.utils.Props;
 
 import com.thoughtworks.xstream.core.util.Base64Encoder;
 
@@ -44,40 +47,48 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 	 * each tournament is at least half of the limit
 	 */
 
-	public static List<String> populate(int numPlayers, int numLocalTournaments, int numGlobalTournaments,
-			int maxPlayers, int numSites) {
+	public static List<String> populate(int numPlayers, int numLocalTournaments, int numGlobalTournaments, int minPlayersLocal, int maxPlayersLocal, int minPlayersGlobal, int maxPlayersGlobal, int numSites) {
 		Random rg = new Random(6L);
 		byte[] tmp = new byte[6];
 		Base64Encoder enc = new Base64Encoder();
 		int currSite = -1;
 		int playersPerSite = numPlayers / numSites;
 		int tournamentsPerSite = numLocalTournaments / numSites;
+		List<String> globalTournaments = new ArrayList<>();
+
+		// Create players
 		for (int i = 0; i < numPlayers; i++) {
-			currSite = (i % playersPerSite == 0) ? currSite + 1 : currSite;
+			currSite = i / playersPerSite;
 			rg.nextBytes(tmp);
 			String player = enc.encode(tmp);
 			players.add((currSite + 1) + "_" + player);
 		}
 
-		currSite = -1;
+		// Create Tournaments
 		for (int i = 0; i < numLocalTournaments; i++) {
-			currSite = (i % tournamentsPerSite == 0) ? currSite + 1 : currSite;
+			currSite = i / tournamentsPerSite;
 			rg.nextBytes(tmp);
 			String tournament = enc.encode(tmp);
 			tournaments.add((currSite + 1) + "_" + tournament);
 		}
 
-		currSite = -1;
+		for (int i = 0; i < numGlobalTournaments; i++) {
+			rg.nextBytes(tmp);
+			String tournament = enc.encode(tmp);
+			globalTournaments.add("-1_" + tournament);
+		}
+
+		// Add players to tournaments
 		for (int i = 0; i < numLocalTournaments; i++) {
-			currSite = (i % tournamentsPerSite == 0) ? currSite + 1 : currSite;
-			int tournamentPlayers = maxPlayers / 2 + rg.nextInt(maxPlayers / 2);
+			currSite = i / tournamentsPerSite;
+			int numPlayersTournament = Math.min(minPlayersLocal + rg.nextInt(maxPlayersLocal - minPlayersLocal), playersPerSite);
 			StringBuffer line = new StringBuffer();
 			line.append(tournaments.get(i));
 			Set<Integer> playersInTournament = new HashSet<>();
-			for (int j = 0; j < tournamentPlayers; j++) {
-				int random = rg.nextInt(numPlayers / numSites);
+			for (int j = 0; j < numPlayersTournament; j++) {
+				int random = (currSite * playersPerSite) + rg.nextInt(playersPerSite);
 				if (!playersInTournament.contains(random)) {
-					String p = players.get(((numPlayers / numSites) * currSite)) + random;
+					String p = players.get(random);
 					line.append(";" + p);
 					playersInTournament.add(random);
 				} else {
@@ -87,20 +98,27 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 			playersData.add(line.toString());
 		}
 
-		// GLOBAL TOURNAMENTS
+		// Add players to global tournaments
 		for (int i = 0; i < numGlobalTournaments; i++) {
-			rg.nextBytes(tmp);
-			String tournament = "-1_" + enc.encode(tmp);
-			int tournamentPlayers = maxPlayers / 2 + rg.nextInt(maxPlayers / 2);
+			String tournament = globalTournaments.get(i);
+			int numPlayersTournament = Math.min(minPlayersGlobal + rg.nextInt(maxPlayersGlobal - minPlayersGlobal), numPlayers);
 			StringBuffer line = new StringBuffer();
 			line.append(tournament);
-			for (int j = 0; j < tournamentPlayers; j++) {
-				String p = players.get(rg.nextInt(numPlayers));
-				line.append(";" + p);
+			Set<Integer> playersInTournament = new HashSet<>();
+			for (int j = 0; j < numPlayersTournament; j++) {
+				int random = rg.nextInt(numPlayersTournament);
+				if (!playersInTournament.contains(random)) {
+					String p = players.get(random);
+					line.append(";" + p);
+					playersInTournament.add(random);
+				} else {
+					j--;
+				}
 			}
 			playersData.add(line.toString());
 		}
 
+		tournaments.addAll(0, globalTournaments);
 		return playersData;
 	}
 	/*
@@ -176,10 +194,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 			return String.format("disenroll_tournament");
 		}
 	}
+	static Properties props = Props.parseFile("indigo-tournament", "indigo-tournament-test.props");
 
-	static Operation[] ops = new Operation[]{new AddPlayer().freq(5), new AddTournament().freq(2),
-			new EnrollTournament().freq(16), new DisenrollTournament().freq(4), new DoMatch().freq(22),
-			new RemTournament().freq(10), new ViewStatus().freq(41)};
+	static Operation[] ops = new Operation[]{new AddPlayer().freq(Props.intValue(props, "tournament.freq.addPlayers", 0)), new AddTournament().freq(Props.intValue(props, "tournament.freq.addTournament", 0)),
+			new EnrollTournament().freq(Props.intValue(props, "tournament.freq.enrollTournament", 0)), new DisenrollTournament().freq(Props.intValue(props, "tournament.freq.disenrollTournament", 0)),
+			new DoMatch().freq(Props.intValue(props, "tournament.freq.doMatch", 0)), new RemTournament().freq(Props.intValue(props, "tournament.freq.remTournament", 0)),
+			new ViewStatus().freq(Props.intValue(props, "tournament.freq.viewStatus", 0))};
 
 	static AtomicInteger doMixedCounter = new AtomicInteger(7);
 
@@ -245,7 +265,8 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 	}
 
 	public static void main(String[] args) throws Exception {
-		List<String> x = Workload.populate(30, 9, 3, 4, 3);
+
+		List<String> x = Workload.populate(30, 9, 2, 10, 15, 25, 30, 3);
 		System.out.println(players);
 		System.out.println(tournaments);
 		for (String i : x)
