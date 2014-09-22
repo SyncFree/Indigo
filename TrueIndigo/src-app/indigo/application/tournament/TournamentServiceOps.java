@@ -22,6 +22,7 @@ import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import swift.api.CRDTIdentifier;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.BoundedCounterAsResource;
 import swift.crdt.EscrowableTokenCRDT;
@@ -44,12 +45,14 @@ public class TournamentServiceOps {
 
 	private Indigo stub;
 	final private String siteId;
+	final private String master;
 
 	private Random rg;
 
-	public TournamentServiceOps(Indigo stub, String siteId) {
+	public TournamentServiceOps(Indigo stub, String siteId, String master) {
 		this.stub = stub;
 		this.siteId = siteId;
+		this.master = master;
 		this.rg = new Random();
 	}
 
@@ -62,7 +65,7 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected String selectPlayer(int site) throws SwiftException {
+	protected String selectPlayer(String site) throws SwiftException {
 		stub.beginTxn();
 		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site), true, AddWinsSetCRDT.class);
 		stub.endTxn();
@@ -75,7 +78,7 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected String selectTournament(int site) throws SwiftException {
+	protected String selectTournament(String site) throws SwiftException {
 		stub.beginTxn();
 		AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site), true, AddWinsSetCRDT.class);
 		stub.endTxn();
@@ -108,10 +111,10 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected void addNewPlayersToTournament(final String[] playerNames, final int tournamentSite, final String tournamentName) throws SwiftException {
+	protected void addNewPlayersToTournament(final String[] playerNames, final String playerSite, final String tournamentName) throws SwiftException {
 		stub.beginTxn();
 		for (String playerName : playerNames) {
-			_addPlayer(tournamentSite, playerName);
+			_addPlayer(playerSite, playerName);
 			AddWinsSetCRDT<String> tournament = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournament(tournamentName), true, AddWinsSetCRDT.class);
 			tournament.add(playerName);
 			AddWinsSetCRDT<String> playerTournaments = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerTournaments(playerName), false, AddWinsSetCRDT.class);
@@ -119,7 +122,7 @@ public class TournamentServiceOps {
 		}
 		stub.endTxn();
 	}
-	protected boolean addPlayer(int site, String playerName) throws SwiftException {
+	protected boolean addPlayer(String site, String playerName) throws SwiftException {
 		boolean result;
 		stub.beginTxn();
 		result = _addPlayer(site, playerName);
@@ -128,7 +131,7 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	private boolean _addPlayer(final int site, final String playerName) throws SwiftException {
+	private boolean _addPlayer(final String site, final String playerName) throws SwiftException {
 		boolean result = true;
 
 		// Add player to index
@@ -137,7 +140,10 @@ public class TournamentServiceOps {
 		playerIndex.add(playerName);
 
 		// Create Player lock
-		stub.get(NamingScheme.forPlayerLock(playerName), true, EscrowableTokenCRDT.class);
+		CRDTIdentifier lockId = NamingScheme.forPlayerLock(playerName);
+		String ownerId = site.equals("GLOBAL") ? master : site;
+		EscrowableTokenCRDT lock = stub.get(lockId, true, EscrowableTokenCRDT.class);
+		lock.transferOwnership(null, ownerId, new LockReservation((String) ownerId, lockId, ShareableLock.ALLOW));
 
 		// Create player register
 		LWWRegisterCRDT<Player> reg = (LWWRegisterCRDT<Player>) stub.get(NamingScheme.forPlayer(playerName), true, LWWRegisterCRDT.class);
@@ -149,7 +155,6 @@ public class TournamentServiceOps {
 		stub.get(NamingScheme.forPlayerTournaments(playerName), true, AddWinsSetCRDT.class);
 		return result;
 	}
-
 	// @SuppressWarnings("unchecked")
 	// protected void removePlayer(final String playerName) throws
 	// SwiftException {
@@ -179,7 +184,7 @@ public class TournamentServiceOps {
 	//
 	// }
 
-	protected boolean addTournament(final int tournamentSite, final String tournamentName, final int maxSize) throws SwiftException {
+	protected boolean addTournament(final String tournamentSite, final String tournamentName, final int maxSize) throws SwiftException {
 		boolean result;
 		stub.beginTxn();
 		result = _addTournament(tournamentSite, tournamentName, maxSize);
@@ -187,7 +192,7 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	private boolean _addTournament(final int tournamentSite, final String tournamentName, final int maxPlayers) throws SwiftException {
+	private boolean _addTournament(final String tournamentSite, final String tournamentName, final int maxPlayers) throws SwiftException {
 		boolean result = true;
 		try {
 			// Add tournament to index
@@ -198,9 +203,12 @@ public class TournamentServiceOps {
 			stub.get(NamingScheme.forTournament(tournamentName), true, AddWinsSetCRDT.class);
 
 			// Create tournament locks
-			stub.get(NamingScheme.forTournamentLock(tournamentName), true, EscrowableTokenCRDT.class);
+			CRDTIdentifier lockId = NamingScheme.forTournamentLock(tournamentName);
+			String ownerId = tournamentSite.equals("GLOBAL") ? master : tournamentSite;
+			EscrowableTokenCRDT lock = stub.get(NamingScheme.forTournamentLock(tournamentName), true, EscrowableTokenCRDT.class);
+			lock.transferOwnership(ownerId, ownerId, new LockReservation((String) ownerId, lockId, ShareableLock.ALLOW));
 			BoundedCounterAsResource tournamentCounter = stub.get(NamingScheme.forTournamentSize(tournamentName), true, BoundedCounterAsResource.class);
-			tournamentCounter.increment(maxPlayers, siteId);
+			tournamentCounter.increment(maxPlayers, ownerId);
 		} catch (SwiftException e) {
 			if (logger.isLoggable(Level.WARNING)) {
 				logger.warning(e.getMessage());
@@ -209,7 +217,7 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	protected boolean removeTournament(final int site, final String tournamentName) throws SwiftException {
+	protected boolean removeTournament(final String site, final String tournamentName) throws SwiftException {
 		boolean result = true;
 		try {
 			List<ResourceRequest<?>> resources = new LinkedList<>();
@@ -241,7 +249,7 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	protected boolean enrollTournament(final int site, final String playerName, final String tournamentName) throws SwiftException {
+	protected boolean enrollTournament(final String site, final String playerName, final String tournamentName) throws SwiftException {
 		boolean result = true;
 		try {
 			List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();

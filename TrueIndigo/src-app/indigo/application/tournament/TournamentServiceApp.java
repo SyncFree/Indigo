@@ -51,8 +51,9 @@ public class TournamentServiceApp {
 	protected int minLocalPlayers, maxLocalPlayers, minGlobalPlayers, maxGlobalPlayers;
 	protected int numOps;
 	protected int localPercentage;
+	private String[] sites;
 
-	protected PrintStream bufferedOutput;
+	// protected PrintStream bufferedOutput;
 
 	protected AtomicInteger commandsDone = new AtomicInteger(0);
 	protected AtomicInteger totalCommands = new AtomicInteger(0);
@@ -67,11 +68,11 @@ public class TournamentServiceApp {
 
 	// If number of sites is defined in the config file, than overrides the
 	// parameter
-	public List<String> populateWorkloadFromConfig(int nSites) {
+	public List<String> populateWorkloadFromConfig(String master) {
 
-		bufferedOutput = new PrintStream(System.out, false);
+		// bufferedOutput = new PrintStream(System.out, false);
 
-		props = Props.parseFile("indigo-tournament", bufferedOutput, "indigo-tournament-test.props");
+		props = Props.parseFile("indigo-tournament", System.err, Args.valueOf("-config", "indigo-tournament.props"));
 
 		numPlayers = Props.intValue(props, "tournament.numPlayers", 10);
 		numLocalTournaments = Props.intValue(props, "tournament.numLocalTournaments", 100);
@@ -83,40 +84,43 @@ public class TournamentServiceApp {
 		numOps = Props.intValue(props, "tournament.numOps", 1000);
 		thinkTime = Props.intValue(props, "tournament.thinkTime", 1000);
 		localPercentage = Props.intValue(props, "tournament.localPercentage", 90);
-		nSites = Props.intValue(props, "tournament.numberOfSites", nSites);
+		String sitesUnParsed = Props.stringValue(props, "tournament.sites", "X,Y,Z");
+		sites = sitesUnParsed.split(",");
 
-		return Workload.populate(numPlayers, numLocalTournaments, numGlobalTournaments, minLocalPlayers, maxLocalPlayers, minGlobalPlayers, maxGlobalPlayers, nSites);
+		return Workload.populate(numPlayers, numLocalTournaments, numGlobalTournaments, minLocalPlayers, maxLocalPlayers, minGlobalPlayers, maxGlobalPlayers, sites, master);
 	}
 
-	public Workload getWorkloadFromConfig(int site, int numberOfSites) {
+	public Workload getWorkloadFromConfig(String currSite, String master) {
 		if (props == null)
-			populateWorkloadFromConfig(numberOfSites);
+			populateWorkloadFromConfig(master);
 
-		return Workload.doMixed(site, numOps, localPercentage, numberOfSites);
+		return Workload.doMixed(currSite, numOps, localPercentage);
 	}
 
 	public void runClientSession(TournamentServiceOps serviceClient, final int sessionId, final Workload commands, boolean loop4Ever) {
 
 		totalCommands.addAndGet(commands.size());
 		final long sessionStartTime = System.currentTimeMillis();
-		final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
-		bufferedOutput.println(initSessionLog);
-		if (sessionId == 0)
-			bufferedOutput.println("; sessionId,responseCode,copyValue,globalValue,execTime,endTime");
+		// final String initSessionLog = String.format("%d,%s,%d,%d", -1,
+		// "INIT", 0, sessionStartTime);
+		// bufferedOutput.println(initSessionLog);
+		// if (sessionId == 0)
+		// bufferedOutput.println("; sessionId,responseCode,copyValue,globalValue,execTime,endTime");
 		do
 			for (String cmdLine : commands) {
-				long txnStartTime = System.currentTimeMillis();
-				Results res = runCommandLine(sessionId, serviceClient, cmdLine);
-				res.setStartTime(txnStartTime).setSession(sessionId).logTo(bufferedOutput);
+				// long txnStartTime = System.currentTimeMillis();
+				/* Results res = */runCommandLine(sessionId, serviceClient, cmdLine);
+				// res.setStartTime(txnStartTime).setSession(sessionId).logTo(bufferedOutput);
 				Threading.sleep(thinkTime);
 				commandsDone.incrementAndGet();
 			}
 		while (loop4Ever);
 
-		final long now = System.currentTimeMillis();
-		final long sessionExecTime = now - sessionStartTime;
-		bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
-		bufferedOutput.flush();
+		// final long now = System.currentTimeMillis();
+		// final long sessionExecTime = now - sessionStartTime;
+		// bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId,
+		// "TOTAL", sessionExecTime, now));
+		// bufferedOutput.flush();
 	}
 
 	//
@@ -131,11 +135,11 @@ public class TournamentServiceApp {
 				case ADD_PLAYER :
 					if (toks.length == 3) {
 						String playerName = tournamentClient.newName(6);
-						result = tournamentClient.addPlayer(Integer.parseInt(toks[1]), playerName);
+						result = tournamentClient.addPlayer(toks[1], playerName);
 					}
 				case ADD_TOURNAMENT :
 					if (toks.length == 3) {
-						int tournametSiteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						int maxPlayers = toks[2].equals("GLOBAL") ? maxGlobalPlayers : maxLocalPlayers;
 						String tournament = tournamentClient.newName(6);
 						result = tournamentClient.addTournament(tournametSiteId, tournament, maxPlayers);
@@ -143,35 +147,35 @@ public class TournamentServiceApp {
 					}
 				case REM_TOURNAMENT :
 					if (toks.length == 3) {
-						int siteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
-						String tournament = tournamentClient.selectTournament(siteId);
+						String tournamentSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						String tournament = tournamentClient.selectTournament(tournamentSiteId);
 						if (tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No tournament available at site " + toks[1]);
 							break;
 						}
-						result = tournamentClient.removeTournament(siteId, tournament);
+						result = tournamentClient.removeTournament(tournamentSiteId, tournament);
 						break;
 					}
 				case ENROLL_TOURNAMENT :
 					if (toks.length == 3) {
-						String player = tournamentClient.selectPlayer(Integer.parseInt(toks[1]));
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]));
+						String player = tournamentClient.selectPlayer(toks[1]);
+						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
-						int tournametSiteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						result = tournamentClient.enrollTournament(tournametSiteId, player, tournament);
 						break;
 					}
 				case DISENROLL_TOURNAMENT :
 					if (toks.length == 3) {
-						String player = tournamentClient.selectPlayer(Integer.parseInt(toks[1]));
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]));
+						String player = tournamentClient.selectPlayer(toks[1]);
+						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
@@ -183,7 +187,7 @@ public class TournamentServiceApp {
 					}
 				case DO_MATCH :
 					if (toks.length == 3) {
-						int site = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
 							result = false;
@@ -201,7 +205,7 @@ public class TournamentServiceApp {
 					}
 				case VIEW_STATUS :
 					if (toks.length == 3) {
-						int site = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
 							Log.info("No tournament available at site " + toks[1]);
@@ -224,9 +228,9 @@ public class TournamentServiceApp {
 	String progressMsg = "";
 
 	// Adds a set of tournaments to the system
-	public void initTournaments(Indigo stub, final List<String> commands, AtomicInteger counter, int total, String siteId) {
+	public void initTournaments(Indigo stub, final List<String> commands, AtomicInteger counter, int total, String siteId, String master) {
 		try {
-			TournamentServiceOps client = new TournamentServiceOps(stub, siteId);
+			TournamentServiceOps client = new TournamentServiceOps(stub, siteId, master);
 
 			for (String line : commands) {
 				String msg = String.format("Initialization:%.0f%%", 100.0 * counter.incrementAndGet() / total);
@@ -236,11 +240,10 @@ public class TournamentServiceApp {
 				}
 				String[] toks = line.split(";");
 				String[] tournament = toks[0].split("_");
-				int tournamentSite = Integer.parseInt(tournament[0]);
-				int maxPlayers = tournamentSite == -1 ? numGlobalTournaments : numLocalTournaments;
-				client.addTournament(tournamentSite, tournament[1], maxPlayers);
+				int maxPlayers = tournament.equals("GLOBAL") ? numGlobalTournaments : numLocalTournaments;
+				client.addTournament(tournament[0], tournament[1], maxPlayers);
 				String[] players = new String[toks.length - 1];
-				int playerSite = Integer.parseInt(toks[1].split("_")[0]);
+				String playerSite = toks[1].split("_")[0];
 				for (int i = 1; i < toks.length; i++) {
 					String[] playerToks = toks[i].split("_");
 					players[i - 1] = playerToks[1];
@@ -251,7 +254,6 @@ public class TournamentServiceApp {
 			e1.printStackTrace();
 		}
 	}
-
 	static void initLogger() {
 		Logger logger = Logger.getLogger(resultsLogName);
 		profiler = Profiler.getInstance();

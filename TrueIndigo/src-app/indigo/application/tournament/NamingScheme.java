@@ -48,11 +48,11 @@ public class NamingScheme {
 		return new CRDTIdentifier("indexes", "matches");
 	}
 
-	public static CRDTIdentifier forPlayerIndex(int site) {
+	public static CRDTIdentifier forPlayerIndex(String site) {
 		return new CRDTIdentifier("indexes", "players_" + site);
 	}
 
-	public static CRDTIdentifier forTournamentIndex(int site) {
+	public static CRDTIdentifier forTournamentIndex(String site) {
 		return new CRDTIdentifier("indexes", "tournaments_" + site);
 	}
 

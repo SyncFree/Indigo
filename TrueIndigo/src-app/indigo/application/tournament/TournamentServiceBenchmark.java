@@ -19,7 +19,6 @@ package indigo.application.tournament;
 import static java.lang.System.exit;
 import static sys.Context.Networking;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -51,13 +50,11 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 	public void initDB(String[] args) {
 
-		final String siteId = Args.valueOf(args, "-siteId", (String) null);
+		final String siteId = Args.valueOf(args, "-siteId", "X");
+		final String master = Args.valueOf(args, "-master", "X");
 		final String surrogate = Args.valueOf(args, "-server", (String) null);
 
-		String sitesArg = Args.valueOf(args, "-partitions", "1/1");
-		int numberOfSites = Integer.valueOf(sitesArg.split("/")[1]);
-
-		List<String> commands = super.populateWorkloadFromConfig(numberOfSites);
+		List<String> commands = super.populateWorkloadFromConfig(master);
 		final int N_INIT_WORKERS = 1;
 		int partitionSize = (int) Math.ceil(commands.size() / N_INIT_WORKERS);
 		ExecutorService threadPool = Executors.newFixedThreadPool(N_INIT_WORKERS);
@@ -69,7 +66,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 			threadPool.execute(new Runnable() {
 				public void run() {
 					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate, Defaults.REMOTE_INDIGO_URL));
-					TournamentServiceBenchmark.super.initTournaments(stub, partition, counter, numOps, siteId);
+					TournamentServiceBenchmark.super.initTournaments(stub, partition, counter, numOps, siteId, master);
 				}
 			});
 		}
@@ -81,15 +78,13 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 	public void doBenchmark(String[] args) {
 
 		Args.use(args);
-		final String siteId = Args.valueOf(args, "-siteId", (String) null);
+		final String siteId = Args.valueOf(args, "-siteId", "X");
+		final String master = Args.valueOf(args, "-master", "X");
 		final String server = Args.valueOf(args, "-server", (String) null);
 
 		Log.info(IP.localHostname() + "/ starting...");
 
 		int concurrentSessions = Args.valueOf(args, "-threads", 1);
-		String partitions = Args.valueOf(args, "-partitions", "1/1");
-		int site = Integer.valueOf(partitions.split("/")[0]);
-		int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
 		if (Args.contains("-shepard")) {
 			PatientShepard.sheepJoinHerd(Args.valueOf("-shepard", ""));
@@ -97,13 +92,11 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 		Log.info(IP.localHostAddress() + " connecting to: " + server);
 
-		populateWorkloadFromConfig(numberOfSites);
+		populateWorkloadFromConfig(master);
 
-		bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
-		bufferedOutput.printf(";\tsite=%s\n", site);
-		bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
-		bufferedOutput.printf(";\tSurrogate=%s\n", server);
-		bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
+		// bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
+		// bufferedOutput.printf(";\tSurrogate=%s\n", server);
+		// bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
 		// Kick off all sessions, throughput is limited by
 		// concurrentSessions.
@@ -112,7 +105,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		Log.info("Spawning session threads.");
 		for (int i = 0; i < concurrentSessions; i++) {
 			final int sessionId = i;
-			final Workload commands = super.getWorkloadFromConfig(site, numberOfSites);
+			final Workload commands = super.getWorkloadFromConfig(siteId, master);
 
 			threadPool.execute(new Runnable() {
 				public void run() {
@@ -120,7 +113,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(new Random().nextInt(1000));
 					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
-					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId), sessionId, commands, false);
+					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId, master), sessionId, commands, false);
 				}
 			});
 		}
