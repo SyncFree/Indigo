@@ -148,6 +148,7 @@ public class RemoteIndigo implements Indigo {
 						profiler.endOp(resultsLogName, opId, reply.acquiredStatus().toString(), "" + retryCount, txnTimestamp + "", reply.getSnapshot().toString(), reply.getPhysicalClock() + "");
 						break;
 					} else if (reply.isImpossible()) {
+						tsSource.returnLastTimestamp();
 						throw new IndigoImpossibleExcpetion();
 					}
 				}

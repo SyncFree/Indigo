@@ -82,6 +82,15 @@ public class CounterUnitTests {
 	}
 
 	@Test
+	public void decrementNoResources() throws SwiftException {
+		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
+		increment(id, 0, stub11, DC_A);
+		assertEquals(false, decrement(id, 10, stub11, DC_A));
+		increment(id, 0, stub11, DC_A);
+		increment(id, 0, stub11, DC_A);
+	}
+
+	@Test
 	public void decrementSucceeds() throws SwiftException, InterruptedException {
 		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
 		increment(id, 10, stub11, DC_A);
@@ -110,8 +119,7 @@ public class CounterUnitTests {
 		decrementCycleNThreads1DC(10000, 100);
 	}
 
-	public void decrementCycleNThreads1DC(int initValue, int nThreads) throws SwiftException, InterruptedException,
-			BrokenBarrierException {
+	public void decrementCycleNThreads1DC(int initValue, int nThreads) throws SwiftException, InterruptedException, BrokenBarrierException {
 		int count = initValue;
 		final AtomicInteger sum = new AtomicInteger();
 		CRDTIdentifier id = new CRDTIdentifier(table, "" + key);
