@@ -58,8 +58,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private Set<IndigoOperation> waitingIndex;
 
-	private Map<Timestamp, IndigoOperation> alreadyProcessedTransfers;
-
 	private ExecutorService workers;
 
 	private static Profiler profiler;
@@ -81,7 +79,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		this.incomingRequestsQueue = new ConcurrentLinkedQueue<IndigoOperation>();
 
 		this.waitingIndex = new ConcurrentHashSet<IndigoOperation>();
-		this.alreadyProcessedTransfers = new ConcurrentHashMap<Timestamp, IndigoOperation>();
 
 		this.workers = Executors.newFixedThreadPool(nWorkers);
 		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
