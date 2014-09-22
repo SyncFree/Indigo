@@ -20,9 +20,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import sys.utils.Props;
 
 import com.thoughtworks.xstream.core.util.Base64Encoder;
 
@@ -191,9 +194,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 			return String.format("disenroll_tournament");
 		}
 	}
+	static Properties props = Props.parseFile("indigo-tournament", "indigo-tournament-test.props");
 
-	static Operation[] ops = new Operation[]{new AddPlayer().freq(5), new AddTournament().freq(2), new EnrollTournament().freq(16), new DisenrollTournament().freq(4), new DoMatch().freq(25), new RemTournament().freq(2),
-			new ViewStatus().freq(46)};
+	static Operation[] ops = new Operation[]{new AddPlayer().freq(Props.intValue(props, "tournament.freq.addPlayers", 0)), new AddTournament().freq(Props.intValue(props, "tournament.freq.addTournament", 0)),
+			new EnrollTournament().freq(Props.intValue(props, "tournament.freq.enrollTournament", 0)), new DisenrollTournament().freq(Props.intValue(props, "tournament.freq.disenrollTournament", 0)),
+			new DoMatch().freq(Props.intValue(props, "tournament.freq.doMatch", 0)), new RemTournament().freq(Props.intValue(props, "tournament.freq.remTournament", 0)),
+			new ViewStatus().freq(Props.intValue(props, "tournament.freq.viewStatus", 0))};
 
 	static AtomicInteger doMixedCounter = new AtomicInteger(7);
 

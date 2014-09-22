@@ -42,10 +42,28 @@ public class Profiler {
 		return -1;
 	}
 
+	/**
+	 * This method avoid one lookup in the hashTable
+	 * 
+	 * @param loggerName
+	 * @param opId
+	 * @param otherFields
+	 */
 	public void endOp(String loggerName, long opId, String... otherFields) {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
 			Pair<String, OperationStats> op = ops.get(opId);
+			op.getSecond().endOperation(System.nanoTime(), otherFields);
+			if (logger.isLoggable(Level.FINEST)) {
+				logger.finest(op.getSecond().toString());
+			}
+		}
+	}
+
+	public void endOp(long opId, String... otherFields) {
+		Pair<String, OperationStats> op = ops.get(opId);
+		Logger logger = getLogger(op.getFirst());
+		if (logger.isLoggable(Level.FINEST)) {
 			op.getSecond().endOperation(System.nanoTime(), otherFields);
 			if (logger.isLoggable(Level.FINEST)) {
 				logger.finest(op.getSecond().toString());
@@ -61,8 +79,7 @@ public class Profiler {
 	}
 
 	public void printHeaderWithCustomFields(String loggerName, String... optionalFields) {
-		String headerString = "OP_NAME" + DEFAULT_FIELD_SEPARATOR + "START_TIME" + DEFAULT_FIELD_SEPARATOR + "END_TIME"
-				+ DEFAULT_FIELD_SEPARATOR + "DURATION";
+		String headerString = "OP_NAME" + DEFAULT_FIELD_SEPARATOR + "START_TIME" + DEFAULT_FIELD_SEPARATOR + "END_TIME" + DEFAULT_FIELD_SEPARATOR + "DURATION";
 
 		if (optionalFields.length > 0) {
 			for (String field : optionalFields) {
@@ -99,8 +116,7 @@ public class Profiler {
 	public void trackRequest(String loggerName, IndigoOperation request) {
 		Logger logger = getLogger(loggerName);
 		if (logger.isLoggable(Level.FINEST)) {
-			requests.put(request,
-					new Pair<>(loggerName, new OperationStats(request.getClass().toString(), System.nanoTime())));
+			requests.put(request, new Pair<>(loggerName, new OperationStats(request.getClass().toString(), System.nanoTime())));
 		}
 	}
 

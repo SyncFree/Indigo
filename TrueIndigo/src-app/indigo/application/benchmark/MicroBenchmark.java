@@ -175,7 +175,18 @@ public class MicroBenchmark {
 		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
 	}
 
-	public static void startLocalDC1() {
+	public static void startDC1Sequencer() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31001);
+		int serverPort = Args.valueOf("-srvPort", 32001);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+	}
+
+	public static void startDC1Server() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
@@ -185,17 +196,25 @@ public class MicroBenchmark {
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
-		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
 		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
-
 	}
 
-	public static void startLocalDC2() {
+	public static void startDC2Sequencer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
-		DC_ID = Args.valueOf("-siteId", "Y");
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31002);
+		int serverPort = Args.valueOf("-srvPort", 32002);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+	}
+
+	public static void startDC2Server() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31002);
 		int serverPort = Args.valueOf("-srvPort", 32002);
@@ -203,17 +222,25 @@ public class MicroBenchmark {
 		int dhtPort = Args.valueOf("-dhtPort", 34002);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
 		int indigoPort = Args.valueOf("-indigoPort", 36002);
-		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
 		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
-
 	}
 
-	public static void startLocalDC3() {
+	public static void startDC3Sequencer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
-		DC_ID = Args.valueOf("-siteId", "Z");
+		DC_ID = Args.valueOf("-siteId", "X");
+		MASTER_ID = Args.valueOf("-master", "X");
+		int sequencerPort = Args.valueOf("-seqPort", 31003);
+		int serverPort = Args.valueOf("-srvPort", 32003);
+		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
+
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+	}
+
+	public static void startDC3Server() {
+		System.out.printf("Start DataCenter: %s", DC_ID);
+		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31003);
 		int serverPort = Args.valueOf("-srvPort", 32003);
@@ -221,10 +248,8 @@ public class MicroBenchmark {
 		int dhtPort = Args.valueOf("-dhtPort", 34003);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35003);
 		int indigoPort = Args.valueOf("-indigoPort", 36003);
-		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
 		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
 	}
 
@@ -250,46 +275,73 @@ public class MicroBenchmark {
 
 			}
 
-			if (Args.contains("-startDC1")) {
+			if (Args.contains("-startSeq1")) {
 				Thread dc = new Thread(new Runnable() {
 
 					@Override
 					public void run() {
-						startLocalDC1();
+						startDC1Sequencer();
 					}
 				});
+				dc.setDaemon(false);
 				dc.start();
-				Thread.sleep(1000);
-				// Reset args after starting DC
-				Args.use(args);
 			}
 
-			if (Args.contains("-startDC2")) {
+			if (Args.contains("-startSrv1")) {
 				Thread dc = new Thread(new Runnable() {
 
 					@Override
 					public void run() {
-						startLocalDC2();
+						startDC1Server();
 					}
 				});
+				dc.setDaemon(false);
 				dc.start();
-				Thread.sleep(1000);
-				// Reset args after starting DC
-				Args.use(args);
+
 			}
 
-			if (Args.contains("-startDC3")) {
+			if (Args.contains("-startSeq2")) {
 				Thread dc = new Thread(new Runnable() {
 
 					@Override
 					public void run() {
-						startLocalDC3();
+						startDC2Sequencer();
 					}
 				});
 				dc.start();
-				Thread.sleep(1000);
-				// Reset args after starting DC
-				Args.use(args);
+			}
+
+			if (Args.contains("-startSrv2")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startDC2Server();
+					}
+				});
+				dc.start();
+			}
+
+			if (Args.contains("-startSeq3")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startDC3Sequencer();
+					}
+				});
+				dc.start();
+			}
+
+			if (Args.contains("-startSrv3")) {
+				Thread dc = new Thread(new Runnable() {
+
+					@Override
+					public void run() {
+						startDC3Server();
+					}
+				});
+				dc.start();
 			}
 
 			if (Args.contains("-startServer")) {

@@ -23,11 +23,17 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import swift.application.test.TestsUtil;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
 import swift.utils.Pair;
+import sys.utils.Args;
+import sys.utils.Profiler;
 import sys.utils.Props;
 import sys.utils.Threading;
 
@@ -52,6 +58,13 @@ public class TournamentServiceApp {
 	protected AtomicInteger totalCommands = new AtomicInteger(0);
 	private Properties props;
 
+	private static String resultsLogName = "TournamentBenchmarkResults";
+	private static Profiler profiler;
+
+	public TournamentServiceApp() {
+		initLogger();
+	}
+
 	// If number of sites is defined in the config file, than overrides the
 	// parameter
 	public List<String> populateWorkloadFromConfig(int nSites) {
@@ -69,6 +82,7 @@ public class TournamentServiceApp {
 		maxGlobalPlayers = Props.intValue(props, "tournament.maxGlobalPlayers", 100);
 		numOps = Props.intValue(props, "tournament.numOps", 1000);
 		thinkTime = Props.intValue(props, "tournament.thinkTime", 1000);
+		localPercentage = Props.intValue(props, "tournament.localPercentage", 90);
 		nSites = Props.intValue(props, "tournament.numberOfSites", nSites);
 
 		return Workload.populate(numPlayers, numLocalTournaments, numGlobalTournaments, minLocalPlayers, maxLocalPlayers, minGlobalPlayers, maxGlobalPlayers, nSites);
@@ -109,19 +123,22 @@ public class TournamentServiceApp {
 	public Results runCommandLine(int sessionId, TournamentServiceOps tournamentClient, String cmdLine) {
 		String[] toks = cmdLine.split(";");
 		final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+		long opId = profiler.startOp(resultsLogName, cmd.toString());
+		boolean result = true;
+		boolean sel_keys = true;
 		try {
 			switch (cmd) {
 				case ADD_PLAYER :
 					if (toks.length == 3) {
 						String playerName = tournamentClient.newName(6);
-						tournamentClient.addPlayer(Integer.parseInt(toks[1]), playerName);
+						result = tournamentClient.addPlayer(Integer.parseInt(toks[1]), playerName);
 					}
 				case ADD_TOURNAMENT :
 					if (toks.length == 3) {
 						int tournametSiteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
 						int maxPlayers = toks[2].equals("GLOBAL") ? maxGlobalPlayers : maxLocalPlayers;
 						String tournament = tournamentClient.newName(6);
-						tournamentClient.addTournament(tournametSiteId, tournament, maxPlayers);
+						result = tournamentClient.addTournament(tournametSiteId, tournament, maxPlayers);
 						break;
 					}
 				case REM_TOURNAMENT :
@@ -129,10 +146,12 @@ public class TournamentServiceApp {
 						int siteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
 						String tournament = tournamentClient.selectTournament(siteId);
 						if (tournament == null) {
+							result = false;
+							sel_keys = false;
 							Log.info("No tournament available at site " + toks[1]);
 							break;
 						}
-						tournamentClient.removeTournament(siteId, tournament);
+						result = tournamentClient.removeTournament(siteId, tournament);
 						break;
 					}
 				case ENROLL_TOURNAMENT :
@@ -140,11 +159,13 @@ public class TournamentServiceApp {
 						String player = tournamentClient.selectPlayer(Integer.parseInt(toks[1]));
 						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]));
 						if (player == null || tournament == null) {
+							result = false;
+							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
-
-						tournamentClient.enrollTournament(player, tournament);
+						int tournametSiteId = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						result = tournamentClient.enrollTournament(tournametSiteId, player, tournament);
 						break;
 					}
 				case DISENROLL_TOURNAMENT :
@@ -152,10 +173,12 @@ public class TournamentServiceApp {
 						String player = tournamentClient.selectPlayer(Integer.parseInt(toks[1]));
 						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]));
 						if (player == null || tournament == null) {
+							result = false;
+							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
-						tournamentClient.disenrollTournament(player, tournament);
+						result = tournamentClient.disenrollTournament(player, tournament);
 						break;
 					}
 				case DO_MATCH :
@@ -163,13 +186,14 @@ public class TournamentServiceApp {
 						int site = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
 						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
+							result = false;
+							sel_keys = false;
 							Log.info("No tournament available at site  " + toks[1]);
 							break;
 						}
 						Pair<String, String> players = tournamentClient.selectTournamentPlayerPair(tournament);
-						// TODO: Does not handle unique identifiers
 						if (players != null) {
-							tournamentClient.doMatch(UUID.randomUUID().toString(), tournament, players.getFirst(), players.getSecond());
+							result = tournamentClient.doMatch(UUID.randomUUID().toString(), tournament, players.getFirst(), players.getSecond());
 						} else {
 							// Output different message here
 						}
@@ -194,10 +218,9 @@ public class TournamentServiceApp {
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		}
-
+		profiler.endOp(resultsLogName, opId, result + "", sel_keys + "");
 		return new TournamentOpsResults(cmd.toString());
 	}
-
 	String progressMsg = "";
 
 	// Adds a set of tournaments to the system
@@ -228,6 +251,33 @@ public class TournamentServiceApp {
 			e1.printStackTrace();
 		}
 	}
+
+	static void initLogger() {
+		Logger logger = Logger.getLogger(resultsLogName);
+		profiler = Profiler.getInstance();
+		if (logger.isLoggable(Level.FINEST)) {
+			FileHandler fileTxt;
+			try {
+				String resultsDir = Args.valueOf("-results_dir", ".");
+				String siteId = Args.valueOf("-siteId", "GLOBAL");
+				String suffix = Args.valueOf("-fileNameSuffix", "");
+				fileTxt = new FileHandler(resultsDir + "/tournament_results" + "_" + siteId + suffix + ".log");
+				fileTxt.setFormatter(new java.util.logging.Formatter() {
+					@Override
+					public String format(LogRecord record) {
+						return record.getMessage() + "\n";
+					}
+				});
+				logger.addHandler(fileTxt);
+				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.exit(0);
+			}
+		}
+		profiler.printHeaderWithCustomFields(resultsLogName, "OP_SUCCESS", "SEL_KEYS");
+	}
+
 	static class TournamentOpsResults implements Results {
 
 		long txnStartTime, txnEndTime;

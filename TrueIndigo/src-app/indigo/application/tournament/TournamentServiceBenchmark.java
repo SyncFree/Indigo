@@ -25,12 +25,8 @@ import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.FileHandler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
-import swift.application.test.TestsUtil;
 import swift.indigo.Defaults;
 import swift.indigo.Indigo;
 import swift.indigo.IndigoSequencerAndResourceManager;
@@ -39,7 +35,6 @@ import swift.indigo.remote.RemoteIndigo;
 import sys.shepard.PatientShepard;
 import sys.utils.Args;
 import sys.utils.IP;
-import sys.utils.Profiler;
 import sys.utils.Progress;
 import sys.utils.Tasks;
 import sys.utils.Threading;
@@ -53,8 +48,6 @@ import sys.utils.Threading;
  */
 public class TournamentServiceBenchmark extends TournamentServiceApp {
 	private static Logger Log = Logger.getLogger(TournamentServiceBenchmark.class.getName());
-	private static String resultsLogName = "TournamentBenchmark";
-	private static Profiler profiler;
 
 	public void initDB(String[] args) {
 
@@ -139,32 +132,6 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		// Wait for all sessions.
 		Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
 		Log.info("Session threads completed.");
-	}
-
-	static void initLogger() {
-		Logger logger = Logger.getLogger(resultsLogName);
-		profiler = Profiler.getInstance();
-		if (logger.isLoggable(Level.FINEST)) {
-			FileHandler fileTxt;
-			try {
-				String resultsDir = Args.valueOf("-results_dir", ".");
-				String siteId = Args.valueOf("-siteId", "GLOBAL");
-				String suffix = Args.valueOf("-fileNameSuffix", "");
-				fileTxt = new FileHandler(resultsDir + "/tournament_results" + "_" + siteId + suffix + ".log");
-				fileTxt.setFormatter(new java.util.logging.Formatter() {
-					@Override
-					public String format(LogRecord record) {
-						return record.getMessage() + "\n";
-					}
-				});
-				logger.addHandler(fileTxt);
-				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.exit(0);
-			}
-		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS", "AVAILABLE");
 	}
 
 	public static void main(String[] args) {
