@@ -35,14 +35,14 @@ public class CounterUnitTests {
 	static String DC_B = "DC_B";
 	static boolean started;
 
+	@Before
 	public void init1DC() {
 		if (!started) {
-			TestsUtil.startDC1Server(DC_A, DC_A, 31001, 32001, 33001, 34001, 35001, 3600, new String[]{"tcp://*:"
-					+ 31001 + "/" + DC_A + "/"}, new String[]{});
+			TestsUtil.startDC1Server("DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{"tcp://*:" + 31001 + "/DC_A/"}, new String[]{});
 			started = true;
 
-			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
-			stub12 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_A + "/"));
+			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));
+			stub12 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));
 		}
 	}
 
