@@ -235,10 +235,10 @@ public final class DataServer {
 			data.pruneIfPossible(clocks.pruneClockCopy());
 
 			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+			data.getClock().recordAllUntil(req.getCltTs());
+
 			if (logger.isLoggable(Level.INFO)) {
-				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = "
-						+ clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency()
-						+ "; cltTs = " + req.getCltTs());
+				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = " + req.getCltTs());
 			}
 
 			ObjectUpdatesInfo info = new ObjectUpdatesInfo(data.getPruneClock().clone(), req.getGrp());
