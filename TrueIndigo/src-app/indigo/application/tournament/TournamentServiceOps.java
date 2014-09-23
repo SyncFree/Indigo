@@ -250,7 +250,7 @@ public class TournamentServiceOps {
 	}
 	@SuppressWarnings("unchecked")
 	protected boolean enrollTournament(final String site, final String playerName, final String tournamentName) throws SwiftException {
-		boolean result = true;
+		boolean result = true, exists = false, dec = false;
 		try {
 			List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 			resources.add(new LockReservation(siteId, NamingScheme.forPlayerLock(playerName), ShareableLock.FORBID));
@@ -260,7 +260,7 @@ public class TournamentServiceOps {
 
 			// Check tournament exists
 			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site), false, AddWinsSetCRDT.class);
-			result &= tournamentIndex.lookup(tournamentName);
+			exists = tournamentIndex.lookup(tournamentName);
 
 			// Add player to tournament
 			AddWinsSetCRDT<String> tournamentSet = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournament(tournamentName), false, AddWinsSetCRDT.class);
@@ -274,10 +274,14 @@ public class TournamentServiceOps {
 			AddWinsSetCRDT<String> playerTournaments = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerTournaments(playerName), false, AddWinsSetCRDT.class);
 			playerTournaments.add(tournamentName);
 			BoundedCounterAsResource counter = stub.get(NamingScheme.forTournamentSize(tournamentName), false, BoundedCounterAsResource.class);
-			result &= counter.decrement(1, siteId);
+			dec = counter.decrement(1, siteId);
 
-			if (logger.isLoggable(Level.WARNING)) {
-				logger.warning("Decrement failed!!!");
+			result = result && exists && dec;
+			if (logger.isLoggable(Level.WARNING) && result == false) {
+				if (!dec)
+					logger.warning("Decrement failed!!! " + counter);
+				if (!exists)
+					logger.warning("Tournament does not exist in index " + tournamentName);
 			}
 		} catch (SwiftException e) {
 			if (logger.isLoggable(Level.WARNING)) {
@@ -288,7 +292,6 @@ public class TournamentServiceOps {
 		}
 		return result;
 	}
-
 	@SuppressWarnings("unchecked")
 	protected boolean disenrollTournament(String player, String tournamentName) throws SwiftException {
 		boolean result = true;

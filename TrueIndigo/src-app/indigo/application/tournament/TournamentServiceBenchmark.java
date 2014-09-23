@@ -52,10 +52,10 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 		final String siteId = Args.valueOf(args, "-siteId", "X");
 		final String master = Args.valueOf(args, "-master", "X");
-		final String surrogate = Args.valueOf(args, "-server", (String) null);
+		final String surrogate = Args.valueOf(args, "-srvAddress", "tcp://*/36001/");
 
 		List<String> commands = super.populateWorkloadFromConfig(master);
-		final int N_INIT_WORKERS = 1;
+		final int N_INIT_WORKERS = 4;
 		int partitionSize = (int) Math.ceil(commands.size() / N_INIT_WORKERS);
 		ExecutorService threadPool = Executors.newFixedThreadPool(N_INIT_WORKERS);
 
@@ -80,7 +80,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		Args.use(args);
 		final String siteId = Args.valueOf(args, "-siteId", "X");
 		final String master = Args.valueOf(args, "-master", "X");
-		final String server = Args.valueOf(args, "-server", (String) null);
+		final String server = Args.valueOf(args, "-srvAddress", "tcp://*/36001/");
 
 		Log.info(IP.localHostname() + "/ starting...");
 
@@ -112,7 +112,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 					// Randomize startup to avoid clients running all at the
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(new Random().nextInt(1000));
-					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
+					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, "tcp://*/36001/"));
 					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId, master), sessionId, commands, false);
 				}
 			});
@@ -128,7 +128,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 	}
 
 	public static void main(String[] args) {
-
+		Args.use(args);
 		TournamentServiceBenchmark instance = new TournamentServiceBenchmark();
 		if (args.length == 0) {
 
@@ -147,7 +147,6 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 			exit(0);
 		}
 		if (args[0].equals("-run")) {
-			initLogger();
 			instance.doBenchmark(args);
 			exit(0);
 		}

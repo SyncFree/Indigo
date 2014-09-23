@@ -62,8 +62,12 @@ public class TournamentServiceApp {
 	private static String resultsLogName = "TournamentBenchmarkResults";
 	private static Profiler profiler;
 
-	public TournamentServiceApp() {
+	{
 		initLogger();
+	}
+
+	public TournamentServiceApp() {
+		props = Props.parseFile("indigo-tournament", System.err, Args.valueOf("-config", "indigo-tournament.props"));
 	}
 
 	// If number of sites is defined in the config file, than overrides the
@@ -71,8 +75,6 @@ public class TournamentServiceApp {
 	public List<String> populateWorkloadFromConfig(String master) {
 
 		// bufferedOutput = new PrintStream(System.out, false);
-
-		props = Props.parseFile("indigo-tournament", System.err, Args.valueOf("-config", "indigo-tournament.props"));
 
 		numPlayers = Props.intValue(props, "tournament.numPlayers", 10);
 		numLocalTournaments = Props.intValue(props, "tournament.numLocalTournaments", 100);
@@ -130,6 +132,7 @@ public class TournamentServiceApp {
 		long opId = profiler.startOp(resultsLogName, cmd.toString());
 		boolean result = true;
 		boolean sel_keys = true;
+		String site = "GLOBAL";
 		try {
 			switch (cmd) {
 				case ADD_PLAYER :
@@ -139,43 +142,44 @@ public class TournamentServiceApp {
 					}
 				case ADD_TOURNAMENT :
 					if (toks.length == 3) {
-						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						int maxPlayers = toks[2].equals("GLOBAL") ? maxGlobalPlayers : maxLocalPlayers;
 						String tournament = tournamentClient.newName(6);
-						result = tournamentClient.addTournament(tournametSiteId, tournament, maxPlayers);
+						result = tournamentClient.addTournament(site, tournament, maxPlayers);
 						break;
 					}
 				case REM_TOURNAMENT :
 					if (toks.length == 3) {
-						String tournamentSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
-						String tournament = tournamentClient.selectTournament(tournamentSiteId);
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No tournament available at site " + toks[1]);
 							break;
 						}
-						result = tournamentClient.removeTournament(tournamentSiteId, tournament);
+						result = tournamentClient.removeTournament(site, tournament);
 						break;
 					}
 				case ENROLL_TOURNAMENT :
 					if (toks.length == 3) {
 						String player = tournamentClient.selectPlayer(toks[1]);
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						String tournament = tournamentClient.selectTournament(site);
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
-						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
-						result = tournamentClient.enrollTournament(tournametSiteId, player, tournament);
+						result = tournamentClient.enrollTournament(site, player, tournament);
 						break;
 					}
 				case DISENROLL_TOURNAMENT :
 					if (toks.length == 3) {
 						String player = tournamentClient.selectPlayer(toks[1]);
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						String tournament = tournamentClient.selectTournament(site);
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
@@ -187,7 +191,7 @@ public class TournamentServiceApp {
 					}
 				case DO_MATCH :
 					if (toks.length == 3) {
-						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
 							result = false;
@@ -205,7 +209,7 @@ public class TournamentServiceApp {
 					}
 				case VIEW_STATUS :
 					if (toks.length == 3) {
-						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						String tournament = tournamentClient.selectTournament(site);
 						if (tournament == null) {
 							Log.info("No tournament available at site " + toks[1]);
@@ -222,7 +226,7 @@ public class TournamentServiceApp {
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		}
-		profiler.endOp(resultsLogName, opId, result + "", sel_keys + "");
+		profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 		return new TournamentOpsResults(cmd.toString());
 	}
 	String progressMsg = "";
@@ -277,7 +281,7 @@ public class TournamentServiceApp {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "OP_SUCCESS", "SEL_KEYS");
+		profiler.printHeaderWithCustomFields(resultsLogName, "SITE", "OP_SUCCESS", "SEL_KEYS");
 	}
 
 	static class TournamentOpsResults implements Results {
