@@ -11,38 +11,38 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-208-139-135.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-175-187.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-77-185-39.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-209-108-51.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-254-211.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-76-28-162.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-208-139-135.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-175-187.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-77-185-39.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-209-108-51.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-183-254-211.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-76-28-162.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-208-139-135.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-175-187.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-77-185-39.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-209-108-51.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-254-211.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-76-28-162.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-208-139-135.compute-1.amazonaws.com"
-	"ec2-54-183-175-187.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-185-39.eu-west-1.compute.amazonaws.com"
+	"ec2-54-209-108-51.compute-1.amazonaws.com"
+	"ec2-54-183-254-211.us-west-1.compute.amazonaws.com"
+	"ec2-54-76-28-162.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-208-141-89.compute-1.amazonaws.com"
-	"ec2-54-183-175-82.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-195-117.eu-west-1.compute.amazonaws.com"
+	"ec2-54-208-177-229.compute-1.amazonaws.com"
+	"ec2-54-183-80-147.us-west-1.compute.amazonaws.com"
+	"ec2-54-72-252-192.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-208-139-135.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-209-108-51.compute-1.amazonaws.com:29876/"
 
 
 #LOCAL OVERRIDE
@@ -59,7 +59,7 @@ SHEPARD_URL="tcp://ec2-54-208-139-135.compute-1.amazonaws.com:29876/"
 #SHEPARD_URL="tcp://*:29876/"
 
 
-CONFIG=("indigo-tournament-w40-r60-l90.props")
+CONFIG=("indigo-tournament-w20-r80-l90.props")
 N_REGIONS=(3)
 N_THREADS=(10)
 MODE=("-indigo")

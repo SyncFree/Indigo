@@ -132,6 +132,69 @@ public class StatisticsUtils {
 	}
 
 	// OP_NAME START_TIME DURATION SITE -> OP_NAME (MEAN_TIME, STD_DEV)*
+	private static void createCDFTournament(int rangeI, int rangeF, int increment, String filename) throws FileNotFoundException {
+		Map<String, Frequency> durationFrequency = new HashMap<>();
+		boolean warmUpComplete = false;
+		long startTime = -1;
+
+		File file = new File(filename);
+		Scanner scanner = new Scanner(file);
+		while (scanner.hasNextLine()) {
+			String line = scanner.nextLine();
+			String[] tokens = line.split("\t");
+			if (tokens.length != 7 || tokens[0].equals("OP_NAME")) {
+				continue;
+			}
+
+			long opStartTime = Long.parseLong(tokens[1]);
+
+			if (startTime == -1) {
+				startTime = opStartTime;
+			}
+			if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+				warmUpComplete = true;
+				startTime = opStartTime;
+			}
+			if (warmUpComplete) {
+				if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+					double d = Double.parseDouble(tokens[3]);
+					if (d > OUTLIER || tokens[0].contains("PRE_")) {
+						continue;
+					}
+					durationFrequency.putIfAbsent(tokens[0], new Frequency());
+					Frequency opF = durationFrequency.get(tokens[0]);
+					opF.addValue(d);
+				} else {
+					// Just take results in one minute
+					break;
+				}
+			}
+		}
+		String header = "LAT";
+		String[] opNames = new String[]{"VIEW_STATUS", "ENROLL_TOURNAMENT", "DISENROLL_TOURNAMENT", "DO_MATCH", "ADD_PLAYER", "ADD_TOURNAMENT", "REM_TOURNAMENT"};
+		for (String opName : opNames) {
+			header += "\t" + opName;
+		}
+		System.out.println(header);
+		for (int i = rangeI; i <= rangeF; i += increment) {
+			StringBuilder opsCumFreq = new StringBuilder();
+			opsCumFreq.append(i);
+			for (String opName : opNames) {
+				Frequency f = durationFrequency.get(opName);
+				if (f == null) {
+					opsCumFreq.append("\t");
+					opsCumFreq.append(0);
+				} else {
+					opsCumFreq.append("\t");
+					opsCumFreq.append(f.getCumPct((double) i));
+				}
+
+			}
+			System.out.println(opsCumFreq.toString());
+		}
+
+		scanner.close();
+	}
 	private static void createHistogramTournament(String[] filenames) throws FileNotFoundException {
 		Map<String, Map<String, DescriptiveStatistics>> opsDuration = new HashMap<>();
 		System.out.printf("OP_NAME\tUS-EAST\tUS-WEST\tEUROPE\tGLOBAL\n");
@@ -160,14 +223,13 @@ public class StatisticsUtils {
 				}
 				if (warmUpComplete) {
 					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+						double d = Double.parseDouble(tokens[3]);
+						if (d > OUTLIER || tokens[0].contains("PRE_")) {
+							continue;
+						}
 						opsDuration.putIfAbsent(tokens[0], new HashMap<>());
 						Map<String, DescriptiveStatistics> op = opsDuration.get(tokens[0]);
 						op.putIfAbsent(tokens[4], new DescriptiveStatistics());
-						double d = Double.parseDouble(tokens[3]);
-						if (d > OUTLIER) {
-							System.err.println("ignored one line " + line);
-							continue;
-						}
 						op.get(tokens[4]).addValue(d);
 					} else {
 						// Just take results in one minute
@@ -188,13 +250,19 @@ public class StatisticsUtils {
 				double stdDev = values.getStandardDeviation();
 				double min = values.getMin();
 				double max = values.getMax();
-				outputLine.append(",");
+				if (mean != mean) {
+					mean = 0;
+					stdDev = 0;
+					min = 0;
+					max = 0;
+				}
+				outputLine.append("\t");
 				outputLine.append(mean);
-				outputLine.append(",");
+				outputLine.append("\t");
 				outputLine.append(stdDev);
-				outputLine.append(",");
+				outputLine.append("\t");
 				outputLine.append(min);
-				outputLine.append(",");
+				outputLine.append("\t");
 				outputLine.append(max);
 			}
 			System.out.println(outputLine.toString());
@@ -238,6 +306,19 @@ public class StatisticsUtils {
 					files[i] = args[i + 1];
 				}
 				createHistogramTournament(files);
+			}
+
+			if (args[0].equals("-tourCDF")) {
+				int numFiles = args.length - 1;
+				String[] files = new String[numFiles];
+				for (int i = 0; i < numFiles; i++) {
+					files[i] = args[i + 1];
+				}
+				int rangeI = Integer.parseInt(args[1]);
+				int rangeF = Integer.parseInt(args[2]);
+				int increment = Integer.parseInt(args[3]);
+				String filename = args[4];
+				createCDFTournament(rangeI, rangeF, increment, filename);
 			}
 
 		} catch (FileNotFoundException e) {

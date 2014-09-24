@@ -71,8 +71,8 @@ N_KEYS=(1000)
 #N_REGIONS=(1)
 N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(1 5 10 15 25 30 35 40 45 50)
-MODE=("-indigo" )
+N_THREADS=(1 5 10 15 25 30 40 50 60)
+MODE=("-indigo" "-weak")
 DISTRIBUTION="uniform"
 INIT_VAL=2999999
 
@@ -274,6 +274,7 @@ do
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
+				kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 
 				
 				#Generate results

@@ -11,44 +11,44 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-210-92-69.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-250-191.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-194-235-131.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-210-95-209.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-170-152.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-77-87-129.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-88-167-248.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-203-139.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-194-207-211.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-164-19-154.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-183-20-242.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-77-93-91.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-210-92-69.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-250-191.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-194-235-131.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-210-95-209.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-170-152.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-77-87-129.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-54-88-167-248.compute-1.amazonaws.com"
-	"ec2-54-183-203-139.us-west-1.compute.amazonaws.com"
-	"ec2-54-194-207-211.eu-west-1.compute.amazonaws.com"
+	"ec2-54-164-19-154.compute-1.amazonaws.com"
+	"ec2-54-183-20-242.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-93-91.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-210-92-69.compute-1.amazonaws.com"
-	"ec2-54-183-250-191.us-west-1.compute.amazonaws.com"
-	"ec2-54-194-235-131.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-95-209.compute-1.amazonaws.com"
+	"ec2-54-183-170-152.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-87-129.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-236-246.compute-1.amazonaws.com"
-	"ec2-54-183-199-72.us-west-1.compute.amazonaws.com"
-	"ec2-54-194-235-130.eu-west-1.compute.amazonaws.com"
+	"ec2-54-165-160-64.compute-1.amazonaws.com"
+	"ec2-54-183-30-15.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-45-18.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-210-92-69.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-210-95-209.compute-1.amazonaws.com:29876/"
 	
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -66,14 +66,14 @@ SHEPARD_URL="tcp://ec2-54-210-92-69.compute-1.amazonaws.com:29876/"
 
 TABLE="table"
 #N_KEYS=(1 10 100 1000 10000)
-N_KEYS=(1000)
+N_KEYS=(1)
 #N_REGIONS=(1)
 N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(1 5 10 15 25 30 35 40 45 50)
+N_THREADS=(1 5)
 MODE=("-indigo" )
 DISTRIBUTION="uniform"
-INIT_VAL=2999999
+INIT_VAL=6000
 
 #<Clients> #<Command>
 ssh_command() {
