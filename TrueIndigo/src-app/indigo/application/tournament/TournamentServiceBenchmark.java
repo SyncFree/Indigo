@@ -55,7 +55,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		final String surrogate = Args.valueOf(args, "-srvAddress", "tcp://*/36001/");
 
 		List<String> commands = super.populateWorkloadFromConfig(master);
-		final int N_INIT_WORKERS = 4;
+		final int N_INIT_WORKERS = 10;
 		int partitionSize = (int) Math.ceil(commands.size() / N_INIT_WORKERS);
 		ExecutorService threadPool = Executors.newFixedThreadPool(N_INIT_WORKERS);
 
@@ -101,7 +101,6 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		// Kick off all sessions, throughput is limited by
 		// concurrentSessions.
 		final ExecutorService threadPool = Executors.newFixedThreadPool(concurrentSessions, Threading.factory("X"));
-
 		Log.info("Spawning session threads.");
 		for (int i = 0; i < concurrentSessions; i++) {
 			final int sessionId = i;
@@ -113,7 +112,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(new Random().nextInt(1000));
 					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, "tcp://*/36001/"));
-					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId, master), sessionId, commands, false);
+					TournamentServiceBenchmark.super.runClientSession(new TournamentServiceOps(stub, siteId, master, TournamentServiceBenchmark.super.sites), sessionId, commands, false);
 				}
 			});
 		}
