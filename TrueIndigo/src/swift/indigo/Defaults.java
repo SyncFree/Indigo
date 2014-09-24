@@ -24,7 +24,7 @@ import java.util.logging.Logger;
  * @author smduarte
  * 
  */
-public class Defaults {
+public class Defaults extends swift.dc.Defaults {
 	public static final Logger DCLogger = Logger.getLogger("swift.indigo");
 
 	public static final String REMOTE_INDIGO_URL = "tcp://*:30007";

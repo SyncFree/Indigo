@@ -22,7 +22,6 @@ public class AcquireResourcesReply {
 	protected AcquireReply status;
 
 	transient Collection<ResourceRequest<?>> requests;
-	// transient boolean[] durable;
 	transient Timestamp cltTimestamp;
 
 	private long time;
@@ -54,11 +53,9 @@ public class AcquireResourcesReply {
 		this.timestamp = timestamp;
 		this.cltTimestamp = cltTimestamp;
 		this.objectUpdateGroups = objectUpdateGroups;
-		// FIXME: Why this? -- probably jsut a mistake
-		// this.requests = sortedRequests(requests);
 		this.requests = requests;
-		// this.durable = new boolean[this.requests.length];
 	}
+
 	// Used for weak consistency emulation...
 	public AcquireResourcesReply(long serial, CausalityClock currentClockEstimate) {
 		this.time = System.currentTimeMillis();

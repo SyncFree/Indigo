@@ -17,6 +17,7 @@
 package swift.indigo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -48,7 +49,7 @@ import swift.indigo.proto.FetchObjectRequest;
 import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.IndigoProtocolHandler;
 import swift.indigo.proto.ReleaseResourcesRequest;
-import swift.indigo.remote.IndigoImpossibleExcpetion;
+import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigoServer;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
@@ -68,7 +69,6 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 	static Logger logger = Logger.getLogger(IndigoServer.class.getName());
 
 	final boolean emulateWeakConsistency;
-	final boolean emulateRedBlueConsistency;
 
 	Endpoint lockManager;
 	AtomicInteger stubCounter = new AtomicInteger(0);
@@ -79,8 +79,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 		this.lockManager = super.sequencer;
 		this.rindigo = new RemoteIndigoServer(lockManager, this);
 
-		this.emulateWeakConsistency = Args.contains("-weak") || true;
-		this.emulateRedBlueConsistency = Args.contains("-redblue") && !emulateWeakConsistency;
+		this.emulateWeakConsistency = Args.contains("-weak");
 	}
 
 	public long registerSnapshot(CausalityClock snapshot) {
@@ -91,8 +90,8 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 	}
 
 	public void disposeSnapshot(long serial) {
-		Snapshots.free(serial);
-		super.dataServer.updatePruneClock(Snapshots.safeSnapshot());
+		if (Snapshots.free(serial))
+			super.dataServer.updatePruneClock(Snapshots.safeSnapshot());
 	}
 
 	public void onReceive(Envelope src, FetchObjectRequest request) {
@@ -115,6 +114,8 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 
 	public static void main(String[] args) {
 		Args.use(args);
+
+		System.err.println(">>>>>>>>>>>>>>>>>>>>>>>>>" + Arrays.asList(args));
 		new IndigoServer();
 	}
 
@@ -148,11 +149,11 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 			return (V) handle.get(id, create, classOfV);
 		}
 
-		public void beginTxn() throws IndigoImpossibleExcpetion {
+		public void beginTxn() throws IndigoImpossibleException {
 			beginTxn(new HashSet<ResourceRequest<?>>());
 		}
 
-		public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
+		public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleException {
 			try {
 				Timestamp txnTimestamp = tsSource.generateNew();
 
@@ -173,7 +174,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 							handle = new _TxnHandle(reply, txnTimestamp);
 							break;
 						} else if (reply.isImpossible()) {
-							throw new IndigoImpossibleExcpetion();
+							throw new IndigoImpossibleException();
 						} else {
 							Threading.sleep(delay);
 						}
@@ -294,11 +295,13 @@ class Snapshots {
 		}
 	}
 
-	static void free(long serial) {
+	static boolean free(long serial) {
 		synchronized (serials) {
 			CausalityClock cc = serials.remove(serial);
 			if (serials.isEmpty() && cc != null)
 				last = cc;
+
+			return cc != null;
 		}
 	}
 

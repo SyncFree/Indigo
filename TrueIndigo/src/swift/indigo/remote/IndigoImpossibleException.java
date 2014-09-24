@@ -2,13 +2,13 @@ package swift.indigo.remote;
 
 import swift.exceptions.SwiftException;
 
-public class IndigoImpossibleExcpetion extends SwiftException {
+public class IndigoImpossibleException extends SwiftException {
 
-	public IndigoImpossibleExcpetion() {
+	public IndigoImpossibleException() {
 		super("IMPOSSIBLE TO ACQUIRE RESOURCES");
 	}
 
-	public IndigoImpossibleExcpetion(Exception exception) {
+	public IndigoImpossibleException(Exception exception) {
 		super(exception);
 	}
 

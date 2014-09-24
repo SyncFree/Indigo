@@ -29,7 +29,6 @@ import swift.dc.Defaults;
 import swift.dc.Sequencer;
 import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
-import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.InitializeResources;
 import swift.indigo.proto.ReleaseResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
@@ -52,8 +51,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 	ResourceManagerNode lockManagerNode;
 	List<String> dcNames;
 
-	IndigoSequencerAndResourceManager(String siteId, int port, List<String> servers, List<String> sequencers,
-			String sequencerShadow, boolean isBackup, Properties props, List<String> dcNames) {
+	IndigoSequencerAndResourceManager(String siteId, int port, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup, Properties props, List<String> dcNames) {
 		// super(siteId, port, servers, sequencers, sequencerShadow, isBackup,
 		// props);
 		this.dcNames = dcNames;
@@ -67,7 +65,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 			endpoints.put(new Url(str).siteId(), Networking.resolve(str, Defaults.SEQUENCER_URL));
 		});
 
-		Endpoint surrogate = Networking.resolve(Args.valueOf("-server", Defaults.SERVER_URL4SEQUENCERS));
+		Endpoint surrogate = Networking.resolve(Args.valueOf("-server", ""), Defaults.SERVER_URL4SEQUENCERS);
 		lockManagerNode = new ResourceManagerNode(this, surrogate, endpoints);
 	}
 
@@ -82,11 +80,10 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 		if (logger.isLoggable(Level.INFO))
 			logger.info("Commit timestamp " + request.getTimestamp() + " " + request.getCommitUpdatesRequest());
 		super.onReceive(conn, request);
-		// Only do release on local-DC commit messages and if it used locks
-		if (request.getCommitUpdatesRequest() instanceof IndigoCommitRequest) {
-			if (((IndigoCommitRequest) request.getCommitUpdatesRequest()).withLocks())
-				lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
-		}
+
+		// TODO:
+		// try to release any resources properly...
+		lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
 	}
 
 	@Override
@@ -137,8 +134,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 
 		Properties props = new Properties();
 
-		new IndigoSequencerAndResourceManager(siteId, port, servers, sequencers, sequencerShadow, isBackup, props,
-				dcNames).start();
+		new IndigoSequencerAndResourceManager(siteId, port, servers, sequencers, sequencerShadow, isBackup, props, dcNames).start();
 	}
 
 }

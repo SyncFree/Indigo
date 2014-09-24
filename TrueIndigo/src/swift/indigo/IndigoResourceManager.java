@@ -92,6 +92,7 @@ final public class IndigoResourceManager {
 		logger = Logger.getLogger(IndigoResourceManager.class.getName());
 		initLogger_dc();
 	}
+
 	private static void initLogger_dc() {
 		Logger logger = Logger.getLogger(profilerName);
 		profiler = Profiler.getInstance();
@@ -268,6 +269,7 @@ final public class IndigoResourceManager {
 						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache.get(req_i.getResourceId());
 						if (result == false || updates == null || updates.getOperations().size() == 0) {
 							System.out.println("UPDATES ZERO???? " + result + "/" + latestVersion.getClock() + "/" + latestVersion);
+							Thread.dumpStack();
 							System.exit(0);
 						}
 						updates.addSystemTimestamp(txnTs);
@@ -276,6 +278,7 @@ final public class IndigoResourceManager {
 					}
 					if (result == false) {
 						System.out.println("FAILED RESOURCE UPDATE");
+						Thread.dumpStack();
 						System.exit(0);
 					}
 

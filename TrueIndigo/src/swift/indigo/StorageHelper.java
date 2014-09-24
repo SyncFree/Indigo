@@ -48,8 +48,7 @@ public class StorageHelper {
 	private final Endpoint surrogate;
 
 	// TODO: Sequencer should be remote
-	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId,
-			boolean isMasterLockManager) {
+	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId, boolean isMasterLockManager) {
 		this.sequencer = sequencer;
 		this.LOCK_MANAGER = sequencer.siteId + "_LockManager";
 		this.stub = sequencer.stub;
@@ -112,14 +111,12 @@ public class StorageHelper {
 				if (!updates.isEmpty()) {
 					commitTs = sequencer.clocks.newTimestamp();
 
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot,
-							updates);
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
 					req.setTimestamp(commitTs);
 				} else {
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L),
-							snapshot, updates);
-					Thread.currentThread().dumpStack();
+					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
 					System.out.println("NAO pode acontecer");
+					Thread.dumpStack();
 					System.exit(0);
 				}
 
@@ -138,8 +135,7 @@ public class StorageHelper {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
-				boolean create, Class<V> classOfV) throws VersionNotFoundException {
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException {
 			FetchObjectRequest req = new FetchObjectRequest(grantedRequests, LOCK_MANAGER, uid, true);
 
 			FetchObjectReply reply = stub.request(surrogate, req);
@@ -162,8 +158,7 @@ public class StorageHelper {
 		}
 
 		@SuppressWarnings("unchecked")
-		public <V extends CRDT<V>> ManagedCRDT<V> getLatestVersion(CRDTIdentifier id, boolean create, Class<V> classOfV)
-				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> ManagedCRDT<V> getLatestVersion(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, id, true);
 			FetchObjectReply reply = stub.request(surrogate, req);

@@ -30,6 +30,7 @@ import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.indigo.AbstractTxHandle;
+import swift.indigo.Defaults;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
 import swift.indigo.proto.AcquireResourcesReply;
@@ -68,7 +69,7 @@ public class RemoteIndigo implements Indigo {
 	}
 
 	public static Indigo getInstance(String server) {
-		return new RemoteIndigo(Networking.resolve(server));
+		return new RemoteIndigo(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
 	}
 
 	RemoteIndigo(Endpoint server) {
@@ -119,7 +120,7 @@ public class RemoteIndigo implements Indigo {
 	}
 
 	@Override
-	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleExcpetion {
+	public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleException {
 		Timestamp txnTimestamp = tsSource.generateNew();
 
 		AcquireResourcesRequest request;
@@ -149,7 +150,7 @@ public class RemoteIndigo implements Indigo {
 						break;
 					} else if (reply.isImpossible()) {
 						tsSource.returnLastTimestamp();
-						throw new IndigoImpossibleExcpetion();
+						throw new IndigoImpossibleException();
 					}
 				}
 				retryCount++;
