@@ -1,6 +1,7 @@
 package swift.dc;
 
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_CONCURRENT;
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_ISDOMINATED;
 import static swift.dc.Defaults.SERVER_URL;
 import static swift.dc.Defaults.SERVER_URL4SEQUENCERS;
@@ -214,16 +215,15 @@ public class Server implements SurrogateProtocol {
 				if (Log.isLoggable(Level.INFO)) {
 					Log.info("CommitUpdatesRequest ... SeqNo=" + i.getCltTimestamp());
 				}
-				if (clocks.cmp(clocks.currentClock, i.getDependencyClock()) == CMP_ISDOMINATED) {
-					kStability.blockTransaction(i);
-				} else {
+				if (clocks.cmp(i.getDependencyClock(), clocks.currentClock).is(CMP_ISDOMINATED, CMP_EQUALS)) {
 					final ClientSession session = getSession(i.getClientId());
 					if (i.getTimestamp() == null)
 						prepareAndDoCommit(session, i);
 					else {
 						doOneCommit(session, i);
 					}
-				}
+				} else
+					kStability.blockTransaction(i);
 			});
 		}
 	}
@@ -247,7 +247,7 @@ public class Server implements SurrogateProtocol {
 	protected void doOneCommit(final ClientSession session, final CommitUpdatesRequest req) {
 
 		if (Log.isLoggable(Level.INFO)) {
-			Log.info("CommitUpdatesRequest: doProcessOneCommit: cltTs = " + req.getCltTimestamp() + " :ts=" + req.getTimestamp() + " :nops=" + req.getObjectUpdateGroups().size());
+			Log.info(siteId + ":::CommitUpdatesRequest: doProcessOneCommit: cltTs = " + req.getCltTimestamp() + " :ts=" + req.getTimestamp() + " :nops=" + req.getObjectUpdateGroups().size());
 		}
 
 		final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();
@@ -264,7 +264,7 @@ public class Server implements SurrogateProtocol {
 		else {
 			endpoint4servers.asyncRequest(sequencer, new CommitTimestampRequest(req), (CommitTimestampReply i) -> {
 				if (Log.isLoggable(Level.INFO)) {
-					Log.info("Commit: received CommitTimestampReply vrs:" + i.getCurrentClock() + ";ts = " + req.getTimestamp());
+					Log.info(siteId + ":::Commit: received CommitTimestampReply vrs:" + i.getCurrentClock() + ";ts = " + req.getTimestamp());
 				}
 
 				// System.err.println(siteId +
@@ -274,7 +274,7 @@ public class Server implements SurrogateProtocol {
 
 					if (i.getStatus() == CommitTimestampReply.CommitTSStatus.OK) {
 						if (Log.isLoggable(Level.INFO)) {
-							Log.info("Commit OK: ts:" + req.getTimestamp());
+							Log.info(siteId + ":::Commit OK: ts:" + req.getTimestamp());
 						}
 
 						if (req.kStability() >= 0)
@@ -284,6 +284,15 @@ public class Server implements SurrogateProtocol {
 
 						i.getCurrentClock().record(req.getTimestamp());
 						updateCurrentClock(i.getCurrentClock());
+
+						// CausalityClock clk = clocks.currentClockCopy();
+						// ManagedCRDT x =
+						// getCRDT(req.getObjectUpdateGroups().get(0).getTargetUID(),
+						// clk, "xxx");
+						// System.err.println(siteId + "::: id = " + x.getUID()
+						// + " -------->>>>>crdtClock:" + x.getClock() +
+						// " srv: " + clk + " obj:" + x);
+
 					}
 
 				});

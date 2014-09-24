@@ -238,7 +238,8 @@ public final class DataServer {
 			data.getClock().recordAllUntil(req.getCltTs());
 
 			if (logger.isLoggable(Level.INFO)) {
-				logger.info("Data Server: for crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = " + req.getCltTs());
+				logger.info(server.siteId + ":::Data Server: after exec crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = "
+						+ req.getCltTs() + " ts: " + req.getTxTs() + " crdt:" + data);
 			}
 
 			ObjectUpdatesInfo info = new ObjectUpdatesInfo(data.getPruneClock().clone(), req.getGrp());
