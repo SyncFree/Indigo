@@ -1,5 +1,6 @@
 package swift.dc;
 
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_ISDOMINATED;
 import static sys.Context.Networking;
 
@@ -76,7 +77,7 @@ public class KStabilizer {
 			List<CommitUpdatesRequest> done = new ArrayList<>();
 
 			for (CommitUpdatesRequest req : txns)
-				if (clock.compareTo(req.getDependencyClock()) != CMP_ISDOMINATED) {
+				if (req.getDependencyClock().compareTo(clock).is(CMP_ISDOMINATED, CMP_EQUALS)) {
 					done.add(req);
 					if (Log.isLoggable(Level.INFO))
 						Log.info(server.siteId + " @@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
