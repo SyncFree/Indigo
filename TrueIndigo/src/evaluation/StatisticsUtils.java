@@ -2,14 +2,19 @@ package evaluation;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Scanner;
 
 import org.apache.commons.math3.stat.Frequency;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 public class StatisticsUtils {
 	private static final long ONE_SECOND_IN_NANOS = 1000000000;
 	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 60;
-	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 20;
+	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 30;
+	private static final int OUTLIER = 3000;
 	static Frequency valuesFreq;
 
 	public static void getCDF(int rangeI, int rangeF, int increment) {
@@ -125,6 +130,76 @@ public class StatisticsUtils {
 		fileIS.close();
 		return sum / count;
 	}
+
+	// OP_NAME START_TIME DURATION SITE -> OP_NAME (MEAN_TIME, STD_DEV)*
+	private static void createHistogramTournament(String[] filenames) throws FileNotFoundException {
+		Map<String, Map<String, DescriptiveStatistics>> opsDuration = new HashMap<>();
+		System.out.printf("OP_NAME\tUS-EAST\tUS-WEST\tEUROPE\tGLOBAL\n");
+
+		for (String filename : filenames) {
+			boolean warmUpComplete = false;
+			long startTime = -1;
+
+			File file = new File(filename);
+			Scanner scanner = new Scanner(file);
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				String[] tokens = line.split("\t");
+				if (tokens.length != 7 || tokens[0].equals("OP_NAME")) {
+					continue;
+				}
+
+				long opStartTime = Long.parseLong(tokens[1]);
+
+				if (startTime == -1) {
+					startTime = opStartTime;
+				}
+				if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+					warmUpComplete = true;
+					startTime = opStartTime;
+				}
+				if (warmUpComplete) {
+					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+						opsDuration.putIfAbsent(tokens[0], new HashMap<>());
+						Map<String, DescriptiveStatistics> op = opsDuration.get(tokens[0]);
+						op.putIfAbsent(tokens[4], new DescriptiveStatistics());
+						double d = Double.parseDouble(tokens[3]);
+						if (d > OUTLIER) {
+							System.err.println("ignored one line " + line);
+							continue;
+						}
+						op.get(tokens[4]).addValue(d);
+					} else {
+						// Just take results in one minute
+						break;
+					}
+				}
+			}
+			scanner.close();
+		}
+
+		String[] regions = {"US-EAST", "US-WEST", "EUROPE", "GLOBAL"};
+		for (Entry<String, Map<String, DescriptiveStatistics>> op : opsDuration.entrySet()) {
+			StringBuilder outputLine = new StringBuilder();
+			outputLine.append(op.getKey());
+			for (String region : regions) {
+				DescriptiveStatistics values = op.getValue().getOrDefault(region, new DescriptiveStatistics());
+				double mean = values.getMean();
+				double stdDev = values.getStandardDeviation();
+				double min = values.getMin();
+				double max = values.getMax();
+				outputLine.append(",");
+				outputLine.append(mean);
+				outputLine.append(",");
+				outputLine.append(stdDev);
+				outputLine.append(",");
+				outputLine.append(min);
+				outputLine.append(",");
+				outputLine.append(max);
+			}
+			System.out.println(outputLine.toString());
+		}
+	}
 	public static void main(String[] args) {
 		try {
 			if (args[0].equals("-cdf")) {
@@ -154,6 +229,15 @@ public class StatisticsUtils {
 					files[i] = args[i + 2];
 				}
 				createLatencyForTPS(filter, files);
+			}
+
+			if (args[0].equals("-tourHist")) {
+				int numFiles = args.length - 1;
+				String[] files = new String[numFiles];
+				for (int i = 0; i < numFiles; i++) {
+					files[i] = args[i + 1];
+				}
+				createHistogramTournament(files);
 			}
 
 		} catch (FileNotFoundException e) {

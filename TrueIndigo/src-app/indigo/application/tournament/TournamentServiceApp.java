@@ -51,19 +51,23 @@ public class TournamentServiceApp {
 	protected int minLocalPlayers, maxLocalPlayers, minGlobalPlayers, maxGlobalPlayers;
 	protected int numOps;
 	protected int localPercentage;
-	private String[] sites;
+	protected String[] sites;
 
 	// protected PrintStream bufferedOutput;
 
 	protected AtomicInteger commandsDone = new AtomicInteger(0);
 	protected AtomicInteger totalCommands = new AtomicInteger(0);
-	private Properties props;
+	protected static Properties props;
 
 	private static String resultsLogName = "TournamentBenchmarkResults";
 	private static Profiler profiler;
 
-	public TournamentServiceApp() {
+	{
 		initLogger();
+	}
+
+	public TournamentServiceApp() {
+		props = Props.parseFile("indigo-tournament", System.err, Args.valueOf("-config", "indigo-tournament.props"));
 	}
 
 	// If number of sites is defined in the config file, than overrides the
@@ -71,8 +75,6 @@ public class TournamentServiceApp {
 	public List<String> populateWorkloadFromConfig(String master) {
 
 		// bufferedOutput = new PrintStream(System.out, false);
-
-		props = Props.parseFile("indigo-tournament", System.err, Args.valueOf("-config", "indigo-tournament.props"));
 
 		numPlayers = Props.intValue(props, "tournament.numPlayers", 10);
 		numLocalTournaments = Props.intValue(props, "tournament.numLocalTournaments", 100);
@@ -100,7 +102,6 @@ public class TournamentServiceApp {
 	public void runClientSession(TournamentServiceOps serviceClient, final int sessionId, final Workload commands, boolean loop4Ever) {
 
 		totalCommands.addAndGet(commands.size());
-		final long sessionStartTime = System.currentTimeMillis();
 		// final String initSessionLog = String.format("%d,%s,%d,%d", -1,
 		// "INIT", 0, sessionStartTime);
 		// bufferedOutput.println(initSessionLog);
@@ -127,91 +128,119 @@ public class TournamentServiceApp {
 	public Results runCommandLine(int sessionId, TournamentServiceOps tournamentClient, String cmdLine) {
 		String[] toks = cmdLine.split(";");
 		final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
-		long opId = profiler.startOp(resultsLogName, cmd.toString());
 		boolean result = true;
 		boolean sel_keys = true;
+		String site = "GLOBAL";
 		try {
 			switch (cmd) {
 				case ADD_PLAYER :
 					if (toks.length == 3) {
+						long opId = profiler.startOp(resultsLogName, cmd.toString());
 						String playerName = tournamentClient.newName(6);
 						result = tournamentClient.addPlayer(toks[1], playerName);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 					}
 				case ADD_TOURNAMENT :
 					if (toks.length == 3) {
-						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
 						int maxPlayers = toks[2].equals("GLOBAL") ? maxGlobalPlayers : maxLocalPlayers;
 						String tournament = tournamentClient.newName(6);
-						result = tournamentClient.addTournament(tournametSiteId, tournament, maxPlayers);
+						long opId = profiler.startOp(resultsLogName, cmd.toString());
+						result = tournamentClient.addTournament(site, tournament, maxPlayers);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						break;
 					}
 				case REM_TOURNAMENT :
 					if (toks.length == 3) {
-						String tournamentSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
-						String tournament = tournamentClient.selectTournament(tournamentSiteId);
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						long opId = profiler.startOp(resultsLogName, "PRE_" + cmd.toString());
+						String tournament = tournamentClient.selectTournament(site);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						if (tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No tournament available at site " + toks[1]);
 							break;
 						}
-						result = tournamentClient.removeTournament(tournamentSiteId, tournament);
+						opId = profiler.startOp(resultsLogName, cmd.toString());
+						result = tournamentClient.removeTournament(site, tournament);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						break;
 					}
 				case ENROLL_TOURNAMENT :
 					if (toks.length == 3) {
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						long opId = profiler.startOp(resultsLogName, "PRE_" + cmd.toString());
 						String player = tournamentClient.selectPlayer(toks[1]);
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
+						String tournament = tournamentClient.selectTournament(site);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
-						String tournametSiteId = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
-						result = tournamentClient.enrollTournament(tournametSiteId, player, tournament);
+						opId = profiler.startOp(resultsLogName, cmd.toString());
+						result = tournamentClient.enrollTournament(site, player, tournament);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						break;
 					}
 				case DISENROLL_TOURNAMENT :
 					if (toks.length == 3) {
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						long opId = profiler.startOp(resultsLogName, "PRE_" + cmd.toString());
 						String player = tournamentClient.selectPlayer(toks[1]);
-						String tournament = tournamentClient.selectTournament(toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1]);
+						String tournament = tournamentClient.selectTournament(site);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						if (player == null || tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No player or tournament available at site " + toks[1]);
 							break;
 						}
+						opId = profiler.startOp(resultsLogName, cmd.toString());
 						result = tournamentClient.disenrollTournament(player, tournament);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						break;
 					}
 				case DO_MATCH :
 					if (toks.length == 3) {
-						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						long opId = profiler.startOp(resultsLogName, "PRE_" + cmd.toString());
 						String tournament = tournamentClient.selectTournament(site);
+						Pair<String, String> players = tournamentClient.selectTournamentPlayerPair(tournament);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						if (tournament == null) {
 							result = false;
 							sel_keys = false;
 							Log.info("No tournament available at site  " + toks[1]);
 							break;
 						}
-						Pair<String, String> players = tournamentClient.selectTournamentPlayerPair(tournament);
-						if (players != null) {
-							result = tournamentClient.doMatch(UUID.randomUUID().toString(), tournament, players.getFirst(), players.getSecond());
-						} else {
-							// Output different message here
+						if (players == null) {
+							result = false;
+							sel_keys = false;
+							Log.info("No player available at site  " + toks[1]);
+							break;
 						}
+						opId = profiler.startOp(resultsLogName, cmd.toString());
+						result = tournamentClient.doMatch(UUID.randomUUID().toString(), tournament, players.getFirst(), players.getSecond());
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
+						// Output different message here
 						break;
 					}
 				case VIEW_STATUS :
 					if (toks.length == 3) {
-						String site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						site = toks[2].equals("GLOBAL") ? "GLOBAL" : toks[1];
+						long opId = profiler.startOp(resultsLogName, "PRE_" + cmd.toString());
 						String tournament = tournamentClient.selectTournament(site);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						if (tournament == null) {
 							Log.info("No tournament available at site " + toks[1]);
 							break;
 						}
+						opId = profiler.startOp(resultsLogName, cmd.toString());
 						tournamentClient.viewStatus(tournament);
+						profiler.endOp(resultsLogName, opId, site, result + "", sel_keys + "");
 						break;
 					}
 				default :
@@ -222,7 +251,6 @@ public class TournamentServiceApp {
 		} catch (SwiftException e) {
 			e.printStackTrace();
 		}
-		profiler.endOp(resultsLogName, opId, result + "", sel_keys + "");
 		return new TournamentOpsResults(cmd.toString());
 	}
 	String progressMsg = "";
@@ -230,7 +258,7 @@ public class TournamentServiceApp {
 	// Adds a set of tournaments to the system
 	public void initTournaments(Indigo stub, final List<String> commands, AtomicInteger counter, int total, String siteId, String master) {
 		try {
-			TournamentServiceOps client = new TournamentServiceOps(stub, siteId, master);
+			TournamentServiceOps client = new TournamentServiceOps(stub, siteId, master, sites);
 
 			for (String line : commands) {
 				String msg = String.format("Initialization:%.0f%%", 100.0 * counter.incrementAndGet() / total);
@@ -277,7 +305,7 @@ public class TournamentServiceApp {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "OP_SUCCESS", "SEL_KEYS");
+		profiler.printHeaderWithCustomFields(resultsLogName, "SITE", "OP_SUCCESS", "SEL_KEYS");
 	}
 
 	static class TournamentOpsResults implements Results {

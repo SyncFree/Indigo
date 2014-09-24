@@ -138,9 +138,9 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 	 * frequency/probability and need to be formatted into a command line.
 	 */
 	static abstract class Operation {
-		int frequency;
+		double frequency;
 
-		Operation freq(int f) {
+		Operation freq(double f) {
 			this.frequency = f;
 			return this;
 		}
@@ -206,12 +206,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 			return String.format("disenroll_tournament");
 		}
 	}
-	static Properties props = Props.parseFile("indigo-tournament", "indigo-tournament-test.props");
+	static Properties props = Props.parseFile("indigo-tournament", System.err, "indigo-tournament.props");
 
-	static Operation[] ops = new Operation[]{new AddPlayer().freq(Props.intValue(props, "tournament.freq.addPlayers", 0)), new AddTournament().freq(Props.intValue(props, "tournament.freq.addTournament", 0)),
-			new EnrollTournament().freq(Props.intValue(props, "tournament.freq.enrollTournament", 0)), new DisenrollTournament().freq(Props.intValue(props, "tournament.freq.disenrollTournament", 0)),
-			new DoMatch().freq(Props.intValue(props, "tournament.freq.doMatch", 0)), new RemTournament().freq(Props.intValue(props, "tournament.freq.remTournament", 0)),
-			new ViewStatus().freq(Props.intValue(props, "tournament.freq.viewStatus", 0))};
+	static Operation[] ops = new Operation[]{new AddPlayer().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.addPlayers", "0"))),
+			new AddTournament().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.addTournament", "0"))), new EnrollTournament().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.enrollTournament", "0"))),
+			new DisenrollTournament().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.disenrollTournament", "0"))), new DoMatch().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.doMatch", "0"))),
+			new RemTournament().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.remTournament", "0"))), new ViewStatus().freq(Double.parseDouble(Props.stringValue(props, "tournament.freq.viewStatus", "0")))};
 
 	static AtomicInteger doMixedCounter = new AtomicInteger(7);
 
@@ -219,12 +219,13 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 		final Random rg = new Random(doMixedCounter.addAndGet(13 + site.hashCode()));
 		// Generate the biased operations, according to their frequency
 		final List<String> mix = new ArrayList<String>();
-		for (Operation i : ops)
-			for (int j = 0; j < i.frequency; j++)
+		for (Operation i : ops) {
+			int nOps = (int) ((i.frequency * totalOps) / 100);
+			for (int j = 0; j < nOps; j++)
 				mix.add(i.doLine(rg));
-
-		if (mix.size() != 100) {
-			System.err.println("Workload generation bug");
+		}
+		if (mix.size() != totalOps) {
+			System.err.println("Workload generation bug " + mix.size() + " minimum 1000 ops");
 			System.exit(0);
 		}
 
@@ -281,7 +282,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 		for (String i : x)
 			System.out.println(i);
 
-		Workload res = Workload.doMixed("US-EAST", 100, 80);
+		Workload res = Workload.doMixed("US-EAST", 1000, 80);
 		System.out.println(res.size());
 		for (String i : res)
 			System.out.println(i);
