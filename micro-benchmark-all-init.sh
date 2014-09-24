@@ -49,7 +49,8 @@ CLIENT_MACHINES=(
 	)
 
 SHEPARD_URL="tcp://ec2-54-210-92-69.compute-1.amazonaws.com:29876/"
-	
+
+
 #LOCAL OVERRIDE
 #USERNAME="balegas"
 #INDIGO_ROOT="/Users/$USERNAME/swiftcloud_deployment/"
@@ -240,17 +241,23 @@ do
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
 					ri=`expr $ri + 1`
 				done
-
 				
 				sleep 10
-
+				
+				ri=0;
+				for h in ${server_machines[@]}; do
+					cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
+					echo "Init data "$master" CMD "$cmd
+					ssh $USERNAME@$h "nohup "$cmd
+					ri=`expr $ri + 1`
+				done
+				
+				sleep 10
+				
 				master=${SERVER_MACHINES[0]}
-				cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
-				echo "Init data "$master" CMD "$cmd
-				ssh $USERNAME@$master "nohup "$cmd
 				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
-				
+
 				sleep 10
 
 				indigos=(${INDIGOS[@]:0:$i})
@@ -261,7 +268,6 @@ do
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
-#					ssh $USERNAME@$h "nohup "$cmd" > client_console.log" &
 				done
 
 				sleep 120

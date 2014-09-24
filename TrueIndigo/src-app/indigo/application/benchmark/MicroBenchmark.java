@@ -155,24 +155,24 @@ public class MicroBenchmark {
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31001);
-		int serverPort = Args.valueOf("-srvPort", 32001);
+		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
 	}
 
 	public static void startServer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
-		int sequencerPort = Args.valueOf("-seqPort", 31001);
 		int serverPort = Args.valueOf("-srvPort", 32001);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
-		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
+		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
+		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31001/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
 	}
 
 	public static void startDC1Sequencer() {
@@ -180,51 +180,50 @@ public class MicroBenchmark {
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31001);
-		int serverPort = Args.valueOf("-srvPort", 32001);
+		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
 	}
 
 	public static void startDC1Server() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
-		int sequencerPort = Args.valueOf("-seqPort", 31001);
 		int serverPort = Args.valueOf("-srvPort", 32001);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
+		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31001/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
 	}
-
 	public static void startDC2Sequencer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31002);
-		int serverPort = Args.valueOf("-srvPort", 32002);
+		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
 	}
 
 	public static void startDC2Server() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
-		int sequencerPort = Args.valueOf("-seqPort", 31002);
 		int serverPort = Args.valueOf("-srvPort", 32002);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33002);
 		int dhtPort = Args.valueOf("-dhtPort", 34002);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35002);
 		int indigoPort = Args.valueOf("-indigoPort", 36002);
+		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31002/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
 	}
 
 	public static void startDC3Sequencer() {
@@ -232,25 +231,25 @@ public class MicroBenchmark {
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31003);
-		int serverPort = Args.valueOf("-srvPort", 32003);
+		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverPort, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
 	}
 
 	public static void startDC3Server() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
-		int sequencerPort = Args.valueOf("-seqPort", 31003);
 		int serverPort = Args.valueOf("-srvPort", 32003);
 		int serverPortForSequencer = Args.valueOf("-sFs", 33003);
 		int dhtPort = Args.valueOf("-dhtPort", 34003);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35003);
 		int indigoPort = Args.valueOf("-indigoPort", 36003);
+		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31003/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherServers);
+		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
 	}
 
 	public static void main(String[] args) {
