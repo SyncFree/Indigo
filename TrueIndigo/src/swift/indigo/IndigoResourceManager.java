@@ -234,6 +234,7 @@ final public class IndigoResourceManager {
 						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache.get(updates.getTargetUID());
 						updates.addSystemTimestamp(txnTs);
 						cachedCRDT.execute((CRDTObjectUpdatesGroup<BoundedCounterAsResource>) updates, CRDTOperationDependencyPolicy.IGNORE);
+						cachedCRDT.getClock().recordAllUntil(handle.cltTimestamp());
 					}
 					storage.endTxnAndGetUpdates(handle, mustUpdate);
 				}
@@ -258,6 +259,7 @@ final public class IndigoResourceManager {
 						ManagedCRDT<BoundedCounterAsResource> cachedCRDT = (ManagedCRDT<BoundedCounterAsResource>) cache.get(req_i.getResourceId());
 						updates.addSystemTimestamp(txnTs);
 						cachedCRDT.execute(updates, CRDTOperationDependencyPolicy.IGNORE);
+						cachedCRDT.getClock().recordAllUntil(handle.cltTimestamp());
 					}
 					if (req_i instanceof CounterReservation) {
 						BoundedCounterAsResource latestVersion = (BoundedCounterAsResource) active.get(req_i.getResourceId());
@@ -270,7 +272,7 @@ final public class IndigoResourceManager {
 						}
 						updates.addSystemTimestamp(txnTs);
 						cachedCRDT.execute(updates, CRDTOperationDependencyPolicy.IGNORE);
-
+						cachedCRDT.getClock().recordAllUntil(handle.cltTimestamp());
 					}
 					if (result == false) {
 						System.out.println("FAILED RESOURCE UPDATE");
@@ -352,6 +354,7 @@ final public class IndigoResourceManager {
 					ManagedCRDT<BoundedCounterAsResource> crdt = (ManagedCRDT<BoundedCounterAsResource>) cache.get(updates.getTargetUID());
 					updates.addSystemTimestamp(handle.commitTs);
 					crdt.execute((CRDTObjectUpdatesGroup<BoundedCounterAsResource>) updates, CRDTOperationDependencyPolicy.IGNORE);
+					crdt.getClock().recordAllUntil(handle.cltTimestamp());
 				}
 			}
 			releaseLocks(request.getResources());
