@@ -257,7 +257,7 @@ do
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -maxThinkTime 1500 -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
@@ -268,6 +268,7 @@ do
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
+				kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 
 				
 				#Generate results

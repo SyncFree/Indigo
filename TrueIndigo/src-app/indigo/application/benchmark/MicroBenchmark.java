@@ -165,7 +165,7 @@ public class MicroBenchmark {
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int serverPort = Args.valueOf("-srvPort", 32001);
-		int serverPortForSequencer = Args.valueOf("-sFs", 33001);
+		int serverPortForSequencer = Args.valueOf("-srvPortForSeq", 33001);
 		int dhtPort = Args.valueOf("-dhtPort", 34001);
 		int pubSubPort = Args.valueOf("-pubSubPort", 35001);
 		int indigoPort = Args.valueOf("-indigoPort", 36001);

@@ -20,31 +20,8 @@ import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleExcpetion;
 import sys.utils.Args;
-import sys.utils.Threading;
 
 public class TestsUtil {
-
-	public static void startDC1Server(String siteId, String masterId, int sequencerPort, int serverPort, int DHTPort, int pubSubPort, int indigoPort, String sequencerUrl, String[] otherSequencers, String[] otherServers) {
-		List<String> argsSeq = new LinkedList<String>();
-		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server", "tcp://*:" + serverPort, "-sequencers"}));
-		argsSeq.addAll(Arrays.asList(otherSequencers));
-		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
-
-		List<String> argsServer = new LinkedList<String>();
-		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer", "tcp://*:" + sequencerPort, "-url4seq", "" + sequencerUrl, "-dht", "tcp://*:" + DHTPort, "-pubsub",
-				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
-
-		List<String> servers = new ArrayList<>();
-		for (String server : otherServers) {
-			if (!server.contains(siteId))
-				servers.add(server);
-		}
-		argsServer.addAll(servers);
-
-		Threading.sleep(5000);
-		IndigoServer.main(argsServer.toArray(new String[]{}));
-	}
-
 	public static void startSequencer(String siteId, String masterId, int sequencerPort, String serverUrl, String[] otherSequencers) {
 		List<String> argsSeq = new LinkedList<String>();
 		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server", serverUrl, "-sequencers"}));
@@ -54,8 +31,8 @@ public class TestsUtil {
 
 	public static void startServer(String siteId, String masterId, int serverPort, int DHTPort, int pubSubPort, int indigoPort, int serverPort4Seq, String sequencerUrl, String[] otherServers) {
 		List<String> argsServer = new LinkedList<String>();
-		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer", sequencerUrl, "-url4Seq", "" + serverPort4Seq, "-dht", "tcp://*:" + DHTPort, "-pubsub", "tcp://*:" + pubSubPort,
-				"-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
+		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer", sequencerUrl, "-url4Seq", "tcp://*:" + serverPort4Seq + "/", "-dht", "tcp://*:" + DHTPort, "-pubsub",
+				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
 
 		List<String> servers = new ArrayList<>();
 		for (String server : otherServers) {

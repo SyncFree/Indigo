@@ -86,7 +86,7 @@ public class Server implements SurrogateProtocol {
 		this.clocks = new Clocks("server");
 
 		this.endpoint4clts = Networking.bind(Networking.resolve(Args.valueOf("-url", SERVER_URL)), this);
-		this.endpoint4servers = Networking.bind(Networking.resolve(Args.valueOf("-url4seq", SERVER_URL4SEQUENCERS)), this);
+		this.endpoint4servers = Networking.bind(Networking.resolve(Args.valueOf("-url4Seq", SERVER_URL4SEQUENCERS)), this);
 
 		this.sequencer = Networking.resolve(Args.valueOf("-sequencer", ""), Defaults.SEQUENCER_URL);
 

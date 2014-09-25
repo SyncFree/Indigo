@@ -16,7 +16,6 @@ import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
 import swift.indigo.remote.RemoteIndigo;
-import sys.utils.Args;
 import sys.utils.Threading;
 
 public class LockUnitTests {
@@ -27,25 +26,15 @@ public class LockUnitTests {
 	static String LOCK_TABLE = "LOCK";
 	static String table = "REGISTER";
 	static char key = 'A';
-	private String MASTER_ID;
 
 	@Before
 	public void init() throws InterruptedException, SwiftException {
 		key++;
 		if (stub1 == null || stub2 == null) {
 			System.out.printf("Start DataCenter: %s", DC_ID);
-			DC_ID = Args.valueOf("-siteId", "X");
-			MASTER_ID = Args.valueOf("-master", DC_ID);
-			int sequencerPort = Args.valueOf("-seqPort", 31001);
-			int serverPort = Args.valueOf("-srvPort", 32001);
-			int serverPortForSequencer = Args.valueOf("-sFs", 33001);
-			int dhtPort = Args.valueOf("-dhtPort", 34001);
-			int pubSubPort = Args.valueOf("-pubSubPort", 35001);
-			int indigoPort = Args.valueOf("-indigoPort", 36001);
-			String[] otherSequencers = Args.valueOf("-sequencers", new String[]{"tcp://*/31001/" + DC_ID + "/"});
-			String[] otherServers = Args.valueOf("-servers", new String[]{"tcp://*/32001/" + DC_ID + "/"});
 
-			TestsUtil.startDC1Server(DC_ID, MASTER_ID, sequencerPort, serverPort, serverPortForSequencer, dhtPort, pubSubPort, indigoPort, otherSequencers, otherServers);
+			TestsUtil.startSequencer(DC_ID, DC_ID, 31001, "tcp://*:32001/", new String[]{"tcp://*:" + 33001 + "/DC_A/"});
+			TestsUtil.startServer(DC_ID, DC_ID, 32001, 34001, 35001, 36001, 33001, "tcp://*:31001/", new String[]{});
 
 			stub1 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
 			stub2 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));
