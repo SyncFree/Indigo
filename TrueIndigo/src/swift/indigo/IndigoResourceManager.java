@@ -75,14 +75,16 @@ final public class IndigoResourceManager {
 
 	ConcurrentHashMap<String, Long> recentTransfers = new ConcurrentHashMap<>();
 
+	private String masterId;
+
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 		this.transferQueue = transferQueue;
 		this.sequencer = sequencer;
 		this.resourceMgrId = sequencer.siteId + "-LockManager";
 
 		if (!endpoints.isEmpty()) {
-			String master = Args.valueOf("-master", new TreeSet<String>(endpoints.keySet()).first());
-			this.isMaster = master.equals(sequencer.siteId);
+			masterId = Args.valueOf("-master", new TreeSet<String>(endpoints.keySet()).first());
+			this.isMaster = masterId.equals(sequencer.siteId);
 		} else {
 			this.isMaster = true;
 		}
@@ -197,8 +199,8 @@ final public class IndigoResourceManager {
 					if (req instanceof LockReservation) {
 						localLock = locks.get(req.getResourceId());
 						if (localLock != null && !localLock.checkAvailable((ResourceRequest<ShareableLock>) req)) {
-							if (localLock.checkCanRelease() && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
-								boolean released = resource.releaseShare(sequencer.siteId);
+							if (localLock.checkCanRelease()) {
+								boolean released = resource.releaseShare(sequencer.siteId, masterId);
 								if (released) {
 									mustUpdate = true;
 								}
@@ -218,8 +220,8 @@ final public class IndigoResourceManager {
 
 				// If a resource cannot be satisfied, free it locally.
 				// This is necessary to make the token converge
-				if (req instanceof LockReservation && locks.get(req.getResourceId()).checkCanRelease() && !satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
-					boolean released = resource.releaseShare(sequencer.siteId);
+				if (req instanceof LockReservation && locks.get(req.getResourceId()).checkCanRelease() && !satisfies) {
+					boolean released = resource.releaseShare(sequencer.siteId, masterId);
 					satisfies = resource.checkRequest(sequencer.siteId, req);
 					if (released) {
 						mustUpdate = true;
@@ -484,8 +486,8 @@ final public class IndigoResourceManager {
 					// If a resource cannot be satisfied, free it locally.
 					// This is necessary to make the token converge
 					logger.warning("Will try to release " + request);
-					if (request instanceof LockReservation && locks.get(request.getResourceId()).checkCanRelease() && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
-						boolean released = resource.releaseShare(sequencer.siteId);
+					if (request instanceof LockReservation && locks.get(request.getResourceId()).checkCanRelease()) {
+						boolean released = resource.releaseShare(sequencer.siteId, masterId);
 						if (released) {
 							logger.warning("RELEASED " + resource + " REQUEST " + request);
 							result = TRANSFER_STATUS.PARTIAL;

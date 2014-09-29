@@ -23,7 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -108,16 +107,15 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 	public TRANSFER_STATUS updateOwnership(String ownerId, String requesterId, ShareableLock requestType) {
 		Log.info(String.format("ownerId=%s requesterId=%s, requestType=%s, this=%s, canMudate=%s, canUpdate=%s", ownerId, requesterId, requestType, this, canMutateLock(ownerId), canShare(ownerId, requestType)));
-
+		boolean isTransfer = requestType.isExclusive();
 		if (canMutateLock(ownerId)) {
-			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, requestType, nextTimestamp(), requestType.isExclusive());
+			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, requestType, nextTimestamp(), isTransfer);
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
 			return TRANSFER_STATUS.SUCCESS;
 		}
 
 		if (canShare(ownerId, requestType)) {
-			boolean isTransfer = requestType.isExclusive();
 			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, requesterId, this.type, nextTimestamp(), isTransfer);
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
@@ -231,19 +229,17 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	}
 
 	/**
-	 * Releases the token of ownerId, by transferring it to the lowest index
-	 * node. If node is the lowest index ordering it does not release its share
-	 * to make sure there is one owner if everyone tries to release
+	 * Releases the token of ownerId by transferring it to the master
 	 */
 	@Override
-	public boolean releaseShare(String ownerId) {
-		PriorityQueue<String> orderedOwners = new PriorityQueue<>(owners.keySet());
-		if (orderedOwners.size() > 0 && !orderedOwners.peek().equals(ownerId)) {
-			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, nextTimestamp(), true);
+	public boolean releaseShare(String ownerId, String masterId) {
+		if (ownerId.equals(masterId) || isSingleOwner(ownerId) || !isOwner(ownerId)) {
+			return false;
+		} else {
+			EscrowableLockUpdate op = new EscrowableLockUpdate(ownerId, masterId, type, nextTimestamp(), true);
 			applySharedLockUpdate(op);
 			registerLocalOperation(op);
 			return true;
 		}
-		return false;
 	}
 }
