@@ -37,8 +37,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
 
-	private static final int nWorkers = 10;
-
 	private IndigoResourceManager manager;
 
 	// Incoming requests
@@ -80,7 +78,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 
 		this.waitingIndex = new ConcurrentHashSet<IndigoOperation>();
 
-		this.workers = Executors.newFixedThreadPool(nWorkers);
+		this.workers = Executors.newCachedThreadPool();
 		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
 		this.stub = sequencer.stub;
 
