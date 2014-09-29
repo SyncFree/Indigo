@@ -21,7 +21,7 @@ import swift.crdt.core.Copyable;
 
 public class Player implements Copyable {
 	String name;
-	String primarySite;
+	int primarySite;
 
 	CRDTIdentifier viewCount;
 
@@ -29,7 +29,7 @@ public class Player implements Copyable {
 	public Player() {
 	}
 
-	public Player(final String name, final String primarySite) {
+	public Player(final String name, final int primarySite) {
 		this.name = name;
 		this.primarySite = primarySite;
 	}

@@ -32,6 +32,7 @@ import com.thoughtworks.xstream.core.util.Base64Encoder;
 abstract public class Workload implements Iterable<String>, Iterator<String> {
 
 	static List<String> players = new ArrayList<String>();
+	static List<String> playersInLocalTournamnet = new ArrayList<String>();
 	static List<String> tournaments = new ArrayList<String>();
 	static List<String> playersData = new ArrayList<String>();
 	static AtomicInteger matchCounter = new AtomicInteger();
@@ -47,51 +48,51 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 	 * each tournament is at least half of the limit
 	 */
 
-	public static List<String> populate(int numPlayers, int numLocalTournaments, int numGlobalTournaments, int minPlayersLocal, int maxPlayersLocal, int minPlayersGlobal, int maxPlayersGlobal, String[] sites, String master) {
+	public static List<String> populate(int numPlayers, int numLocalTournaments, int numGlobalTournaments, int minPlayersLocal, int maxPlayersLocal, int minPlayersGlobal, int maxPlayersGlobal, int nSites, String master) {
 		Random rg = new Random(6L);
 		byte[] tmp = new byte[6];
 		Base64Encoder enc = new Base64Encoder();
 		int currSite = -1;
-		int playersPerSite = numPlayers / sites.length;
-		int tournamentsPerSite = numLocalTournaments / sites.length;
+		int playersPerSite = numPlayers / nSites;
+		int tournamentsPerSite = numLocalTournaments / nSites;
 		List<String> globalTournaments = new ArrayList<>();
 
 		// Create players
 		for (int i = 0; i < numPlayers; i++) {
 			currSite = i / playersPerSite;
-			if (currSite >= sites.length) {
+			if (currSite >= nSites) {
 				// To add the remaining elements
-				currSite = sites.length - 1;
+				currSite = nSites - 1;
 			}
 			rg.nextBytes(tmp);
 			String player = enc.encode(tmp);
-			players.add(sites[currSite] + "_" + player);
+			players.add((currSite + 1) + "_" + player);
 		}
 
 		// Create Tournaments
 		for (int i = 0; i < numLocalTournaments; i++) {
 			currSite = i / tournamentsPerSite;
-			if (currSite >= sites.length) {
+			if (currSite >= nSites) {
 				// To add the remaining elements
-				currSite = sites.length - 1;
+				currSite = nSites - 1;
 			}
 			rg.nextBytes(tmp);
 			String tournament = enc.encode(tmp);
-			tournaments.add(sites[currSite] + "_" + tournament);
+			tournaments.add((currSite + 1) + "_" + tournament);
 		}
 
 		for (int i = 0; i < numGlobalTournaments; i++) {
 			rg.nextBytes(tmp);
 			String tournament = enc.encode(tmp);
-			globalTournaments.add("GLOBAL_" + tournament);
+			globalTournaments.add("-1_" + tournament);
 		}
 
 		// Add players to tournaments
 		for (int i = 0; i < numLocalTournaments; i++) {
 			currSite = i / tournamentsPerSite;
-			if (currSite >= sites.length) {
+			if (currSite >= nSites) {
 				// To add the remaining elements
-				currSite = sites.length - 1;
+				currSite = nSites - 1;
 			}
 			int numPlayersTournament = Math.min(minPlayersLocal + rg.nextInt(maxPlayersLocal - minPlayersLocal), playersPerSite);
 			StringBuffer line = new StringBuffer();
@@ -103,6 +104,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 					String p = players.get(random);
 					line.append(";" + p);
 					playersInTournament.add(random);
+					playersInLocalTournamnet.add(p);
 				} else {
 					j--;
 				}
@@ -118,9 +120,9 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 			line.append(tournament);
 			Set<Integer> playersInTournament = new HashSet<>();
 			for (int j = 0; j < numPlayersTournament; j++) {
-				int random = rg.nextInt(numPlayersTournament);
+				int random = rg.nextInt(playersInLocalTournamnet.size());
 				if (!playersInTournament.contains(random)) {
-					String p = players.get(random);
+					String p = playersInLocalTournamnet.get(random);
 					line.append(";" + p);
 					playersInTournament.add(random);
 				} else {
@@ -215,26 +217,28 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
 	static AtomicInteger doMixedCounter = new AtomicInteger(7);
 
-	static public Workload doMixed(String site, final int totalOps, final int localPercentage) {
-		final Random rg = new Random(doMixedCounter.addAndGet(13 + site.hashCode()));
+	static public Workload doMixed(int site, String siteName, final int totalOps, final int localPercentage) {
+		final Random rg = new Random(doMixedCounter.addAndGet(13 + site));
 		// Generate the biased operations, according to their frequency
 		final List<String> mix = new ArrayList<String>();
 		for (Operation i : ops) {
-			int nOps = (int) ((i.frequency * totalOps) / 100);
+			int nOps = (int) ((i.frequency * 100));
 			for (int j = 0; j < nOps; j++)
 				mix.add(i.doLine(rg));
 		}
-		if (mix.size() != totalOps) {
+		if (mix.size() != 10000) {
 			System.err.println("Workload generation bug " + mix.size() + " minimum 1000 ops");
 			System.exit(0);
 		}
 
 		return new Workload() {
 			Iterator<String> it = null;
+			int total = 0;
 
 			void refill() {
+				total += 10000;
 				ArrayList<String> group = new ArrayList<String>();
-				for (int i = 0; i < totalOps; i++) {
+				for (int i = 0; i < 10000; i++) {
 					if (rg.nextInt(100) > localPercentage) {
 						// Global OP
 						group.add(mix.get(rg.nextInt(mix.size())) + ";" + site + ";GLOBAL");
@@ -247,7 +251,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
 			@Override
 			public boolean hasNext() {
-				if (it == null)
+				if (it == null && total < totalOps)
 					refill();
 
 				return it.hasNext();
@@ -276,13 +280,13 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
 	public static void main(String[] args) throws Exception {
 
-		List<String> x = Workload.populate(30, 9, 2, 10, 15, 25, 30, new String[]{"US-EAST", "US-WEST", "EUROPE"}, "US-EAST");
+		List<String> x = Workload.populate(30, 9, 2, 10, 15, 25, 30, 3, "US-EAST");
 		System.out.println(players);
 		System.out.println(tournaments);
 		for (String i : x)
 			System.out.println(i);
 
-		Workload res = Workload.doMixed("US-EAST", 1000, 80);
+		Workload res = Workload.doMixed(1, "US-EAST", 1000, 80);
 		System.out.println(res.size());
 		for (String i : res)
 			System.out.println(i);

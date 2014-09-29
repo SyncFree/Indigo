@@ -67,9 +67,9 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected String selectPlayer(String site) throws SwiftException {
+	protected String selectPlayer(int site) throws SwiftException {
 		stub.beginTxn();
-		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site), true, AddWinsSetCRDT.class);
+		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site + ""), true, AddWinsSetCRDT.class);
 		stub.endTxn();
 		String[] players = playerIndex.getValue().toArray(new String[0]);
 		if (players.length > 0)
@@ -80,9 +80,9 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected String selectTournament(String site) throws SwiftException {
+	protected String selectTournament(int site) throws SwiftException {
 		stub.beginTxn();
-		AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site), true, AddWinsSetCRDT.class);
+		AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site + ""), true, AddWinsSetCRDT.class);
 		stub.endTxn();
 		String[] tournaments = tournamentIndex.getValue().toArray(new String[0]);
 		if (tournaments.length > 0) {
@@ -105,18 +105,21 @@ public class TournamentServiceOps {
 			} while (player1 == player2);
 			return new Pair<String, String>(players[player1], players[player2]);
 		} else {
-			if (logger.isLoggable(Level.INFO)) {
-				logger.info("Tournament without enough players");
+			if (logger.isLoggable(Level.WARNING)) {
+				logger.warning("Tournament without enough players " + tournament);
 			}
 			return null;
 		}
 	}
 
 	@SuppressWarnings("unchecked")
-	protected void addNewPlayersToTournament(final String[] playerNames, final String playerSite, final String tournamentName) throws SwiftException {
+	protected void addNewPlayersToTournament(final String[] playerNames, final String tournamentName) throws SwiftException {
 		stub.beginTxn();
+		int site = Integer.parseInt(tournamentName.split("_")[0]);
 		for (String playerName : playerNames) {
-			_addPlayer(playerSite, playerName);
+			if (site != -1) {
+				_addPlayer(site, playerName);
+			}
 			AddWinsSetCRDT<String> tournament = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournament(tournamentName), true, AddWinsSetCRDT.class);
 			tournament.add(playerName);
 			AddWinsSetCRDT<String> playerTournaments = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerTournaments(playerName), false, AddWinsSetCRDT.class);
@@ -124,7 +127,7 @@ public class TournamentServiceOps {
 		}
 		stub.endTxn();
 	}
-	protected boolean addPlayer(String site, String playerName) throws SwiftException {
+	protected boolean addPlayer(int site, String playerName) throws SwiftException {
 		boolean result;
 		stub.beginTxn();
 		result = _addPlayer(site, playerName);
@@ -133,23 +136,22 @@ public class TournamentServiceOps {
 	}
 
 	@SuppressWarnings("unchecked")
-	private boolean _addPlayer(final String site, final String playerName) throws SwiftException {
+	private boolean _addPlayer(final int site, final String playerName) throws SwiftException {
 		boolean result = true;
-
+		if (site == -1) {
+			System.out.println("aqui");
+		}
 		// Add player to index
-		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site), true, AddWinsSetCRDT.class);
+		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site + ""), true, AddWinsSetCRDT.class);
 		result &= playerIndex.lookup(playerName);
 		playerIndex.add(playerName);
 
 		// Create Player lock
 		CRDTIdentifier lockId = NamingScheme.forPlayerLock(playerName);
-		if (site.equals("GLOBAL")) {
-			System.out.println("Not supposed!!");
-			System.exit(0);
-		}
-		String ownerId = site;
 		EscrowableTokenCRDT lock = stub.get(lockId, true, EscrowableTokenCRDT.class);
-		lock.transferOwnership(ownerId, ownerId, new LockReservation((String) ownerId, lockId, ShareableLock.FORBID));
+		for (String site_i : allSites) {
+			lock.transferOwnership(master, site_i, new LockReservation((String) site_i, lockId, ShareableLock.FORBID));
+		}
 
 		// Create player register
 		LWWRegisterCRDT<Player> reg = (LWWRegisterCRDT<Player>) stub.get(NamingScheme.forPlayer(playerName), true, LWWRegisterCRDT.class);
@@ -159,6 +161,11 @@ public class TournamentServiceOps {
 
 		// Create player's tournaments set
 		stub.get(NamingScheme.forPlayerTournaments(playerName), true, AddWinsSetCRDT.class);
+		if (site != -1 && !allSites[site - 1].equals(allSites[Integer.parseInt(playerName.split("_")[0]) - 1])) {
+			System.out.println("aqui");
+		}
+		// System.err.println("Added Player " + playerName + " " + allSites[site
+		// - 1]);
 		return result;
 	}
 	// @SuppressWarnings("unchecked")
@@ -190,7 +197,7 @@ public class TournamentServiceOps {
 	//
 	// }
 
-	protected boolean addTournament(final String tournamentSite, final String tournamentName, final int maxSize) throws SwiftException {
+	protected boolean addTournament(final int tournamentSite, final String tournamentName, final int maxSize) throws SwiftException {
 		boolean result;
 		stub.beginTxn();
 		result = _addTournament(tournamentSite, tournamentName, maxSize);
@@ -198,11 +205,11 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	private boolean _addTournament(final String tournamentSite, final String tournamentName, final int maxPlayers) throws SwiftException {
+	private boolean _addTournament(final int site, final String tournamentName, final int maxPlayers) throws SwiftException {
 		boolean result = true;
 		try {
 			// Add tournament to index
-			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(tournamentSite), true, AddWinsSetCRDT.class);
+			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site + ""), true, AddWinsSetCRDT.class);
 			result &= tournamentIndex.lookup(tournamentName);
 			tournamentIndex.add(tournamentName);
 
@@ -210,19 +217,18 @@ public class TournamentServiceOps {
 
 			// Create tournament locks
 			CRDTIdentifier lockId = NamingScheme.forTournamentLock(tournamentName);
-			String ownerId = tournamentSite.equals("GLOBAL") ? master : tournamentSite;
 			EscrowableTokenCRDT lock = stub.get(NamingScheme.forTournamentLock(tournamentName), true, EscrowableTokenCRDT.class);
 			BoundedCounterAsResource tournamentCounter = stub.get(NamingScheme.forTournamentSize(tournamentName), true, BoundedCounterAsResource.class);
-			if (tournamentSite.equals("GLOBAL")) {
-				for (String site : allSites) {
-					lock.transferOwnership(ownerId, site, new LockReservation((String) ownerId, lockId, ShareableLock.FORBID));
-					tournamentCounter.increment(maxPlayers / allSites.length, site);
+			if (site == -1) {
+				for (String site_i : allSites) {
+					lock.transferOwnership(master, site_i, new LockReservation((String) site_i, lockId, ShareableLock.FORBID));
+					tournamentCounter.increment(maxPlayers / allSites.length, site_i);
 				}
 			} else {
-				lock.transferOwnership(ownerId, ownerId, new LockReservation((String) ownerId, lockId, ShareableLock.FORBID));
-				tournamentCounter.increment(maxPlayers, ownerId);
+				lock.transferOwnership(allSites[site - 1], allSites[site - 1], new LockReservation((String) allSites[site - 1], lockId, ShareableLock.FORBID));
+				tournamentCounter.increment(maxPlayers, allSites[site - 1]);
+				System.err.println("Added tournamnet " + tournamentName + " " + allSites[site - 1]);
 			}
-
 		} catch (SwiftException e) {
 			if (logger.isLoggable(Level.WARNING)) {
 				logger.warning(e.getMessage());
@@ -231,7 +237,7 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	protected boolean removeTournament(final String site, final String tournamentName) throws SwiftException {
+	protected boolean removeTournament(final int site, final String tournamentName) throws SwiftException {
 		boolean result = true;
 		try {
 			List<ResourceRequest<?>> resources = new LinkedList<>();
@@ -239,7 +245,7 @@ public class TournamentServiceOps {
 			stub.beginTxn(resources);
 
 			// Read site's tournaments
-			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site), false, AddWinsSetCRDT.class);
+			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site + ""), false, AddWinsSetCRDT.class);
 
 			// Check tournament exists
 			result &= tournamentIndex.lookup(tournamentName);
@@ -263,17 +269,17 @@ public class TournamentServiceOps {
 		return result;
 	}
 	@SuppressWarnings("unchecked")
-	protected boolean enrollTournament(final String site, final String playerName, final String tournamentName) throws SwiftException {
+	protected boolean enrollTournament(final int site, final String playerName, final String tournamentName) throws SwiftException {
 		boolean result = true, exists = false, dec = false;
+		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 		try {
-			List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
 			resources.add(new LockReservation(siteId, NamingScheme.forPlayerLock(playerName), ShareableLock.FORBID));
 			resources.add(new LockReservation(siteId, NamingScheme.forTournamentLock(tournamentName), ShareableLock.FORBID));
 			resources.add(new CounterReservation(siteId, NamingScheme.forTournamentSize(tournamentName), 1));
 			stub.beginTxn(resources);
 
 			// Check tournament exists
-			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site), false, AddWinsSetCRDT.class);
+			AddWinsSetCRDT<String> tournamentIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournamentIndex(site + ""), false, AddWinsSetCRDT.class);
 			exists = tournamentIndex.lookup(tournamentName);
 
 			// Add player to tournament
@@ -289,6 +295,9 @@ public class TournamentServiceOps {
 			playerTournaments.add(tournamentName);
 			BoundedCounterAsResource counter = stub.get(NamingScheme.forTournamentSize(tournamentName), false, BoundedCounterAsResource.class);
 			dec = counter.decrement(1, siteId);
+			if (!dec) {
+				System.err.println("DIDNT decrement " + counter);
+			}
 
 			result = result && exists && dec;
 			if (logger.isLoggable(Level.WARNING) && result == false) {
@@ -299,7 +308,7 @@ public class TournamentServiceOps {
 			}
 		} catch (SwiftException e) {
 			if (logger.isLoggable(Level.WARNING)) {
-				logger.warning(e.getMessage());
+				logger.warning(resources + e.getMessage());
 			}
 		} finally {
 			stub.endTxn();
@@ -348,7 +357,7 @@ public class TournamentServiceOps {
 
 			// Check that both players are enrolled in the same tournament
 			if (player1Tournaments.lookup(tournamentName) && player2Tournaments.lookup(tournamentName)) {
-				AddWinsSetCRDT<Match> matchHistory = (AddWinsSetCRDT<Match>) stub.get(NamingScheme.forMatchHistory(), true, AddWinsSetCRDT.class);
+				AddWinsSetCRDT<Match> matchHistory = (AddWinsSetCRDT<Match>) stub.get(NamingScheme.forMatchHistory(tournamentName), true, AddWinsSetCRDT.class);
 				Match match = new Match(matchId, player1, player2);
 				matchHistory.add(match);
 			} else {
@@ -369,13 +378,7 @@ public class TournamentServiceOps {
 	protected void viewStatus(String tournamentName) throws SwiftException {
 		try {
 			stub.beginTxn();
-			AddWinsSetCRDT<String> tournament = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forTournament(tournamentName), false, AddWinsSetCRDT.class);
-
-			// if (tournament != null)
-			// for (String player : tournament.getValue()) {
-			// stub.get(NamingScheme.forPlayer(player), false,
-			// LWWRegisterCRDT.class);
-			// }
+			stub.get(NamingScheme.forTournament(tournamentName), false, AddWinsSetCRDT.class);
 		} catch (SwiftException e) {
 			logger.warning(e.getMessage());
 		} finally {

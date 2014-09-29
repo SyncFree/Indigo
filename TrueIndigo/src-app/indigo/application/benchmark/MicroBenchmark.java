@@ -155,9 +155,9 @@ public class MicroBenchmark {
 		DC_ID = Args.valueOf("-siteId", "X");
 		MASTER_ID = Args.valueOf("-master", "X");
 		int sequencerPort = Args.valueOf("-seqPort", 31001);
-		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
+		String[] servers = Args.valueOf("-server", new String[]{"tcp://*:32001/"});
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, servers, otherSequencers);
 	}
 
 	public static void startServer() {
@@ -183,7 +183,7 @@ public class MicroBenchmark {
 		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, new String[]{serverUrl}, otherSequencers);
 	}
 
 	public static void startDC1Server() {
@@ -200,6 +200,7 @@ public class MicroBenchmark {
 
 		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
 	}
+
 	public static void startDC2Sequencer() {
 		System.out.printf("Start DataCenter: %s", DC_ID);
 		DC_ID = Args.valueOf("-siteId", "X");
@@ -208,7 +209,7 @@ public class MicroBenchmark {
 		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, new String[]{serverUrl}, otherSequencers);
 	}
 
 	public static void startDC2Server() {
@@ -234,7 +235,7 @@ public class MicroBenchmark {
 		String serverUrl = Args.valueOf("-server", "tcp://*:32001/");
 		String[] otherSequencers = Args.valueOf("-sequencers", new String[]{});
 
-		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, serverUrl, otherSequencers);
+		TestsUtil.startSequencer(DC_ID, MASTER_ID, sequencerPort, new String[]{serverUrl}, otherSequencers);
 	}
 
 	public static void startDC3Server() {

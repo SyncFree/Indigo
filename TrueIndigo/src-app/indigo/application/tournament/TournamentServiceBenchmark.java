@@ -56,6 +56,10 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 
 		List<String> commands = super.populateWorkloadFromConfig(master);
 		final int N_INIT_WORKERS = 10;
+		if (commands.size() % N_INIT_WORKERS != 0) {
+			System.err.println("ATTENTION WORKLOAD MUST HAVE A NUMBER OF TOURNAMENTS MULTIPLE OF 10");
+			System.exit(0);
+		}
 		int partitionSize = (int) Math.ceil(commands.size() / N_INIT_WORKERS);
 		ExecutorService threadPool = Executors.newFixedThreadPool(N_INIT_WORKERS);
 
@@ -74,11 +78,11 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
 		Log.info("\nFinished populating db with players/tournaments.");
 	}
-
 	public void doBenchmark(String[] args) {
 
 		Args.use(args);
 		final String siteId = Args.valueOf(args, "-siteId", "X");
+		final int site = Args.valueOf(args, "-site", 1);
 		final String master = Args.valueOf(args, "-master", "X");
 		final String server = Args.valueOf(args, "-srvAddress", "tcp://*/36001/");
 
@@ -104,7 +108,7 @@ public class TournamentServiceBenchmark extends TournamentServiceApp {
 		Log.info("Spawning session threads.");
 		for (int i = 0; i < concurrentSessions; i++) {
 			final int sessionId = i;
-			final Workload commands = super.getWorkloadFromConfig(siteId, master);
+			final Workload commands = super.getWorkloadFromConfig(site, siteId, master);
 
 			threadPool.execute(new Runnable() {
 				public void run() {

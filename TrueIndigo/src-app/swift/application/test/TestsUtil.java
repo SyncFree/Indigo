@@ -22,9 +22,12 @@ import swift.indigo.remote.IndigoImpossibleExcpetion;
 import sys.utils.Args;
 
 public class TestsUtil {
-	public static void startSequencer(String siteId, String masterId, int sequencerPort, String serverUrl, String[] otherSequencers) {
+	public static void startSequencer(String siteId, String masterId, int sequencerPort, String[] servers, String[] otherSequencers) {
 		List<String> argsSeq = new LinkedList<String>();
-		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort, "-server", serverUrl, "-sequencers"}));
+		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort}));
+		argsSeq.add("-server");
+		argsSeq.addAll(Arrays.asList(servers));
+		argsSeq.add("-sequencers");
 		argsSeq.addAll(Arrays.asList(otherSequencers));
 		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
 	}

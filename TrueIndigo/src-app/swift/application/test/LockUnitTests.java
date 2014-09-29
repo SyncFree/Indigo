@@ -33,7 +33,7 @@ public class LockUnitTests {
 		if (stub1 == null || stub2 == null) {
 			System.out.printf("Start DataCenter: %s", DC_ID);
 
-			TestsUtil.startSequencer(DC_ID, DC_ID, 31001, "tcp://*:32001/", new String[]{"tcp://*:" + 33001 + "/DC_A/"});
+			TestsUtil.startSequencer(DC_ID, DC_ID, 31001, new String[]{"tcp://*:32001/"}, new String[]{"tcp://*:" + 33001 + "/DC_A/"});
 			TestsUtil.startServer(DC_ID, DC_ID, 32001, 34001, 35001, 36001, 33001, "tcp://*:31001/", new String[]{});
 
 			stub1 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/" + DC_ID + "/"));

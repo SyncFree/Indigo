@@ -38,7 +38,7 @@ public class CounterUnitTests {
 	@Before
 	public void init1DC() {
 		if (!started) {
-			TestsUtil.startSequencer(DC_A, DC_A, 31001, "tcp://*:33001/", new String[]{});
+			TestsUtil.startSequencer(DC_A, DC_A, 31001, new String[]{"tcp://*:33001/"}, new String[]{});
 			TestsUtil.startServer(DC_A, DC_A, 32001, 34001, 35001, 36001, 33001, "tcp://*:31001/", new String[]{});
 			started = true;
 			stub11 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));

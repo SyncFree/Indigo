@@ -37,13 +37,13 @@ public class IndigoThreeServersLockTest {
 	public void init3DC() {
 		if (!started) {
 
-			TestsUtil.startSequencer("DC_A", "DC_A", 31001, "tcp://*:32001/", new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
+			TestsUtil.startSequencer("DC_A", "DC_A", 31001, new String[]{"tcp://*:32001/"}, new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
 			TestsUtil.startServer("DC_A", "DC_A", 32001, 34001, 35001, 36001, 33001, "tcp://*:31001/", new String[]{"tcp://*:" + 32002 + "/DC_B", "tcp://*:" + 32003 + "/DC_C/"});
 
-			TestsUtil.startSequencer("DC_B", "DC_A", 31002, "tcp://*:32002/", new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
+			TestsUtil.startSequencer("DC_B", "DC_A", 31002, new String[]{"tcp://*:32002/"}, new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
 			TestsUtil.startServer("DC_B", "DC_A", 32002, 34002, 35002, 36002, 33002, "tcp://*:31001/", new String[]{"tcp://*:" + 32002 + "/DC_B", "tcp://*:" + 32003 + "/DC_C/"});
 
-			TestsUtil.startSequencer("DC_C", "DC_A", 31003, "tcp://*:32003/", new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
+			TestsUtil.startSequencer("DC_C", "DC_A", 31003, new String[]{"tcp://*:32003/"}, new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 33002 + "/DC_B/", "tcp://*:" + 33003 + "/DC_C/"});
 			TestsUtil.startServer("DC_C", "DC_A", 32003, 34003, 35003, 36003, 33003, "tcp://*:31001/", new String[]{"tcp://*:" + 32002 + "/DC_B", "tcp://*:" + 32003 + "/DC_C/"});
 			started = true;
 
