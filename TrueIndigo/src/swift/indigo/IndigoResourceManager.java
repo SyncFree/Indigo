@@ -14,6 +14,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -38,6 +39,7 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.TransferResourcesRequest;
+import swift.utils.LogSiteFormatter;
 import swift.utils.Pair;
 import sys.net.api.Endpoint;
 import sys.utils.Args;
@@ -45,7 +47,7 @@ import sys.utils.Profiler;
 import sys.utils.Threading;
 
 final public class IndigoResourceManager {
-	private Logger logger;
+	private static Logger logger;
 
 	private final String resourceMgrId;
 	private final StorageHelper storage;
@@ -89,10 +91,15 @@ final public class IndigoResourceManager {
 		this.cache = new ConcurrentHashMap<>();
 		this.locks = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
-		logger = Logger.getLogger(IndigoResourceManager.class.getName());
-		initLogger_dc();
+		initLogger();
 	}
-	private static void initLogger_dc() {
+	private void initLogger() {
+		ConsoleHandler handler = new ConsoleHandler();
+		handler.setFormatter(new LogSiteFormatter(sequencer.siteId));
+		logger = Logger.getLogger(this.getClass().getName() + "." + sequencer.siteId);
+		logger.setUseParentHandlers(false);
+		logger.addHandler(handler);
+
 		Logger logger = Logger.getLogger(profilerName);
 		profiler = Profiler.getInstance();
 		if (logger.isLoggable(Level.FINEST)) {
@@ -190,6 +197,13 @@ final public class IndigoResourceManager {
 					if (req instanceof LockReservation) {
 						localLock = locks.get(req.getResourceId());
 						if (localLock != null && !localLock.checkAvailable((ResourceRequest<ShareableLock>) req)) {
+							if (localLock.checkCanRelease() && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
+								boolean released = resource.releaseShare(sequencer.siteId);
+								if (released) {
+									mustUpdate = true;
+								}
+							}
+
 							unsatified.put(req.getResourceId(), resource);
 							continue;
 						}
@@ -204,7 +218,7 @@ final public class IndigoResourceManager {
 
 				// If a resource cannot be satisfied, free it locally.
 				// This is necessary to make the token converge
-				if (req instanceof LockReservation && !satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
+				if (req instanceof LockReservation && locks.get(req.getResourceId()).checkCanRelease() && !satisfies && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
 					boolean released = resource.releaseShare(sequencer.siteId);
 					satisfies = resource.checkRequest(sequencer.siteId, req);
 					if (released) {
@@ -213,6 +227,7 @@ final public class IndigoResourceManager {
 				}
 
 				if (!satisfies) {
+					logger.log(Level.WARNING, "Couldn't satisfy " + resource + " RESOURCE CLOCK: " + ((CRDT<?>) resource).getClock() + " " + req + " " + locks.get(req.getResourceId()));
 					unsatified.put(req.getResourceId(), resource);
 				} else {
 					satisfiedFromStorage.put(req.getResourceId(), resource);
@@ -251,7 +266,7 @@ final public class IndigoResourceManager {
 				for (ResourceRequest<?> req_i : request.getResources()) {
 					if (req_i instanceof LockReservation) {
 						LocalLock lock = locks.get(req_i.getResourceId());
-						lock.lock((ResourceRequest<ShareableLock>) req_i);
+						lock.lock((ResourceRequest<ShareableLock>) req_i, snapshot);
 						EscrowableTokenCRDT cachedResource = (EscrowableTokenCRDT) active.get(req_i.getResourceId());
 						result = cachedResource.updateOwnership(sequencer.siteId, req_i.getRequesterId(), ((LockReservation) req_i).type).equals(TRANSFER_STATUS.SUCCESS);
 						updatesToClient.addAll((Collection<CRDTObjectUpdatesGroup<?>>) handle.getUpdates());
@@ -403,7 +418,7 @@ final public class IndigoResourceManager {
 				LocalLock lock = locks.get(request.getResourceId());
 				V resourceCRDT = cachedValue.getVersion(readClock, handle);
 				if (lock == null) {
-					locks.put(request.getResourceId(), new LocalLock((ShareableLock) resourceCRDT.getValue()));
+					locks.put(request.getResourceId(), new LocalLock());
 				} else {
 					doReleaseResources(request.getResourceId(), readClock);
 				}
@@ -416,6 +431,7 @@ final public class IndigoResourceManager {
 	}
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, _TxnHandle handle) throws SwiftException, IncompatibleTypeException {
 		Resource resource = getResourceAndUpdateCache(request, handle, true);
+		logger.warning("GOING TO HANDLE RESOURCE TRANSFER " + request + " " + resource + " " + ((CRDT<?>) resource).getClock());
 		TRANSFER_STATUS result = TRANSFER_STATUS.FAIL;
 		// If requests can be satisfied at the caller according the local
 		// state, do not transfer... update is on the way
@@ -441,8 +457,12 @@ final public class IndigoResourceManager {
 				// If request is a lock and it cannot be granted locally return
 				// false;
 				if (request instanceof LockReservation) {
-					if (!locks.get(request.getResourceId()).checkAvailable((ResourceRequest<ShareableLock>) request))
+					if (!locks.get(request.getResourceId()).checkAvailable((ResourceRequest<ShareableLock>) request)) {
+						// if (logger.isLoggable(Level.WARNING) &&
+						// !result.equals(TRANSFER_STATUS.SUCCESS))
+						logger.warning("NOT AVAILABLE " + requestMsg + " " + result + " " + resource + " " + request + " " + locks.get(request.getResourceId()));
 						return result;
+					}
 				}
 				TRANSFER_STATUS transferred = resource.transferOwnership(sequencer.siteId, request.getRequesterId(), request_policy);
 
@@ -461,9 +481,13 @@ final public class IndigoResourceManager {
 				// share.
 
 				if (result.equals(TRANSFER_STATUS.FAIL)) {
-					if (!resource.isSingleOwner(sequencer.siteId)) {
-						if (resource.releaseShare(sequencer.siteId)) {
-							// Makes reply partial, so that it is stores.
+					// If a resource cannot be satisfied, free it locally.
+					// This is necessary to make the token converge
+					logger.warning("Will try to release " + request);
+					if (request instanceof LockReservation && locks.get(request.getResourceId()).checkCanRelease() && !resource.isSingleOwner(sequencer.siteId) && resource.isOwner(sequencer.siteId)) {
+						boolean released = resource.releaseShare(sequencer.siteId);
+						if (released) {
+							logger.warning("RELEASED " + resource + " REQUEST " + request);
 							result = TRANSFER_STATUS.PARTIAL;
 						}
 					}
@@ -474,8 +498,10 @@ final public class IndigoResourceManager {
 			}
 		}
 
-		if (logger.isLoggable(Level.INFO))
-			logger.info(requestMsg + " " + result + " " + resource);
+		// if (logger.isLoggable(Level.WARNING) &&
+		// !result.equals(TRANSFER_STATUS.SUCCESS))
+		logger.warning(requestMsg + " " + result + " " + resource + " " + request + " " + locks.get(request.getResourceId()));
+
 		return result;
 	}
 	// For Locks retrieve the same request
