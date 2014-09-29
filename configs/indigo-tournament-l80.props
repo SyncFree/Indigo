@@ -1,0 +1,21 @@
+tournament.numPlayers=10000
+tournament.numLocalTournaments=1000
+tournament.numGlobalTournaments=0
+tournament.minLocalPlayers=30
+tournament.maxLocalPlayers=300
+tournament.minGlobalPlayers=30
+tournament.maxGlobalPlayers=300
+tournament.numOps=600000
+tournament.thinkTime=500
+tournament.localPercentage=80
+tournament.sites=US-EAST,US-WEST,EUROPE
+tournament.nsites=3
+
+
+tournament.freq.addPlayers = 4
+tournament.freq.addTournament = 0
+tournament.freq.remTournament = 0.5
+tournament.freq.enrollTournament = 11
+tournament.freq.disenrollTournament = 4
+tournament.freq.doMatch = 15.5
+tournament.freq.viewStatus = 65

@@ -1,7 +1,9 @@
 package evaluation;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -12,7 +14,7 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 public class StatisticsUtils {
 	private static final long ONE_SECOND_IN_NANOS = 1000000000;
-	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 60;
+	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 1000;
 	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 30;
 	private static final int OUTLIER = 3000;
 	static Frequency valuesFreq;
@@ -55,30 +57,35 @@ public class StatisticsUtils {
 		int count = 0;
 		long totalLatencies = 0;
 
-		Scanner scanner = new Scanner(System.in);
-		while (scanner.hasNext()) {
-			if (scanner.hasNextLong()) {
-				long opStartTime = scanner.nextLong();
-				long opTime = scanner.nextLong();
-				if (startTime == -1) {
-					startTime = opStartTime;
+		Scanner scanner = new Scanner(new BufferedReader(new InputStreamReader(System.in)));
+		while (scanner.hasNextLine()) {
+			String line = scanner.nextLine();
+			String[] toks = line.split(" ");
+			if (toks.length < 2 || toks[1].equals("DURATION")) {
+				continue;
+			}
+			long opStartTime = Long.parseLong(toks[0]);
+			long opTime = Long.parseLong(toks[1]);
+			if (opStartTime <= 0 || opTime <= 0) {
+				continue;
+			}
+			if (startTime == -1) {
+				startTime = opStartTime;
+			}
+			if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+				warmUpComplete = true;
+				startTime = opStartTime;
+			}
+			if (warmUpComplete) {
+				if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+					count++;
+					totalLatencies += opTime;
+					lastStart = opStartTime;
+				} else {
+					// Just take results in one minute
+					break;
 				}
-				if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
-					warmUpComplete = true;
-					startTime = opStartTime;
-				}
-				if (warmUpComplete) {
-					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
-						count++;
-						totalLatencies += opTime;
-						lastStart = opStartTime;
-					} else {
-						// Just take results in one minute
-						break;
-					}
-				}
-			} else
-				scanner.nextLine();
+			}
 		}
 		int duration = (int) ((lastStart - startTime) / ONE_SECOND_IN_NANOS);
 		int TPS = count / duration;
@@ -87,15 +94,33 @@ public class StatisticsUtils {
 		System.out.printf("START\tTPS\tTPL\n");
 		System.out.printf("%s\t%s\t%s\n", startTime, TPS, AVGLatencyNanos);
 	}
-
 	public static void createTPS(String filter, String[] files) throws FileNotFoundException {
 		System.out.printf("THREADS\tAVG_TPS\n");
 		for (String file : files) {
 			System.err.println("Processing file " + file);
-			int idxI = file.indexOf(filter);
+			int idxI = file.lastIndexOf(filter);
 			int idxF = file.indexOf("-", idxI + 1);
+			if (idxF == -1) {
+				idxF = file.indexOf("/", idxI + 1);
+			}
 			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
 			long avg = average_column(1, file);
+			System.out.printf("%s\t%s\n", nThreads, avg);
+		}
+	}
+
+	public static void createTPSALL(String filter, String[] files) throws FileNotFoundException {
+		System.out.printf("THREADS\tAVG_TPS\n");
+		for (String file : files) {
+			System.err.println("Processing file " + file);
+			int idxI = file.lastIndexOf(filter);
+			int idxF = file.indexOf("-", idxI + 1);
+			if (idxF == -1) {
+				idxF = file.indexOf("/", idxI + 1);
+			}
+			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
+			System.err.println(file);
+			long avg = sum_column(1, file);
 			System.out.printf("%s\t%s\n", nThreads, avg);
 		}
 	}
@@ -104,8 +129,11 @@ public class StatisticsUtils {
 		System.out.printf("THREADS\tTPS\tLAT\n");
 		for (String file : files) {
 			System.err.println("Processing file " + file);
-			int idxI = file.indexOf(filter);
+			int idxI = file.lastIndexOf(filter);
 			int idxF = file.indexOf("-", idxI + 1);
+			if (idxF == -1) {
+				idxF = file.indexOf("/", idxI + 1);
+			}
 			int nThreads = Integer.parseInt(file.substring(idxI + 2, idxF));
 			long avgTP = average_column(1, file);
 			long avgLat = average_column(2, file);
@@ -123,12 +151,32 @@ public class StatisticsUtils {
 		fileIS.nextLine();
 
 		while (fileIS.hasNextLine()) {
-			String[] lineToks = fileIS.nextLine().split("\t");
+			String line = fileIS.nextLine();
+			String[] lineToks = line.split("\t");
+			if (lineToks.length <= colIdx || lineToks[colIdx].equals("DURATION")) {
+				continue;
+			}
 			sum += Long.parseLong(lineToks[colIdx]);
 			count++;
 		}
 		fileIS.close();
 		return sum / count;
+	}
+
+	private static long sum_column(int colIdx, String fileName) throws FileNotFoundException {
+		File file = new File(fileName);
+		Scanner fileIS = new Scanner(file);
+		long sum = 0;
+
+		// Skip header
+		// fileIS.nextLine();
+
+		while (fileIS.hasNextLine()) {
+			String[] lineToks = fileIS.nextLine().split("\t");
+			sum += Long.parseLong(lineToks[colIdx]);
+		}
+		fileIS.close();
+		return sum;
 	}
 
 	// OP_NAME START_TIME DURATION SITE -> OP_NAME (MEAN_TIME, STD_DEV)*
@@ -240,7 +288,7 @@ public class StatisticsUtils {
 			scanner.close();
 		}
 
-		String[] regions = {"US-EAST", "US-WEST", "EUROPE", "GLOBAL"};
+		String[] regions = {"1", "2", "3", "-1"};
 		for (Entry<String, Map<String, DescriptiveStatistics>> op : opsDuration.entrySet()) {
 			StringBuilder outputLine = new StringBuilder();
 			outputLine.append(op.getKey());
@@ -289,6 +337,15 @@ public class StatisticsUtils {
 				}
 				createTPS(filter, files);
 			}
+			if (args[0].equals("-tpsa")) {
+				String filter = args[1];
+				int numFiles = args.length - 2;
+				String[] files = new String[numFiles];
+				for (int i = 0; i < numFiles; i++) {
+					files[i] = args[i + 2];
+				}
+				createTPSALL(filter, files);
+			}
 			if (args[0].equals("-latTPS")) {
 				String filter = args[1];
 				int numFiles = args.length - 2;
@@ -298,7 +355,6 @@ public class StatisticsUtils {
 				}
 				createLatencyForTPS(filter, files);
 			}
-
 			if (args[0].equals("-tourHist")) {
 				int numFiles = args.length - 1;
 				String[] files = new String[numFiles];

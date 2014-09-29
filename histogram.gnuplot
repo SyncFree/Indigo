@@ -7,7 +7,7 @@ set style histogram errorbars gap 2 lw 1
 set style data histograms
 set xtics rotate by -45
 set bars 0.5
-set yrange [0:2000]
+set yrange [0:*]
 set ylabel "Latency [ms]"
 
 plot 'tournament.dat' using 2:4:5:xtic(1) every ::1 ti "US-EAST" lc rgb "red",\

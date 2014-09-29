@@ -10,44 +10,44 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-209-207-71.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-193-102-146.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-72-74-191.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-107-23-1-243.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-248-53.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-171-50-155.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-210-11-138.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-193-102-149.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-77-144-231.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-209-207-71.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-193-102-146.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-72-74-191.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-107-23-1-243.compute-1.amazonaws.com"
-	"ec2-54-183-248-53.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-155.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-11-138.compute-1.amazonaws.com"
+	"ec2-54-193-102-149.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-144-231.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-84-88-115.compute-1.amazonaws.com"
-	"ec2-54-183-209-134.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-133.eu-west-1.compute.amazonaws.com"
+	"ec2-54-209-207-71.compute-1.amazonaws.com"
+	"ec2-54-193-102-146.us-west-1.compute.amazonaws.com"
+	"ec2-54-72-74-191.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-107-23-1-238.compute-1.amazonaws.com"
-	"ec2-54-183-211-105.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-190.eu-west-1.compute.amazonaws.com"
+	"ec2-54-209-166-112.compute-1.amazonaws.com"
+	"ec2-54-193-69-65.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-172-0.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-84-88-115.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-209-207-71.compute-1.amazonaws.com:29876/"
 
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -63,10 +63,10 @@ SHEPARD_URL="tcp://ec2-54-84-88-115.compute-1.amazonaws.com:29876/"
 #SHEPARD_URL="tcp://*:29876/"
 
 
-CONFIG=("indigo-tournament-l100.props")
+CONFIG=("indigo-tournament-l90.props")
 N_REGIONS=(3)
-N_THREADS=(100 1 10 20 40 60 80 120 140 160)
-MODE=("-indigo" "-weak")
+N_THREADS=(1)
+MODE=("-indigo")
 
 #<Clients> #<Command>
 ssh_command() {
@@ -108,7 +108,7 @@ get_results() {
 	servers=("$@")
 	CMD="rsync -r "		
 	for h in ${servers[@]}; do
-		cmd=$CMD" "$USERNAME"@"$h":results_tournament* "$SOURCE_ROOT"../indigo_results_tournament/"
+		cmd=$CMD" "$USERNAME"@"$h":long_results_tournament* "$SOURCE_ROOT"../indigo_results/"
 		$cmd
 	done
 }
@@ -210,7 +210,7 @@ do
 				echo $k" CONFIG"
 				echo $m" MODE"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
+				OUTPUT_DIR=$INDIGO_ROOT"long_results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
@@ -258,7 +258,7 @@ do
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
 				done
 
-				sleep 360
+				sleep 420
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"

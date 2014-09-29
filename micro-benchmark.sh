@@ -11,44 +11,44 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-210-95-209.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-170-152.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-77-87-129.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-164-19-154.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-20-242.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-77-93-91.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-210-188-36.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-193-30-112.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-72-151-174.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-210-95-209.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-170-152.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-77-87-129.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-54-164-19-154.compute-1.amazonaws.com"
-	"ec2-54-183-20-242.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-93-91.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-188-36.compute-1.amazonaws.com"
+	"ec2-54-193-30-112.us-west-1.compute.amazonaws.com"
+	"ec2-54-72-151-174.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-210-95-209.compute-1.amazonaws.com"
-	"ec2-54-183-170-152.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-87-129.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-191-175.compute-1.amazonaws.com"
+	"ec2-54-183-252-231.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-11-128.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-160-64.compute-1.amazonaws.com"
-	"ec2-54-183-30-15.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-45-18.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-189-144.compute-1.amazonaws.com"
+	"ec2-54-193-28-250.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-249-141.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-210-95-209.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-210-191-175.compute-1.amazonaws.com:29876/"
 	
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -66,14 +66,14 @@ SHEPARD_URL="tcp://ec2-54-210-95-209.compute-1.amazonaws.com:29876/"
 
 TABLE="table"
 #N_KEYS=(1 10 100 1000 10000)
-N_KEYS=(1)
+N_KEYS=(1000)
 #N_REGIONS=(1)
 N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(1 5)
-MODE=("-indigo" )
+N_THREADS=(1 5 10 15 20 25 30 40 50 60 70 80)
+MODE=("-indigo" "-weak")
 DISTRIBUTION="uniform"
-INIT_VAL=6000
+INIT_VAL=2999999
 
 #<Clients> #<Command>
 ssh_command() {
@@ -257,7 +257,7 @@ do
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -maxThinkTime 1500 -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
