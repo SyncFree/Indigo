@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.indigo.ResourceRequest;
+import swift.clocks.Timestamp;
 
 /**
  * By design this class returns the values of the original Resource minus the
@@ -21,8 +21,8 @@ import swift.indigo.ResourceRequest;
 // from a shared allow to a shared forbid
 public class LocalLock {
 
-	private Set<ResourceRequest<ShareableLock>> activeClients;
-	private Map<String, CausalityClock> clocks;
+	private Set<Timestamp> activeClients;
+	private Map<Timestamp, CausalityClock> clocks;
 	private ShareableLock nextType;
 
 	public LocalLock() {
@@ -30,37 +30,33 @@ public class LocalLock {
 		this.clocks = new HashMap<>();
 	}
 
-	public void lock(ResourceRequest<ShareableLock> req, CausalityClock snapshot) {
-		if (checkAvailable(req)) {
-			activeClients.add(req);
-			clocks.put(req.getRequesterId(), snapshot);
-			if (nextType != null && req.getResource().equals(nextType)) {
+	public void lock(Timestamp cltTs, ShareableLock type, CausalityClock snapshot) {
+		if (checkAvailable(type)) {
+			activeClients.add(cltTs);
+			clocks.put(cltTs, snapshot);
+			if (nextType != null && type.equals(nextType)) {
 				// System.out.println("satisfied next "+nextType);
 				nextType = null;
 			}
-		} else {
-			System.out.println("LOCK but not available " + req);
-			System.exit(0);
 		}
 	}
 
 	public boolean checkCanRelease() {
 		return activeClients.isEmpty();
 	}
-	public boolean checkAvailable(ResourceRequest<ShareableLock> request) {
-		ShareableLock otherResource = request.getResource();
-		if (nextType == null || request.getResource().compareTo(nextType) < 0) {
-			nextType = request.getResource();
+	public boolean checkAvailable(ShareableLock otherType) {
+		if (nextType == null || otherType.compareTo(nextType) < 0) {
+			nextType = otherType;
 		}
 
-		return (nextType != null && nextType.equals(request.getResource())) && activeClients.isEmpty() || (otherResource.isShareable());
+		return (nextType != null && nextType.equals(otherType)) && activeClients.isEmpty() || (otherType.isShareable());
 	}
-	public boolean release(String siteId, ResourceRequest<ShareableLock> req) {
-		if (!activeClients.remove(req)) {
-			System.out.println("ERROR release did not remove a resource " + req);
+	public boolean release(String siteId, Timestamp cltTs) {
+		if (!activeClients.remove(cltTs)) {
+			System.out.println("ERROR release did not remove a resource " + cltTs);
 			System.exit(0);
 		}
-		clocks.remove(req.getRequesterId());
+		clocks.remove(cltTs);
 		return true;
 	}
 

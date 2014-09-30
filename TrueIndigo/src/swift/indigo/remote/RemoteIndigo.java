@@ -144,6 +144,8 @@ public class RemoteIndigo implements Indigo {
 					if (reply.acquiredResources() || resources.size() == 0) {
 						if (retryCount > 0) {
 							System.err.println("SUCCESS" + retryCount + " " + request);
+						} else {
+							System.out.println("aqui");
 						}
 						if (Log.isLoggable(Level.INFO))
 							Log.info("Received reply for " + txnTimestamp + " " + reply);

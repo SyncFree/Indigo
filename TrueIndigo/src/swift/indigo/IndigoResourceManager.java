@@ -83,7 +83,7 @@ final public class IndigoResourceManager {
 		this.resourceMgrId = sequencer.siteId + "-LockManager";
 
 		if (!endpoints.isEmpty()) {
-			masterId = Args.valueOf("-master", new TreeSet<String>(endpoints.keySet()).first());
+			this.masterId = Args.valueOf("-master", new TreeSet<String>(endpoints.keySet()).first());
 			this.isMaster = masterId.equals(sequencer.siteId);
 		} else {
 			this.isMaster = true;
@@ -149,14 +149,19 @@ final public class IndigoResourceManager {
 			Iterator<Pair<ResourceRequest<ShareableLock>, Timestamp>> it = waiting.iterator();
 			while (it.hasNext()) {
 				Pair<ResourceRequest<ShareableLock>, Timestamp> elem = it.next();
-				if (!durableSnapshot.includes(elem.getSecond()))
-					break;
-				lock.release(sequencer.siteId, elem.getFirst());
-				it.remove();
+				if (durableSnapshot.includes(elem.getSecond())) {
+					lock.release(sequencer.siteId, elem.getSecond());
+					it.remove();
+				} else {
+					// if (logger.isLoggable(Level.WARNING)) {
+					// logger.warning("Release queue not empty for " + crdtId +
+					// ": " + lock + " SNAPSHOT" + durableSnapshot);
+					// }
+					continue;
+				}
 			}
 		}
 	}
-
 	private Set<Pair<ResourceRequest<ShareableLock>, Timestamp>> createQueue() {
 		Set<Pair<ResourceRequest<ShareableLock>, Timestamp>> queue = new TreeSet<Pair<ResourceRequest<ShareableLock>, Timestamp>>(new Comparator<Pair<ResourceRequest<ShareableLock>, Timestamp>>() {
 			@Override
@@ -198,7 +203,7 @@ final public class IndigoResourceManager {
 					LocalLock localLock = null;
 					if (req instanceof LockReservation) {
 						localLock = locks.get(req.getResourceId());
-						if (localLock != null && !localLock.checkAvailable((ResourceRequest<ShareableLock>) req)) {
+						if (localLock != null && !localLock.checkAvailable((ShareableLock) req.getResource())) {
 							if (localLock.checkCanRelease()) {
 								boolean released = resource.releaseShare(sequencer.siteId, masterId);
 								if (released) {
@@ -268,7 +273,7 @@ final public class IndigoResourceManager {
 				for (ResourceRequest<?> req_i : request.getResources()) {
 					if (req_i instanceof LockReservation) {
 						LocalLock lock = locks.get(req_i.getResourceId());
-						lock.lock((ResourceRequest<ShareableLock>) req_i, snapshot);
+						lock.lock(txnTs, (ShareableLock) req_i.getResource(), snapshot);
 						EscrowableTokenCRDT cachedResource = (EscrowableTokenCRDT) active.get(req_i.getResourceId());
 						result = cachedResource.updateOwnership(sequencer.siteId, req_i.getRequesterId(), ((LockReservation) req_i).type).equals(TRANSFER_STATUS.SUCCESS);
 						updatesToClient.addAll((Collection<CRDTObjectUpdatesGroup<?>>) handle.getUpdates());
@@ -459,7 +464,7 @@ final public class IndigoResourceManager {
 				// If request is a lock and it cannot be granted locally return
 				// false;
 				if (request instanceof LockReservation) {
-					if (!locks.get(request.getResourceId()).checkAvailable((ResourceRequest<ShareableLock>) request)) {
+					if (!locks.get(request.getResourceId()).checkAvailable((ShareableLock) request.getResource())) {
 						// if (logger.isLoggable(Level.WARNING) &&
 						// !result.equals(TRANSFER_STATUS.SUCCESS))
 						logger.warning("NOT AVAILABLE " + requestMsg + " " + result + " " + resource + " " + request + " " + locks.get(request.getResourceId()));
@@ -549,7 +554,7 @@ final public class IndigoResourceManager {
 				// Release the resources that are committed globally
 				doReleaseResources(req_i.getResourceId(), handle.snapshot);
 				LocalLock lock = locks.get(req_i.getResourceId());
-				if (lock != null && lock.checkAvailable(req_i) && resource.checkRequest(sequencer.siteId, req_i)) {
+				if (lock != null && lock.checkAvailable((ShareableLock) req_i.getResource()) && resource.checkRequest(sequencer.siteId, req_i)) {
 					active.put(req_i.getResourceId(), resource);
 				} else {
 					nonCached.add(req_i);
