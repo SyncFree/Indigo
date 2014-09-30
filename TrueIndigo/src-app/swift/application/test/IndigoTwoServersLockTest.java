@@ -34,8 +34,12 @@ public class IndigoTwoServersLockTest {
 	@Before
 	public void init2DC() {
 		if (!started) {
-			TestsUtil.startDC1Server("DC_A", "DC_A", 31001, 32001, 33001, 34001, 35001, 36001, new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32002 + "/DC_B"});
-			TestsUtil.startDC1Server("DC_B", "DC_A", 31002, 32002, 33002, 34002, 35002, 36002, new String[]{"tcp://*:" + 31001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"}, new String[]{"tcp://*:" + 32001 + "/DC_A"});
+			TestsUtil.startSequencer("DC_A", "DC_A", 31001, new String[]{"tcp://*:32001/"}, new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"});
+			TestsUtil.startServer("DC_A", "DC_A", 32001, 34001, 35001, 36001, 33001, "tcp://*:31001/", new String[]{"tcp://*:" + 32002 + "/DC_B"});
+
+			TestsUtil.startSequencer("DC_B", "DC_A", 31002, new String[]{"tcp://*:32002/"}, new String[]{"tcp://*:" + 33001 + "/DC_A/", "tcp://*:" + 31002 + "/DC_B/"});
+			TestsUtil.startServer("DC_B", "DC_A", 32002, 34002, 35002, 36002, 33002, "tcp://*:31001/", new String[]{"tcp://*:" + 32002 + "/DC_B"});
+
 			started = true;
 
 			stub1 = RemoteIndigo.getInstance(Networking.resolve("tcp://*/36001/DC_A/"));

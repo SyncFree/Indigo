@@ -1,7 +1,7 @@
 package swift.crdt;
 
 public enum ShareableLock {
-	EXCLUSIVE_ALLOW, ALLOW, FORBID, NONE;
+	EXCLUSIVE_ALLOW, FORBID, ALLOW, NONE;
 
 	public boolean isShareable() {
 		return !this.equals(EXCLUSIVE_ALLOW);

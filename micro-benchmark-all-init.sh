@@ -1,4 +1,5 @@
 #!/bin/bash
+
 USERNAME="ec2-user"
 INDIGO_ROOT="/home/$USERNAME/"
 SOURCE_ROOT="/Users/balegas/workspace/java/swiftcloud-indigo/"
@@ -10,45 +11,45 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-107-23-1-243.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-248-53.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-171-50-155.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-210-188-36.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-193-30-112.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-72-151-174.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-107-23-1-243.compute-1.amazonaws.com"
-	"ec2-54-183-248-53.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-155.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-188-36.compute-1.amazonaws.com"
+	"ec2-54-193-30-112.us-west-1.compute.amazonaws.com"
+	"ec2-54-72-151-174.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-84-88-115.compute-1.amazonaws.com"
-	"ec2-54-183-209-134.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-133.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-191-175.compute-1.amazonaws.com"
+	"ec2-54-183-252-231.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-11-128.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-107-23-1-238.compute-1.amazonaws.com"
-	"ec2-54-183-211-105.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-190.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-189-144.compute-1.amazonaws.com"
+	"ec2-54-193-28-250.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-249-141.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-84-88-115.compute-1.amazonaws.com:29876/"
-
+SHEPARD_URL="tcp://ec2-54-210-191-175.compute-1.amazonaws.com:29876/"
+	
 #LOCAL OVERRIDE
 #USERNAME="balegas"
 #INDIGO_ROOT="/Users/$USERNAME/swiftcloud_deployment/"
@@ -63,10 +64,16 @@ SHEPARD_URL="tcp://ec2-54-84-88-115.compute-1.amazonaws.com:29876/"
 #SHEPARD_URL="tcp://*:29876/"
 
 
-CONFIG=("indigo-tournament-l100.props")
+TABLE="table"
+#N_KEYS=(1 10 100 1000 10000)
+N_KEYS=(1000)
+#N_REGIONS=(1)
 N_REGIONS=(3)
-N_THREADS=(100 1 10 20 40 60 80 120 140 160)
+#N_THREADS=(60)
+N_THREADS=(1 5 10 15 20 25 30 40 50 60 70 80)
 MODE=("-indigo" "-weak")
+DISTRIBUTION="uniform"
+INIT_VAL=2999999
 
 #<Clients> #<Command>
 ssh_command() {
@@ -95,20 +102,18 @@ rsync_source() {
 	for h in ${servers[@]}; do
 		cmd=$cmd" -H "$USERNAME"@"$h" "
 	done
-	ant -buildfile $SOURCE_ROOT/TrueIndigo/balegas-jar-build.xml 
+    ant -buildfile $SOURCE_ROOT/TrueIndigo/balegas-jar-build.xml 
 	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
 	$cmd1
 	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
 	$cmd2
-	cmd3=$cmd" "$SOURCE_ROOT"configs/ "$INDIGO_ROOT
-	$cmd3
 }
 
 get_results() {
 	servers=("$@")
 	CMD="rsync -r "		
 	for h in ${servers[@]}; do
-		cmd=$CMD" "$USERNAME"@"$h":results_tournament* "$SOURCE_ROOT"../indigo_results_tournament/"
+		cmd=$CMD" "$USERNAME"@"$h":results* "$SOURCE_ROOT"../indigo_results/"
 		$cmd
 	done
 }
@@ -157,7 +162,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 			N_REGIONS=($OPTARG)
 		;;
 		"n")
-			CONFIG=($OPTARG)
+			N_KEYS=($OPTARG)
 		;;
 		"t")
 			N_THREADS=($OPTARG)
@@ -166,9 +171,9 @@ while getopts "abc:d:n:r:t:v:k" optname
 			INIT_VAL=($OPTARG)
 		;;
 		"k")
+			kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 			kill_all "`echo ${SERVER_MACHINES[@]}`"
 			kill_all "`echo ${CLIENT_MACHINES[@]}`"
-			kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 			exit
 		;;
 		"?")
@@ -184,10 +189,9 @@ while getopts "abc:d:n:r:t:v:k" optname
 	esac
 	done
 
-CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar -Xms2G -Xmx4G"
+CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
 LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
-CMD_SRV="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
-CMD_CLT="java "$CLASSPATH" "$LOG" indigo.application.tournament.TournamentServiceBenchmark"
+CMD="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
 SHEPARD="java "$CLASSPATH" "$LOG" sys.shepard.PatientShepard"
 echo "####################################################"
 echo "####################################################"
@@ -202,15 +206,16 @@ do
 		for j in "${N_THREADS[@]}"
 		do
 			:
-			for k in "${CONFIG[@]}"
+			for k in "${N_KEYS[@]}"
 			do
 				:
 				echo $j" THREADS"
 				echo $i" REGIONS"
-				echo $k" CONFIG"
+				echo $k" KEYS"
 				echo $m" MODE"
+				echo $DISTRIBUTION" DISTRIBUTION"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
+				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
@@ -219,7 +224,7 @@ do
 				
 				ri=0;
 				for h in ${sequencer_machines[@]}; do
-					cmd=$CMD_SRV" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -server "${servers[$((ri))]}" "$m
+					cmd=$CMD" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -server "${servers[$((ri))]}" "$m
 					echo "Start Sequencer "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_sequencer_console.log" &
 					ri=`expr $ri + 1`
@@ -230,35 +235,41 @@ do
 				server_machines=(${SERVER_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${server_machines[@]}; do
-					cmd=$CMD_SRV" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencerUrl "${SEQUENCERS[$((ri))]}" -servers "${servers[@]}" "$m
+					cmd=$CMD" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencerUrl "${SEQUENCERS[$((ri))]}" -servers "${servers[@]}" "$m
 					echo "Start Server "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
 					ri=`expr $ri + 1`
 				done
 				
 				sleep 10
-
+				
+				ri=0;
+				for h in ${server_machines[@]}; do
+					cmd=$makeDir" & "$makeDir"init & "$CMD" -init -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -table "$TABLE" "$m" -initValue "$INIT_VAL" -results_dir "$OUTPUT_DIR"init"
+					echo "Init data "$master" CMD "$cmd
+					ssh $USERNAME@$h "nohup "$cmd
+					ri=`expr $ri + 1`
+				done
+				
+				sleep 10
+				
 				master=${SERVER_MACHINES[0]}
-				cmd=$makeDir" & "$makeDir"init & "$CMD_CLT" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -config "$k" -results_dir "$OUTPUT_DIR"init "$m
-				echo "Init data "$master" CMD "$cmd
-				ssh $USERNAME@$master "nohup "$cmd
 				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
 				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
-				
-				sleep 30
+
+				sleep 10
 
 				indigos=(${INDIGOS[@]:0:$i})
 				client_machines=(${CLIENT_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${client_machines[@]}; do
-					site=`expr $ri + 1`
-					cmd=$makeDir" ; "$CMD_CLT" -run -siteId "${REGION_NAME[$((ri))]}" -site "$site" -master "${REGION_NAME[0]}" -config "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -results_dir "$OUTPUT_DIR" -shepard "$SHEPARD_URL" "$m
+					cmd=$makeDir" ; "$CMD" -run -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -nKeys "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -table "$TABLE" "$m" -results_dir "$OUTPUT_DIR" -initValue "$INIT_VAL" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
 				done
 
-				sleep 360
+				sleep 120
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
@@ -275,15 +286,15 @@ do
 				makeDir="mkdir -p "$cdf_dir" ; mkdir -p "$tpsl_dir
 				
 				for h in ${client_machines[@]}; do
-					output_cdf=$cdf_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
-					output_tpsl=$tpsl_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
+					output_cdf=$cdf_dir"micro_benchmark_results_"${REGION_NAME[$((ri))]}".dat"
+					output_tpsl=$tpsl_dir"micro_benchmark_results_"${REGION_NAME[$((ri))]}".dat"
 
-					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
+					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
 					cmd="$awk | $RUN_STATS $CDF"
 					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
 					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
 
-					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
+					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"micro_benchmark_results_"${REGION_NAME[$((ri))]}".log"
 					cmd="$awk | $RUN_STATS $TPSL"
 					echo "Generate results "$h" CMD "$cmd" to "$output_tpsl
 					ssh $USERNAME@$h "$cmd > $output_tpsl"

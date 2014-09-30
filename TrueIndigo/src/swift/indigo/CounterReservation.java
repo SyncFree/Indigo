@@ -81,4 +81,9 @@ public class CounterReservation implements ResourceRequest<Integer> {
 		return sb.toString();
 	}
 
+	@Override
+	public Timestamp getClientTs() {
+		return ts;
+	}
+
 }

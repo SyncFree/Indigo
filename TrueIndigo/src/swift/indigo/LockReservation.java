@@ -79,4 +79,9 @@ public class LockReservation implements ResourceRequest<ShareableLock> {
 		return sb.toString();
 	}
 
+	@Override
+	public Timestamp getClientTs() {
+		return ts;
+	}
+
 }

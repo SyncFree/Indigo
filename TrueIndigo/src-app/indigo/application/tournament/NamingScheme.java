@@ -44,8 +44,8 @@ public class NamingScheme {
 		return new CRDTIdentifier("matches", matchId);
 	}
 
-	public static CRDTIdentifier forMatchHistory() {
-		return new CRDTIdentifier("indexes", "matches");
+	public static CRDTIdentifier forMatchHistory(String tournamentName) {
+		return new CRDTIdentifier("indexes", "matches_" + tournamentName);
 	}
 
 	public static CRDTIdentifier forPlayerIndex(String site) {

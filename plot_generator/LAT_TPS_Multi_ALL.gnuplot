@@ -24,11 +24,8 @@ set clip points;
 	#    wusw using 1:2  every ::1 title "Causal: US-W"  with linespoints pi 3 lt 2 ps 2 pt 4 lc rgb '#00FF00',\
      #   weur using 1:2  every ::1 title "Causal: EUR"   with linespoints pi 3 lt 2 ps 2 pt 4 lc rgb '#FF0000';
 set pointinterval 1
-plot    iuse using 2:3   every ::1 title "Indigo: US-E"  with linespoints lt 1 ps 2 pt 2 lc rgb '#000000',\
-        iusw using 2:3   every ::1 title "Indigo: US-W"  with linespoints lt 1 ps 2 pt 2 lc rgb '#0F0F0F',\
-        ieur using 2:3   every ::1 title "Indigo: EUR"   with linespoints lt 1 ps 2 pt 2 lc rgb '#444444',\
-        wuse using 2:3   every ::1 title "Causal: US-E"  with linespoints lt 2 ps 2 pt 4 lc rgb '#000000',\
-	    wusw using 2:3   every ::1 title "Causal: US-W"  with linespoints lt 2 ps 2 pt 4 lc rgb '#0F0F0F',\
-        weur using 2:3   every ::1 title "Causal: EUR"   with linespoints lt 2 ps 2 pt 4 lc rgb '#444444';
+plot    iall using 2:3   every ::1 title "Indigo: 3 Regions" with linespoints lt 1 ps 2 pt 2 lc rgb '#000000',\
+        wall using 2:3   every ::1 title "Causal: 3 Regions" with linespoints lt 2 ps 2 pt 4 lc rgb '#444444',\
+        sall using 2:3   every ::1 title "Strong: 1 Regions" with linespoints pi 1 lt 3 ps 2 pt 6 lc rgb '#1F1F1F';
 
 

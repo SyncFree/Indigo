@@ -11,40 +11,45 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-210-188-36.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-193-30-112.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-72-151-174.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-165-234-165.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-104-62.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-194-50-172.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-210-191-175.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-252-231.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-77-11-128.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	)
+
+SEQUENCER_MACHINES=(
+	"ec2-54-210-188-36.compute-1.amazonaws.com"
+	"ec2-54-193-30-112.us-west-1.compute.amazonaws.com"
+	"ec2-54-72-151-174.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-165-234-165.compute-1.amazonaws.com"
-	"ec2-54-183-104-62.us-west-1.compute.amazonaws.com"
-	"ec2-54-194-50-172.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-191-175.compute-1.amazonaws.com"
+	"ec2-54-183-252-231.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-11-128.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-234-164.compute-1.amazonaws.com"
-	"ec2-54-183-56-99.us-west-1.compute.amazonaws.com"
-	"ec2-54-194-50-146.eu-west-1.compute.amazonaws.com"
+	"ec2-54-210-189-144.compute-1.amazonaws.com"
+	"ec2-54-193-28-250.us-west-1.compute.amazonaws.com"
+	"ec2-54-77-249-141.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-165-234-165.compute-1.amazonaws.com:29876/"
-
-
+SHEPARD_URL="tcp://ec2-54-210-191-175.compute-1.amazonaws.com:29876/"
+	
 #LOCAL OVERRIDE
 #USERNAME="balegas"
 #INDIGO_ROOT="/Users/$USERNAME/swiftcloud_deployment/"
@@ -61,14 +66,14 @@ SHEPARD_URL="tcp://ec2-54-165-234-165.compute-1.amazonaws.com:29876/"
 
 TABLE="table"
 #N_KEYS=(1 10 100 1000 10000)
-N_KEYS=(1)
+N_KEYS=(1000)
 #N_REGIONS=(1)
 N_REGIONS=(3)
 #N_THREADS=(60)
-N_THREADS=(1)
-MODE=("-indigo" )
+N_THREADS=(1 5 10 15 20 25 30 40 50 60 70 80)
+MODE=("-indigo" "-weak")
 DISTRIBUTION="uniform"
-INIT_VAL=5000
+INIT_VAL=2999999
 
 #<Clients> #<Command>
 ssh_command() {
@@ -122,6 +127,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 		"a")
 			rsync_source "${SERVER_MACHINES[@]}"
 			rsync_source "${CLIENT_MACHINES[@]}"
+			rsync_source "${SEQUENCER_MACHINES[@]}"
 			exit
 		;;
 		"b")
@@ -165,6 +171,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 			INIT_VAL=($OPTARG)
 		;;
 		"k")
+			kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 			kill_all "`echo ${SERVER_MACHINES[@]}`"
 			kill_all "`echo ${CLIENT_MACHINES[@]}`"
 			exit
@@ -211,23 +218,29 @@ do
 				OUTPUT_DIR=$INDIGO_ROOT"results"$m"-k"$k"-r"$i"-t"$j"-v"$INIT_VAL"-"$DISTRIBUTION"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
+				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
 				sequencers=${SEQUENCERS[@]:0:$i}
 				servers=(${SERVERS[@]:0:$i})
-				server_machines=(${SERVER_MACHINES[@]:0:$i})
-				echo "SERVERS "$servers
+				
 				ri=0;
-				for h in ${server_machines[@]}; do
-					cmd=$CMD" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" "$m
+				for h in ${sequencer_machines[@]}; do
+					cmd=$CMD" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -server "${servers[$((ri))]}" "$m
 					echo "Start Sequencer "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_sequencer_console.log" &
-					sleep 2
-					cmd=$CMD" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -servers "${servers[@]}" "$m
-					echo "Start Server "$h "CMD" $cmd
-					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
-					
-#					ssh $USERNAME@$h "nohup "$cmd " > dc_console.log" &
 					ri=`expr $ri + 1`
 				done
+				
+				sleep 5
+
+				server_machines=(${SERVER_MACHINES[@]:0:$i})
+				ri=0;
+				for h in ${server_machines[@]}; do
+					cmd=$CMD" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencerUrl "${SEQUENCERS[$((ri))]}" -servers "${servers[@]}" "$m
+					echo "Start Server "$h "CMD" $cmd
+					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
+					ri=`expr $ri + 1`
+				done
+
 				
 				sleep 10
 
@@ -255,6 +268,7 @@ do
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
+				kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
 
 				
 				#Generate results

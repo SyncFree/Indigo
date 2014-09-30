@@ -34,7 +34,7 @@ public interface Resource<T> {
 
 	boolean isSingleOwner(String siteId);
 
-	boolean releaseShare(String ownerId);
+	boolean releaseShare(String ownerId, String masterId);
 
 	default boolean overThreshold(String ownerId, ResourceRequest<T> request) {
 		return false;

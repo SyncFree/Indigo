@@ -31,10 +31,10 @@ set y2range [1:1500];
 
 plot iuse using ($1-start_e)/1000000000:2 title "US-EAST" ps 3 pt 1 axes x1y1,\
 iusw using ($1-start_w)/1000000000:2 title "US-WEST" ps 3 pt 2 axes x1y1,\
-ieur using ($1-start_eur)/1000000000:2 title "EUROPE" ps 3 pt 3 axes x1y1,\
-ruse using ($1-start_e)/1000000000:2 title "" w l lt 1 lc rgb "#77777" axes x1y2,\
-rusw using ($1-start_w)/1000000000:2 title "" w l lt 1 lc rgb "#55555" axes x1y2,\
-reur using ($1-start_eur)/1000000000:2 title "" w l lt 1 lc rgb "#22222" axes x1y2;
+ieur using ($1-start_eur)/1000000000:2 title "EUROPE" ps 3 pt 3 axes x1y1;
+#ruse using ($1-start_e)/1000000000:2 title "" w l lt 1 lc rgb "#77777" axes x1y2,\
+#rusw using ($1-start_w)/1000000000:2 title "" w l lt 1 lc rgb "#55555" axes x1y2,\
+#reur using ($1-start_eur)/1000000000:2 title "" w l lt 1 lc rgb "#22222" axes x1y2;
 
 
 
