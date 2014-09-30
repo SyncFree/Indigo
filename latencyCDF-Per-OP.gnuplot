@@ -1,7 +1,5 @@
 #set encoding utf8;
 #set label 1 "XXX - scout at DC" font "Helvetica,16" at 1,950;
-set format y "%8.2f"
-set format x "%8.2f"
 if (exists("xmax")) set xr [0:xmax];
 
 set terminal postscript size 10.0, 7.0 noenhanced monochrome dashed font "Helvetica,20" linewidth 1;
@@ -17,16 +15,16 @@ set key right bottom;
 #set bmargin at screen 0.05;
 #set tmargin at screen 0.9999;
 set samples 1000
-
+set xtics auto
 
 set decimalsign locale;
 plot    'tournament_cdf.dat' using 1:($2*100.0) title "VIEW_STATUS" with lines lt 1 lc rgb '#0000FF',\
-        '' using 1:($3*100.0) title "ENROLL_T" with lines lt 1 lc rgb '#00FF00',\
-        '' using 1:($4*100.0) title "DISENROLL_T" with lines lt 1 lc rgb '#FF0000',\
+        '' using 1:($3*100.0) title "ENROLL" with lines lt 1 lc rgb '#00FF00',\
+        '' using 1:($4*100.0) title "DISENROLL" with lines lt 1 lc rgb '#FF0000',\
         '' using 1:($5*100.0) title "DO_MATCH" with lines lt 2 lc rgb '#0000FF',\
         '' using 1:($6*100.0) title "ADD_PLAYER" with lines lt 2 lc rgb '#00FF00',\
-        '' using 1:($7*100.0) title "ADD_TOURNAMENT" with lines lt 2 lc rgb '#FF0000',\
-        '' using 1:($8*100.0) title "REM_TOURNAMENT" with lines lt 2 lc rgb '#FF0000';
+#        '' using 1:($7*100.0) title "ADD_TOURNAMENT" with lines lt 2 lc rgb '#FF0000',\
+        '' using 1:($8*100.0) title "REM_TOURNAMENT" with lines lt 2 lc rgb '#FF00FF';
 
 
 

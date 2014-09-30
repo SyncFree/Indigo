@@ -65,7 +65,7 @@ SHEPARD_URL="tcp://ec2-54-209-207-71.compute-1.amazonaws.com:29876/"
 
 CONFIG=("indigo-tournament-l90.props")
 N_REGIONS=(3)
-N_THREADS=(1)
+N_THREADS=(5)
 MODE=("-indigo")
 
 #<Clients> #<Command>
