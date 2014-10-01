@@ -20,6 +20,10 @@ public class CurrentClockRequest extends ClientRequest {
 
 	@Override
 	public void deliverTo(Envelope src, MessageHandler handler) {
-		((SequencerProtocol) handler).onReceive(src, this);
+		if (handler instanceof SequencerProtocol)
+			((SequencerProtocol) handler).onReceive(src, this);
+		else
+			((SurrogateProtocol) handler).onReceive(src, this);
+
 	}
 }
