@@ -155,6 +155,11 @@ public class Server implements SurrogateProtocol {
 	}
 
 	@Override
+	public void onReceive(final Envelope src, final CurrentClockRequest r) {
+		src.reply(new CurrentClockReply(clocks.currentClockCopy()));
+	}
+
+	@Override
 	public void onReceive(Envelope src, FetchObjectVersionRequest req) {
 		if (Log.isLoggable(Level.INFO)) {
 			Log.info("FetchObjectVersionRequest client = " + req.getClientId());
