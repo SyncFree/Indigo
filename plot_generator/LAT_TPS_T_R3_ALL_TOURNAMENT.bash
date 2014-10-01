@@ -3,7 +3,7 @@ DATA_DIR=$2
 OUT_DIR=$3
 
 
-DIR_ARRAY=(`echo $RES_DIR"/results_tournament-*-c-*-t*"`)
+DIR_ARRAY=(`echo $RES_DIR"/results_tournament*c-*-t*"`)
 
 for dir in "${DIR_ARRAY[@]}"
 do
@@ -27,14 +27,14 @@ java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t 
 FILES=$RES_DIR/results_tournament-weak-c-indigo*-t*/TPSL/*ALL* 
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-T-weak-ALL.dat
 
-FILES=$RES_DIR/results_tournament-indigo-c-global-indigo*-t*/TPSL/*ALL* 
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-T-strong-ALL.dat
+FILES=$RES_DIR/results_tournament_redblue-c-global-indigo*-t*/TPSL/*ALL* 
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-T-redblue-ALL.dat
 
 rm tmp_unsorted
 
 gnuplot -e "iall='$DATA_DIR/LAT_TPS_T-T-indigo-ALL.dat'"\
 		-e "wall='$DATA_DIR/LAT_TPS_T-T-weak-ALL.dat'"\
-		-e "sall='$DATA_DIR/LAT_TPS_T-T-strong-ALL.dat'"\
+		-e "sall='$DATA_DIR/LAT_TPS_T-T-redblue-ALL.dat'"\
 			plot_generator/LAT_TPS_Multi_ALL.gnuplot > $OUT_DIR/LAT_TPS_T-TOURNAMENT-l100-r3-ALL.ps
 
 

@@ -27,14 +27,14 @@ java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t 
 FILES=$RES_DIR/results-weak-k1000-r3-t*-v2999999-uniform/TPSL/*ALL.dat
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-weak-ALL.dat
 
-FILES=$RES_DIR/results-strong-k1000-r3-t*-v2999999-uniform/TPSL/*ALL.dat
-java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-strong-ALL.dat
+FILES=$RES_DIR/results-redblue-k1000-r3-t*-v2999999-uniform/TPSL/*ALL.dat
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -latTPS -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-redblue-ALL.dat
 
 rm tmp_unsorted
 
 gnuplot -e "iall='$DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-indigo-ALL.dat'"\
 		-e "wall='$DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-weak-ALL.dat'"\
-		-e "sall='$DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-strong-ALL.dat'"\
+		-e "sall='$DATA_DIR/LAT_TPS_T-k1000-r3-v2999999-redblue-ALL.dat'"\
 			plot_generator/LAT_TPS_Multi_ALL.gnuplot > $OUT_DIR/LAT_TPS_T-k1000-r3-ALL.ps
 
 
