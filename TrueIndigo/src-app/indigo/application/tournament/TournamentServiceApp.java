@@ -16,6 +16,7 @@
  *****************************************************************************/
 package indigo.application.tournament;
 
+import static sys.Context.Networking;
 import indigo.application.adservice.Results;
 
 import java.io.PrintStream;
@@ -29,9 +30,13 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import swift.application.test.TestsUtil;
+import swift.dc.Defaults;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
+import swift.proto.CurrentClockRequest;
 import swift.utils.Pair;
+import sys.net.api.Endpoint;
+import sys.net.api.Service;
 import sys.utils.Args;
 import sys.utils.Profiler;
 import sys.utils.Props;
@@ -102,6 +107,9 @@ public class TournamentServiceApp {
 
 	public void runClientSession(TournamentServiceOps serviceClient, final int sessionId, final Workload commands, boolean loop4Ever) {
 
+		Service stub = Args.contains("-fakeCS") ? Networking.stub() : null;
+		Endpoint surrogate = Networking.resolve(Args.valueOf("-fakeCS", ""), Defaults.SERVER_URL);
+
 		totalCommands.addAndGet(commands.size());
 		// final String initSessionLog = String.format("%d,%s,%d,%d", -1,
 		// "INIT", 0, sessionStartTime);
@@ -115,6 +123,9 @@ public class TournamentServiceApp {
 				// res.setStartTime(txnStartTime).setSession(sessionId).logTo(bufferedOutput);
 				Threading.sleep(thinkTime);
 				commandsDone.incrementAndGet();
+
+				if (stub != null) // enforce a RTT delay by making a request to the server
+					stub.request(surrogate, new CurrentClockRequest());
 			}
 		while (loop4Ever);
 
@@ -124,7 +135,6 @@ public class TournamentServiceApp {
 		// "TOTAL", sessionExecTime, now));
 		// bufferedOutput.flush();
 	}
-
 	//
 	public Results runCommandLine(int sessionId, TournamentServiceOps tournamentClient, String cmdLine) {
 		String[] toks = cmdLine.split(";");
