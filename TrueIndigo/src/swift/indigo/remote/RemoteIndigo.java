@@ -139,15 +139,10 @@ public class RemoteIndigo implements Indigo {
 				hasResources = true;
 
 			int retryCount = 0;
-			for (int delay = 120;; delay = Math.min(1000, 2 * delay)) {
+			for (int delay = 50;; delay = Math.min(200, 2 * delay)) {
 				AcquireResourcesReply reply = stub.request(server, request);
 				if (reply != null) {
 					if (reply.acquiredResources() || resources.size() == 0) {
-						if (retryCount > 0) {
-							System.err.println("SUCCESS" + retryCount + " " + request);
-						} else {
-							System.out.println("aqui");
-						}
 						if (Log.isLoggable(Level.INFO))
 							Log.info("Received reply for " + txnTimestamp + " " + reply);
 						handle = new _TxnHandle(reply, request.getClientTs(), resources != null && resources.size() > 0);
@@ -158,13 +153,11 @@ public class RemoteIndigo implements Indigo {
 						throw new IndigoImpossibleException();
 					}
 				}
-				System.err.println("retry  " + retryCount + " " + request);
 				retryCount++;
 				Threading.sleep(delay);
 			}
 		}
 	}
-
 	public void endTxn() {
 		if (handle != null)
 			handle.commit();
@@ -183,7 +176,8 @@ public class RemoteIndigo implements Indigo {
 
 	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 		V obj = (V) handle.get(id, create, classOfV);
-		Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj + " " + obj.getClock());
+		if (Log.isLoggable(Level.INFO))
+			Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj + " " + obj.getClock());
 		return obj;
 	}
 
@@ -229,7 +223,6 @@ public class RemoteIndigo implements Indigo {
 			if (!updates.isEmpty()) {
 				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates, withLocks);
 				req.setTimestamp(timestamp);
-
 				final Semaphore semaphore = new Semaphore(0);
 				if (Log.isLoggable(Level.INFO))
 					Log.info("Going to send commit request for: " + req);
@@ -263,7 +256,6 @@ public class RemoteIndigo implements Indigo {
 		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) {
 
 			FetchObjectVersionRequest req = new FetchObjectVersionRequest(stubId, uid, version, false);
-
 			FetchObjectVersionReply reply = stub.request(server, req);
 			if (reply != null) {
 				if (reply.getStatus() == FetchObjectVersionReply.FetchStatus.OK) {

@@ -20,7 +20,7 @@ import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
-import swift.indigo.remote.IndigoImpossibleExcpetion;
+import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigo;
 import sys.utils.Threading;
 
@@ -211,7 +211,7 @@ public class IndigoMultipleServersCounterTest {
 							break;
 						}
 					}
-				} catch (IndigoImpossibleExcpetion e) {
+				} catch (IndigoImpossibleException e) {
 				} catch (SwiftException e) {
 					e.printStackTrace();
 				} catch (InterruptedException e) {
@@ -249,7 +249,7 @@ public class IndigoMultipleServersCounterTest {
 								break;
 							}
 						}
-					} catch (IndigoImpossibleExcpetion e) {
+					} catch (IndigoImpossibleException e) {
 					} catch (SwiftException e) {
 						e.printStackTrace();
 					} catch (InterruptedException e) {
@@ -312,7 +312,7 @@ public class IndigoMultipleServersCounterTest {
 								break;
 							}
 						}
-					} catch (IndigoImpossibleExcpetion e) {
+					} catch (IndigoImpossibleException e) {
 					} catch (SwiftException e) {
 						e.printStackTrace();
 					} catch (InterruptedException e) {

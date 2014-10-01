@@ -213,8 +213,8 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 	}
 
 	@Override
-	public boolean releaseShare(String ownerId) {
-		return super.releaseShare(ownerId);
+	public boolean releaseShare(String ownerId, String masterId) {
+		return super.releaseShare(ownerId, masterId);
 	}
 
 	public CausalityClock getClock() {

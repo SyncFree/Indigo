@@ -166,7 +166,7 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 
 	// TODO: Always return false - other strategy could be used
 	@Override
-	public boolean releaseShare(String ownerId) {
+	public boolean releaseShare(String ownerId, String masterId) {
 		return false;
 	}
 

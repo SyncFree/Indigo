@@ -24,7 +24,7 @@ import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
-import swift.indigo.remote.IndigoImpossibleExcpetion;
+import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigo;
 import sys.shepard.PatientShepard;
 import sys.utils.Args;
@@ -99,7 +99,7 @@ public class MicroBenchmark {
 				counterValue = x.getValue();
 				availableSite = x.getSiteResource(siteId);
 			}
-		} catch (IndigoImpossibleExcpetion e) {
+		} catch (IndigoImpossibleException e) {
 			result = false;
 		} finally {
 			stub.endTxn();
@@ -171,8 +171,13 @@ public class MicroBenchmark {
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
 		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31001/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
+		String redBlueUrl = Args.valueOf("-redblue", (String) null);
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		if (redBlueUrl == null) {
+			TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		} else {
+			TestsUtil.startServerRedBlue(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers, redBlueUrl);
+		}
 	}
 
 	public static void startDC1Sequencer() {
@@ -197,8 +202,13 @@ public class MicroBenchmark {
 		int indigoPort = Args.valueOf("-indigoPort", 36001);
 		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31001/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
+		String redBlueUrl = Args.valueOf("-redblue", (String) null);
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		if (redBlueUrl == null) {
+			TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		} else {
+			TestsUtil.startServerRedBlue(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers, redBlueUrl);
+		}
 	}
 
 	public static void startDC2Sequencer() {
@@ -223,8 +233,13 @@ public class MicroBenchmark {
 		int indigoPort = Args.valueOf("-indigoPort", 36002);
 		String sequencerUrl = Args.valueOf("-sequencerUrl", "tcp://*:31002/");
 		String[] otherServers = Args.valueOf("-servers", new String[]{});
+		String redBlueUrl = Args.valueOf("-redblue", (String) null);
 
-		TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		if (redBlueUrl == null) {
+			TestsUtil.startServer(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers);
+		} else {
+			TestsUtil.startServerRedBlue(DC_ID, MASTER_ID, serverPort, dhtPort, pubSubPort, indigoPort, serverPortForSequencer, sequencerUrl, otherServers, redBlueUrl);
+		}
 	}
 
 	public static void startDC3Sequencer() {

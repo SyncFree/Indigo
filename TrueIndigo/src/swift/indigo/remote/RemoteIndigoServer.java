@@ -34,6 +34,7 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 	final Endpoint lockManager;
 	final boolean emulateWeakConsistency; // for evaluation...
 	final boolean emulateRedBlueConsistency;
+	final boolean emulateStrongConsistency;
 
 	final CausalityClock monotonicClock;
 
@@ -44,6 +45,7 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 
 		this.emulateWeakConsistency = Args.contains("-weak");
 		this.emulateRedBlueConsistency = Args.contains("-redblue");
+		this.emulateStrongConsistency = Args.contains("-strong");
 
 		if (emulateWeakConsistency && emulateRedBlueConsistency) {
 			System.err.println("Requested both weak & redblue consistency!!!");
@@ -74,7 +76,7 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 
 	public void onReceive(final Envelope src, final AcquireResourcesRequest req) {
 
-		if (emulateWeakConsistency || req.getResources().isEmpty()) {
+		if (emulateWeakConsistency || (!emulateStrongConsistency && req.getResources().isEmpty())) {
 			CausalityClock snapshot = server.clocks.currentClockCopy();
 			monotonizeSnapshot(snapshot);
 			src.reply(new AcquireResourcesReply(server.registerSnapshot(snapshot), snapshot));

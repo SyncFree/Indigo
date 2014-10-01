@@ -19,7 +19,7 @@ import org.junit.Test;
 import swift.api.CRDTIdentifier;
 import swift.exceptions.SwiftException;
 import swift.indigo.Indigo;
-import swift.indigo.remote.IndigoImpossibleExcpetion;
+import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigo;
 
 public class CounterUnitTests {
@@ -141,7 +141,7 @@ public class CounterUnitTests {
 								break;
 							}
 						}
-					} catch (IndigoImpossibleExcpetion e) {
+					} catch (IndigoImpossibleException e) {
 					} catch (SwiftException e) {
 						e.printStackTrace();
 					} catch (InterruptedException e) {
