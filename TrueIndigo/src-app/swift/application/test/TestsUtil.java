@@ -18,10 +18,11 @@ import swift.indigo.IndigoSequencerAndResourceManager;
 import swift.indigo.IndigoServer;
 import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
-import swift.indigo.remote.IndigoImpossibleExcpetion;
+import swift.indigo.remote.IndigoImpossibleException;
 import sys.utils.Args;
 
 public class TestsUtil {
+
 	public static void startSequencer(String siteId, String masterId, int sequencerPort, String[] servers, String[] otherSequencers) {
 		List<String> argsSeq = new LinkedList<String>();
 		argsSeq.addAll(Arrays.asList(new String[]{"-master", masterId, "-siteId", siteId, "-url", "tcp://*:" + sequencerPort}));
@@ -43,6 +44,22 @@ public class TestsUtil {
 				servers.add(server);
 		}
 		argsServer.addAll(servers);
+		IndigoServer.main(argsServer.toArray(new String[]{}));
+	}
+
+	public static void startServerRedBlue(String siteId, String masterId, int serverPort, int DHTPort, int pubSubPort, int indigoPort, int serverPort4Seq, String sequencerUrl, String[] otherServers, String redSeqUrl) {
+		List<String> argsServer = new LinkedList<String>();
+		argsServer.addAll(Arrays.asList(new String[]{"-siteId", siteId, "-url", "tcp://*:" + serverPort, "-sequencer", sequencerUrl, "-url4Seq", "tcp://*:" + serverPort4Seq + "/", "-dht", "tcp://*:" + DHTPort, "-pubsub",
+				"tcp://*:" + pubSubPort, "-indigo", "" + "tcp://*:" + indigoPort, "-servers"}));
+
+		List<String> servers = new ArrayList<>();
+		for (String server : otherServers) {
+			servers.add(server);
+		}
+		System.err.println("-----------SERVERS:" + servers);
+		argsServer.addAll(servers);
+		argsServer.add("-redblue");
+		argsServer.add(redSeqUrl);
 		System.out.println("\n\nARGS " + argsServer);
 		IndigoServer.main(argsServer.toArray(new String[]{}));
 	}
@@ -63,7 +80,7 @@ public class TestsUtil {
 			BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
 
 			result = x.decrement(units, siteId);
-		} catch (IndigoImpossibleExcpetion e) {
+		} catch (IndigoImpossibleException e) {
 			result = false;
 		} finally {
 			stub.endTxn();
@@ -87,7 +104,7 @@ public class TestsUtil {
 			if (x.getValue() > 0) {
 				result = x.decrement(units, siteId);
 			}
-		} catch (IndigoImpossibleExcpetion e) {
+		} catch (IndigoImpossibleException e) {
 			result = false;
 		} finally {
 			stub.endTxn();
