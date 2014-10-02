@@ -11,8 +11,8 @@ REGION_NAME=(
 
 INDIGOS=(
 	"tcp://ec2-54-164-132-179.compute-1.amazonaws.com:36001/STRONG"
-	"tcp://ec2-54-193-31-227.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-77-207-65.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-164-132-179.compute-1.amazonaws.com:36001/STRONG"
+	"tcp://ec2-54-164-132-179.compute-1.amazonaws.com:36001/STRONG"
 	)
 
 #Pass all of these
@@ -22,7 +22,7 @@ SEQUENCERS=(
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-164-132-179.compute-1.amazonaws.com:32001/STRONG"
+	"tcp://ec2-54-164-132-179.compute-1.amazonaws.com:32001/US-EAST"
 	"tcp://ec2-54-193-31-227.us-west-1.compute.amazonaws.com:32001/US-WEST"
 	"tcp://ec2-54-77-207-65.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
@@ -39,8 +39,8 @@ SERVER_MACHINES=(
 
 CLIENT_MACHINES=(
 	"ec2-54-165-244-134.compute-1.amazonaws.com"
-	"ec2-54-193-32-181.us-west-1.compute.amazonaws.com"
-	"ec2-54-77-205-206.eu-west-1.compute.amazonaws.com"
+	"ec2-54-165-251-178.compute-1.amazonaws.com"
+	"ec2-54-172-23-72.compute-1.amazonaws.com"
 	)
 
 SHEPARD_URL="tcp://ec2-54-164-132-179.compute-1.amazonaws.com:29876/"
@@ -104,7 +104,7 @@ get_results() {
 	servers=("$@")
 	CMD="rsync -r "		
 	for h in ${servers[@]}; do
-		cmd=$CMD" "$USERNAME"@"$h":results_tournament*redblue* "$SOURCE_ROOT"../indigo_results/"
+		cmd=$CMD" "$USERNAME"@"$h":new-results* "$SOURCE_ROOT"../indigo_results/"
 		$cmd
 	done
 }
@@ -206,7 +206,7 @@ do
 				echo $k" CONFIG"
 				echo $m" MODE"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results_tournament_strong-c-"$k"-r"$i"-t"$j"/"
+				OUTPUT_DIR=$INDIGO_ROOT"new-results_tournament_strong-c-"$k"-r"$i"-t"$j"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 				
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
@@ -250,7 +250,7 @@ do
 				ri=0;
 				for h in ${client_machines[@]}; do
 					site=`expr $ri + 1`
-					cmd=$makeDir" ; "$CMD_CLT" -run -siteId STRONG -site "$site" -master STRONG -config "$k" -threads "$j" -srvAddress "${indigos[0]}" -results_dir "$OUTPUT_DIR" -shepard "$SHEPARD_URL" "$m" -fileNameSuffix _"${REGION_NAME[$((ri))]}" -fakeCS "${indigos[$((ri))]}
+					cmd=$makeDir" ; "$CMD_CLT" -run -siteId STRONG -site "$site" -master STRONG -config "$k" -threads "$j" -srvAddress "${indigos[0]}" -results_dir "$OUTPUT_DIR" -shepard "$SHEPARD_URL" "$m" -fileNameSuffix _"${REGION_NAME[$((ri))]}" -fakeCS "${servers[$((ri))]}
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
