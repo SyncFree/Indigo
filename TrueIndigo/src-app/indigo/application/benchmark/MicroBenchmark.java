@@ -45,7 +45,7 @@ public class MicroBenchmark {
 	private static Profiler profiler;
 	private static String MASTER_ID;
 
-	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime) throws SwiftException, InterruptedException, BrokenBarrierException {
+	public static void decrementCycleNThreads(int nThreadsByDC, int maxThinkTime, final int nWrites, int maxNReads) throws SwiftException, InterruptedException, BrokenBarrierException {
 		System.out.printf("Start decrementCycleNThreads microbenchmark: %d threads %d sleep time at site %s %s.\n", nThreadsByDC, maxThinkTime, DC_ID, DC_ADDRESS);
 		final String dc_id;
 		if (Args.contains("-weak")) {
@@ -65,10 +65,19 @@ public class MicroBenchmark {
 					boolean result = true;
 					try {
 						while (result) {
-							String key = nKeys > 1 ? distribution.sample() + "" : "1";
-							CRDTIdentifier id = new CRDTIdentifier(table + "", key);
-							result = getValueDecrement(id, 1, stub, dc_id, fakeStub, surrogate);
-							Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
+							// 50:50 workload
+							if (nWrites >= 1) {
+								List<CRDTIdentifier> ids = getNKeys(nWrites);
+								result = decrementNValues(ids, 1, stub, dc_id, fakeStub, surrogate);
+								Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
+							}
+							if (maxNReads > 0) {
+								int nReads = nKeys > 1 ? uniformRandom.nextInt(maxNReads) + 1 : 1;
+								List<CRDTIdentifier> ids = getNKeys(nReads);
+								readNValues(ids, 1, stub, dc_id, fakeStub, surrogate);
+								Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
+							}
+
 						}
 					} catch (SwiftException e) {
 						e.printStackTrace();
@@ -77,6 +86,16 @@ public class MicroBenchmark {
 					} finally {
 						sem.release();
 					}
+				}
+
+				private List<CRDTIdentifier> getNKeys(int nKeys) {
+					List<CRDTIdentifier> ids = new LinkedList<>();
+					for (int i = 0; i < nKeys; i++) {
+						String key = nKeys > 1 ? distribution.sample() + "" : "1";
+						CRDTIdentifier id = new CRDTIdentifier(table + "", key);
+						ids.add(id);
+					}
+					return ids;
 				}
 			});
 			t.start();
@@ -87,23 +106,27 @@ public class MicroBenchmark {
 		System.out.println("All clients stopped");
 		System.exit(0);
 	}
-	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException {
-		long opId = profiler.startOp(resultsLogName, "OP");
+	public static boolean decrementNValues(List<CRDTIdentifier> ids, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException {
+		long opId = profiler.startOp(resultsLogName, "DEC");
 		int counterValue = -999;
 		int availableSite = -999;
 		List<ResourceRequest<?>> resources = new LinkedList<ResourceRequest<?>>();
-		resources.add(new CounterReservation(siteId, id, units));
+		for (CRDTIdentifier id : ids) {
+			resources.add(new CounterReservation(siteId, id, units));
+		}
 		boolean result = false;
 		try {
 			stub.beginTxn(resources);
-			BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
-			if ((x.getValue()) > 0) {
-				result = x.decrement(units, siteId);
-				if (result == false) {
-					System.out.println("FAILED");
+			for (CRDTIdentifier id : ids) {
+				BoundedCounterAsResource x = stub.get(id, false, BoundedCounterAsResource.class);
+				if ((x.getValue()) > 0) {
+					result = x.decrement(units, siteId);
+					if (result == false) {
+						System.out.println("FAILED");
+					}
+					counterValue = x.getValue();
+					availableSite = x.getSiteResource(siteId);
 				}
-				counterValue = x.getValue();
-				availableSite = x.getSiteResource(siteId);
 			}
 		} catch (IndigoImpossibleException e) {
 			result = false;
@@ -114,8 +137,28 @@ public class MicroBenchmark {
 		}
 		// System.out.println(DC_ID + " " + counterValue + " " + result + " " +
 		// availableSite + " ");
-		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "");
+		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "", ids.size() + "", 0 + "");
 		return result;
+	}
+
+	public static void readNValues(List<CRDTIdentifier> ids, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException {
+		long opId = profiler.startOp(resultsLogName, "READ");
+		int counterValue = -999;
+		int availableSite = -999;
+		try {
+			stub.beginTxn();
+			for (CRDTIdentifier id : ids) {
+				stub.get(id, false, BoundedCounterAsResource.class);
+			}
+		} catch (IndigoImpossibleException e) {
+		} finally {
+			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
+		}
+		// System.out.println(DC_ID + " " + counterValue + " " + result + " " +
+		// availableSite + " ");
+		profiler.endOp(resultsLogName, opId, counterValue + "", true + "", availableSite + "", 0 + "", ids.size() + "");
 	}
 
 	public void setNormalDistribution(int sampleSize) {
@@ -402,13 +445,15 @@ public class MicroBenchmark {
 				initCounters(nKeys, table, initValue, valueVariation, dc_id, stub);
 			}
 
+			initLogger();
+
 			if (Args.contains("-run")) {
 				if (Args.contains("-shepard")) {
 					PatientShepard.sheepJoinHerd(Args.valueOf("-shepard", ""));
 				};
-
-				initLogger();
-				decrementCycleNThreads(nThreads, maxThinkTime);
+				int nWrites = Args.valueOf("-nWrites", 1);
+				int nReads = Args.valueOf("-nReads", 0);
+				decrementCycleNThreads(nThreads, maxThinkTime, nWrites, nReads);
 			}
 
 		} catch (SwiftException e) {
@@ -444,7 +489,7 @@ public class MicroBenchmark {
 				System.exit(0);
 			}
 		}
-		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS", "AVAILABLE");
+		profiler.printHeaderWithCustomFields(resultsLogName, "VALUE", "SUCCESS", "AVAILABLE", "N_WRITES", "N_READS");
 
 	}
 }
