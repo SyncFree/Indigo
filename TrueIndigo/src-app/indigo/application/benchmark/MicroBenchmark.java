@@ -20,12 +20,16 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 import swift.api.CRDTIdentifier;
 import swift.application.test.TestsUtil;
 import swift.crdt.BoundedCounterAsResource;
+import swift.dc.Defaults;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.ResourceRequest;
 import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigo;
+import swift.proto.CurrentClockRequest;
+import sys.net.api.Endpoint;
+import sys.net.api.Service;
 import sys.shepard.PatientShepard;
 import sys.utils.Args;
 import sys.utils.Profiler;
@@ -53,6 +57,8 @@ public class MicroBenchmark {
 		sem.acquire(nThreadsByDC);
 		for (int i = 0; i < nThreadsByDC; i++) {
 			Indigo stub = RemoteIndigo.getInstance(Networking.resolve(DC_ADDRESS + "/"));
+			Service fakeStub = Args.contains("-fakeCS") ? Networking.stub() : null;
+			Endpoint surrogate = Networking.resolve(Args.valueOf("-fakeCS", ""), Defaults.SERVER_URL);
 
 			Thread t = new Thread(new Runnable() {
 				public void run() {
@@ -61,7 +67,7 @@ public class MicroBenchmark {
 						while (result) {
 							String key = nKeys > 1 ? distribution.sample() + "" : "1";
 							CRDTIdentifier id = new CRDTIdentifier(table + "", key);
-							result = getValueDecrement(id, 1, stub, dc_id);
+							result = getValueDecrement(id, 1, stub, dc_id, fakeStub, surrogate);
 							Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
 						}
 					} catch (SwiftException e) {
@@ -81,7 +87,7 @@ public class MicroBenchmark {
 		System.out.println("All clients stopped");
 		System.exit(0);
 	}
-	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId) throws SwiftException {
+	public static boolean getValueDecrement(CRDTIdentifier id, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException {
 		long opId = profiler.startOp(resultsLogName, "OP");
 		int counterValue = -999;
 		int availableSite = -999;
@@ -103,6 +109,8 @@ public class MicroBenchmark {
 			result = false;
 		} finally {
 			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 		}
 		// System.out.println(DC_ID + " " + counterValue + " " + result + " " +
 		// availableSite + " ");

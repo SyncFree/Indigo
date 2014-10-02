@@ -16,6 +16,8 @@
  *****************************************************************************/
 package indigo.application.tournament;
 
+import static sys.Context.Networking;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -28,12 +30,17 @@ import swift.crdt.BoundedCounterAsResource;
 import swift.crdt.EscrowableTokenCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.ShareableLock;
+import swift.dc.Defaults;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
 import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
+import swift.proto.CurrentClockRequest;
 import swift.utils.Pair;
+import sys.net.api.Endpoint;
+import sys.net.api.Service;
+import sys.utils.Args;
 
 import com.thoughtworks.xstream.core.util.Base64Encoder;
 
@@ -50,12 +57,19 @@ public class TournamentServiceOps {
 
 	private Random rg;
 
+	private Service fakeStub;
+
+	private Endpoint surrogate;
+
 	public TournamentServiceOps(Indigo stub, String siteId, String master, String[] allSites) {
 		this.stub = stub;
 		this.siteId = siteId;
 		this.master = master;
 		this.allSites = allSites;
 		this.rg = new Random();
+		fakeStub = Args.contains("-fakeCS") ? Networking.stub() : null;
+		surrogate = Networking.resolve(Args.valueOf("-fakeCS", ""), Defaults.SERVER_URL);
+
 	}
 
 	protected String newName(int length) {
@@ -132,6 +146,8 @@ public class TournamentServiceOps {
 		stub.beginTxn();
 		result = _addPlayer(site, playerName);
 		stub.endTxn();
+		if (fakeStub != null)
+			fakeStub.request(surrogate, new CurrentClockRequest());
 		return result;
 	}
 
@@ -202,6 +218,8 @@ public class TournamentServiceOps {
 		stub.beginTxn();
 		result = _addTournament(tournamentSite, tournamentName, maxSize);
 		stub.endTxn();
+		if (fakeStub != null)
+			fakeStub.request(surrogate, new CurrentClockRequest());
 		return result;
 	}
 	@SuppressWarnings("unchecked")
@@ -265,6 +283,8 @@ public class TournamentServiceOps {
 			}
 		} finally {
 			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 		}
 		return result;
 	}
@@ -312,6 +332,8 @@ public class TournamentServiceOps {
 			}
 		} finally {
 			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 		}
 		return result;
 	}
@@ -338,6 +360,8 @@ public class TournamentServiceOps {
 			}
 		} finally {
 			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 		}
 		return result;
 	}
@@ -370,6 +394,8 @@ public class TournamentServiceOps {
 				logger.warning(e.getMessage());
 		} finally {
 			stub.endTxn();
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 		}
 		return result;
 	}
@@ -382,6 +408,8 @@ public class TournamentServiceOps {
 		} catch (SwiftException e) {
 			logger.warning(e.getMessage());
 		} finally {
+			if (fakeStub != null)
+				fakeStub.request(surrogate, new CurrentClockRequest());
 			stub.endTxn();
 		}
 	}
