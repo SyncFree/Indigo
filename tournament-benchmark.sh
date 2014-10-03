@@ -10,44 +10,44 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:36001/US-EAST"
+	"tcp://ec2-54-183-193-132.us-west-1.compute.amazonaws.com:36001/US-WEST"
+	"tcp://ec2-54-171-66-37.eu-west-1.compute.amazonaws.com:36001/EUROPE"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-107-23-1-243.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-248-53.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-171-50-155.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://ec2-54-172-22-101.compute-1.amazonaws.com:31001/US-EAST"
+	"tcp://ec2-54-183-217-29.us-west-1.compute.amazonaws.com:31001/US-WEST"
+	"tcp://ec2-54-76-1-77.eu-west-1.compute.amazonaws.com:31001/EUROPE"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-84-88-115.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-209-134.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-50-133.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-193-132.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-171-66-37.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-107-23-1-243.compute-1.amazonaws.com"
-	"ec2-54-183-248-53.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-155.eu-west-1.compute.amazonaws.com"
+	"ec2-54-172-22-101.compute-1.amazonaws.com"
+	"ec2-54-183-217-29.us-west-1.compute.amazonaws.com"
+	"ec2-54-76-1-77.eu-west-1.compute.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-84-88-115.compute-1.amazonaws.com"
-	"ec2-54-183-209-134.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-133.eu-west-1.compute.amazonaws.com"
+	"ec2-54-172-17-169.compute-1.amazonaws.com"
+	"ec2-54-183-193-132.us-west-1.compute.amazonaws.com"
+	"ec2-54-171-66-37.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-107-23-1-238.compute-1.amazonaws.com"
-	"ec2-54-183-211-105.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-50-190.eu-west-1.compute.amazonaws.com"
+	"ec2-54-165-244-134.compute-1.amazonaws.com"
+	"ec2-54-183-199-122.us-west-1.compute.amazonaws.com"
+	"ec2-54-171-85-228.eu-west-1.compute.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-84-88-115.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-172-17-169.compute-1.amazonaws.com:29876/"
 
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -210,7 +210,7 @@ do
 				echo $k" CONFIG"
 				echo $m" MODE"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
+				OUTPUT_DIR=$INDIGO_ROOT"long-results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})

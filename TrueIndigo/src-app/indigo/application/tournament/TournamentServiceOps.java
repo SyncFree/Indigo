@@ -154,9 +154,7 @@ public class TournamentServiceOps {
 	@SuppressWarnings("unchecked")
 	private boolean _addPlayer(final int site, final String playerName) throws SwiftException {
 		boolean result = true;
-		if (site == -1) {
-			System.out.println("aqui");
-		}
+
 		// Add player to index
 		AddWinsSetCRDT<String> playerIndex = (AddWinsSetCRDT<String>) stub.get(NamingScheme.forPlayerIndex(site + ""), true, AddWinsSetCRDT.class);
 		result &= playerIndex.lookup(playerName);
@@ -177,11 +175,7 @@ public class TournamentServiceOps {
 
 		// Create player's tournaments set
 		stub.get(NamingScheme.forPlayerTournaments(playerName), true, AddWinsSetCRDT.class);
-		if (site != -1 && !allSites[site - 1].equals(allSites[Integer.parseInt(playerName.split("_")[0]) - 1])) {
-			System.out.println("aqui");
-		}
-		// System.err.println("Added Player " + playerName + " " + allSites[site
-		// - 1]);
+
 		return result;
 	}
 	// @SuppressWarnings("unchecked")

@@ -139,7 +139,8 @@ public class TournamentServiceApp {
 					if (toks.length == 3) {
 						long opId = profiler.startOp(resultsLogName, cmd.toString());
 						String playerName = tournamentClient.newName(6);
-						result = tournamentClient.addPlayer(Integer.parseInt(toks[1]), toks[1] + "_" + playerName);
+						site = toks[2].equals("GLOBAL") ? -1 : Integer.parseInt(toks[1]);
+						result = tournamentClient.addPlayer(site, toks[1] + "_" + playerName);
 						profiler.endOp(resultsLogName, opId, site + "", result + "", sel_keys + "");
 						break;
 					}
