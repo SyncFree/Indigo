@@ -91,7 +91,7 @@ public class MicroBenchmark {
 				private List<CRDTIdentifier> getNKeys(int nKeys) {
 					List<CRDTIdentifier> ids = new LinkedList<>();
 					for (int i = 0; i < nKeys; i++) {
-						String key = nKeys > 1 ? distribution.sample() + "" : "1";
+						String key = distribution.sample() + "";
 						CRDTIdentifier id = new CRDTIdentifier(table + "", key);
 						ids.add(id);
 					}
