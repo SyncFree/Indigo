@@ -9,45 +9,45 @@ REGION_NAME=(
 	"EUROPE"
 	)
 
-INDIGOS=(
-	"tcp://ec2-54-84-142-79.compute-1.amazonaws.com:36001/STRONG"
-	"tcp://ec2-54-183-123-93.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-171-16-159.eu-west-1.compute.amazonaws.com:36001/EUROPE"
-	)
+	INDIGOS=(
+		"tcp://ec2-54-172-142-160.compute-1.amazonaws.com:36001/STRONG"
+		"tcp://ec2-54-215-152-99.us-west-1.compute.amazonaws.com:36001/US-WEST"
+		"tcp://ec2-54-171-97-255.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+		)
 
-#Pass all of these
-SEQUENCERS=(
-	"tcp://ec2-54-165-116-79.compute-1.amazonaws.com:31001/STRONG"
-	"tcp://ec2-54-183-135-200.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-171-0-53.eu-west-1.compute.amazonaws.com:31001/EUROPE"
-	)
+	#Pass all of these
+	SEQUENCERS=(
+		"tcp://ec2-54-172-147-23.compute-1.amazonaws.com:31001/STRONG"
+		"tcp://ec2-54-193-96-3.us-west-1.compute.amazonaws.com:31001/US-WEST"
+		"tcp://ec2-54-72-103-125.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+		)
 					
-#Pass all of these? or just the others?
-SERVERS=(
-	"tcp://ec2-54-84-142-79.compute-1.amazonaws.com:32001/STRONG"
-	"tcp://ec2-54-183-123-93.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-16-159.eu-west-1.compute.amazonaws.com:32001/EUROPE"
-	)
+	#Pass all of these? or just the others?
+	SERVERS=(
+		"tcp://ec2-54-172-142-160.compute-1.amazonaws.com:32001/STRONG"
+		"tcp://ec2-54-215-152-99.us-west-1.compute.amazonaws.com:32001/US-WEST"
+		"tcp://ec2-54-171-97-255.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+		)
 
-SEQUENCER_MACHINES=(
-	"ec2-54-165-116-79.compute-1.amazonaws.com"
-	"ec2-54-183-135-200.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-0-53.eu-west-1.compute.amazonaws.com"
-	)
+	SEQUENCER_MACHINES=(
+		"ec2-54-172-147-23.compute-1.amazonaws.com"
+		"ec2-54-193-96-3.us-west-1.compute.amazonaws.com"
+		"ec2-54-72-103-125.eu-west-1.compute.amazonaws.com"
+		)
 
-SERVER_MACHINES=(
-	"ec2-54-84-142-79.compute-1.amazonaws.com"
-	"ec2-54-183-123-93.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-16-159.eu-west-1.compute.amazonaws.com"
-	)
+	SERVER_MACHINES=(
+		"ec2-54-172-142-160.compute-1.amazonaws.com"
+		"ec2-54-215-152-99.us-west-1.compute.amazonaws.com"
+		"ec2-54-171-97-255.eu-west-1.compute.amazonaws.com"
+		)
 
-CLIENT_MACHINES=(
-	"ec2-54-164-65-216.compute-1.amazonaws.com"
-	"ec2-54-183-110-246.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-54-199.eu-west-1.compute.amazonaws.com"
-	)
+	CLIENT_MACHINES=(
+		"ec2-54-172-147-54.compute-1.amazonaws.com"
+		"ec2-54-193-100-84.us-west-1.compute.amazonaws.com"
+		"ec2-54-171-97-45.eu-west-1.compute.amazonaws.com"
+		)
 
-SHEPARD_URL="tcp://ec2-54-84-142-79.compute-1.amazonaws.com:29876/"
+	SHEPARD_URL="tcp://ec2-54-172-142-160.compute-1.amazonaws.com:29876/"
 
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -65,7 +65,7 @@ SHEPARD_URL="tcp://ec2-54-84-142-79.compute-1.amazonaws.com:29876/"
 
 CONFIG=("global-indigo-tournament-l100.props")
 N_REGIONS=(3)
-N_THREADS=(110)
+N_THREADS=(50)
 MODE=("-indigo")
 
 #<Clients> #<Command>

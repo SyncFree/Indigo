@@ -287,32 +287,77 @@ public class StatisticsUtils {
 			}
 			scanner.close();
 		}
+	}
 
-		String[] regions = {"1", "2", "3", "-1"};
-		for (Entry<String, Map<String, DescriptiveStatistics>> op : opsDuration.entrySet()) {
+	private static void createHistogramTournamentNoSite(String[] filenames) throws FileNotFoundException {
+		Map<String, DescriptiveStatistics> opsDuration = new HashMap<>();
+		System.out.printf("OP_NAME\tLAT\n");
+
+		for (String filename : filenames) {
+			boolean warmUpComplete = false;
+			long startTime = -1;
+
+			File file = new File(filename);
+			Scanner scanner = new Scanner(file);
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				String[] tokens = line.split("\t");
+				if (tokens.length != 7 || tokens[0].equals("OP_NAME")) {
+					continue;
+				}
+
+				long opStartTime = Long.parseLong(tokens[1]);
+
+				if (startTime == -1) {
+					startTime = opStartTime;
+				}
+				if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+					warmUpComplete = true;
+					startTime = opStartTime;
+				}
+				if (warmUpComplete) {
+					if (opStartTime - startTime <= ONE_MINUTE_IN_NANOS) {
+						double d = Double.parseDouble(tokens[3]);
+						if (d > OUTLIER || tokens[0].contains("PRE_")) {
+							continue;
+						}
+						opsDuration.putIfAbsent(tokens[0], new DescriptiveStatistics());
+						DescriptiveStatistics op = opsDuration.get(tokens[0]);
+						op.addValue(d);
+					} else {
+						// Just take results in one minute
+						break;
+					}
+				}
+			}
+			scanner.close();
+		}
+
+		for (Entry<String, DescriptiveStatistics> op : opsDuration.entrySet()) {
 			StringBuilder outputLine = new StringBuilder();
 			outputLine.append(op.getKey());
-			for (String region : regions) {
-				DescriptiveStatistics values = op.getValue().getOrDefault(region, new DescriptiveStatistics());
-				double mean = values.getMean();
-				double stdDev = values.getStandardDeviation();
-				double min = values.getMin();
-				double max = values.getMax();
-				if (mean != mean) {
-					mean = 0;
-					stdDev = 0;
-					min = 0;
-					max = 0;
-				}
-				outputLine.append("\t");
-				outputLine.append(mean);
-				outputLine.append("\t");
-				outputLine.append(stdDev);
-				outputLine.append("\t");
-				outputLine.append(min);
-				outputLine.append("\t");
-				outputLine.append(max);
+			DescriptiveStatistics values = op.getValue();
+			if (values == null) {
+				values = new DescriptiveStatistics();
 			}
+			double mean = values.getMean();
+			double stdDev = values.getStandardDeviation();
+			double min = values.getMin();
+			double max = values.getMax();
+			if (mean != mean) {
+				mean = 0;
+				stdDev = 0;
+				min = 0;
+				max = 0;
+			}
+			outputLine.append("\t");
+			outputLine.append(mean);
+			outputLine.append("\t");
+			outputLine.append(stdDev);
+			outputLine.append("\t");
+			outputLine.append(min);
+			outputLine.append("\t");
+			outputLine.append(max);
 			System.out.println(outputLine.toString());
 		}
 	}
@@ -364,6 +409,15 @@ public class StatisticsUtils {
 				createHistogramTournament(files);
 			}
 
+			if (args[0].equals("-tourHistNoSite")) {
+				int numFiles = args.length - 1;
+				String[] files = new String[numFiles];
+				for (int i = 0; i < numFiles; i++) {
+					files[i] = args[i + 1];
+				}
+				createHistogramTournamentNoSite(files);
+			}
+
 			if (args[0].equals("-tourCDF")) {
 				int numFiles = args.length - 1;
 				String[] files = new String[numFiles];
@@ -381,5 +435,4 @@ public class StatisticsUtils {
 			e.printStackTrace();
 		}
 	}
-
 }

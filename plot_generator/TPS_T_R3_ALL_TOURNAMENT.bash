@@ -5,7 +5,7 @@ OUT_DIR=$3
 #grep -hv 'START' indigo_results-scalability-new/results-indigo-k1000-r3-t10-v2999999-uniform/TPSL/*.dat | awk -F '\t' '{print $1" "$2'}
 
 
-DIR_ARRAY=(`echo $RES_DIR"/results_tournament*-c-*-t*"`)
+DIR_ARRAY=(`echo $RES_DIR"/*results_tournament*-c-*-t*"`)
 
 for dir in "${DIR_ARRAY[@]}"
 do
@@ -20,15 +20,18 @@ java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tpsa -t $F
 FILES=$RES_DIR/results_tournament-weak-c-indigo*-t*/TPSL/*ALL* 
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tpsa -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/TPS_T-T-weak-ALL.dat
 
-
 FILES=$RES_DIR/results_tournament_redblue-c-global-indigo*-t*/TPSL/*ALL* 
 java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tpsa -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/TPS_T-T-redblue-ALL.dat
+
+FILES=$RES_DIR/new-results_tournament_strong-c-global-indigo*-t*/TPSL/*ALL* 
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tpsa -t $FILES > tmp_unsorted && sort -n tmp_unsorted  > $DATA_DIR/TPS_T-T-strong-ALL.dat
 
 rm tmp_unsorted
 
 gnuplot -e "iall='$DATA_DIR/TPS_T-T-indigo-ALL.dat'"\
 		-e "wall='$DATA_DIR/TPS_T-T-weak-ALL.dat'"\
-		-e "sall='$DATA_DIR/TPS_T-T-redblue-ALL.dat'"\
+		-e "rball='$DATA_DIR/TPS_T-T-redblue-ALL.dat'"\
+		-e "sall='$DATA_DIR/TPS_T-T-strong-ALL.dat'"\
 			plot_generator/TPS_Threads_Multi_ALL.gnuplot > $OUT_DIR/TPS_T-k1000-r3-ALL-TOURNAMENT.ps
 
 

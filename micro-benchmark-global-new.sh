@@ -12,40 +12,40 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:36001/STRONG"
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:36001/STRONG"
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:36001/STRONG"
+	"tcp://ec2-54-172-124-85.compute-1.amazonaws.com:36001/STRONG"
+	"tcp://ec2-54-172-124-85.compute-1.amazonaws.com:36001/STRONG"
+	"tcp://ec2-54-172-124-85.compute-1.amazonaws.com:36001/STRONG"
 	)
 
 #Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-172-22-101.compute-1.amazonaws.com:31001/STRONG"
+	"tcp://ec2-54-172-124-69.compute-1.amazonaws.com:31001/STRONG"
 	)
 					
 #Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-193-132.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-66-37.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://ec2-54-172-124-85.compute-1.amazonaws.com:32001/US-EAST"
+	"tcp://ec2-54-183-210-161.us-west-1.compute.amazonaws.com:32001/US-WEST"
+	"tcp://ec2-54-171-60-129.eu-west-1.compute.amazonaws.com:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-54-172-22-101.compute-1.amazonaws.com"
+	"ec2-54-172-124-69.compute-1.amazonaws.com"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-172-17-169.compute-1.amazonaws.com"
-	"ec2-54-183-193-132.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-66-37.eu-west-1.compute.amazonaws.com"
+	"ec2-54-172-124-85.compute-1.amazonaws.com"
+	"ec2-54-183-210-161.us-west-1.compute.amazonaws.com"
+	"ec2-54-171-60-129.eu-west-1.compute.amazonaws.com"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-244-134.compute-1.amazonaws.com"
-	"ec2-54-165-251-178.compute-1.amazonaws.com"
-	"ec2-54-172-23-72.compute-1.amazonaws.com"
+	"ec2-54-172-124-74.compute-1.amazonaws.com"
+	"ec2-54-165-186-208.compute-1.amazonaws.com"
+	"ec2-54-86-68-148.compute-1.amazonaws.com"
 	)
 
-SHEPARD_URL="tcp://ec2-54-172-17-169.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://ec2-54-172-124-85.compute-1.amazonaws.com:29876/"
 
 	
 #LOCAL OVERRIDE

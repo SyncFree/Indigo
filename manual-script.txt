@@ -1,0 +1,17 @@
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHist /Volumes/DATA/long-results/long_results_tournament-indigo-c-indigo-tournament-l90.props-r3-t1/*.log  > tournament.dat && gnuplot histogram.gnuplot
+
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHist /Volumes/DATA/long-results/long-new-results_tournament_strong-c-global-indigo-tournament-l100.props-r3-t1/*.log  > tournament.dat && gnuplot histogram.gnuplot
+
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHist /Volumes/DATA/long-results/long-new-results_tournament_strong-c-global-indigo-tournament-l100.props-r3-t2/*.log  > tournament.dat && gnuplot histogram.gnuplot
+
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHist /Volumes/DATA/long-results/long_results_tournament-redblue-c-global-indigo-tournament-l90.props-r3-t1/*.log  > tournament.dat && gnuplot histogram.gnuplot
+
+
+./plot_generator/generator_1key-s.bash ../indigo_results_single_key/results-indigo-k1-r3-t1-v5000-uniform-r0-g1000/  ../plots-limpos/ provisioning-8.eps
+
+
+
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourCDF 0 5000 20 /Volumes/DATA/long-results/long_results_tournament-indigo-c-indigo-tournament-l90.props-r3-t1/*.log > tournament_cdf.dat && gnuplot latencyCDF-Per-OP.gnuplot
+
+
+java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHistNoSite ../long-results/long_results_tournament-indigo-c-indigo-tournament-l90.props-r3-t1/*.log  > tournament-indigo.dat && java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHistNoSite ../long-results/long_results_tournament-redblue-c-global-indigo-tournament-l90.props-r3-t1/*.log > tournament-redblue.dat && java -classpath ./bin/:./TrueIndigo/lib/* evaluation.StatisticsUtils -tourHistNoSite ../long-results/long-new-results_tournament_strong-c-global-indigo-tournament-l90.props-r3-t2/*.log  > tournament-strong.dat && gnuplot histogram.gnuplot

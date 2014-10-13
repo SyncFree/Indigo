@@ -1,5 +1,5 @@
 #!/bin/bash
-USERNAME="ec2-user"
+USERNAME="fctple_SwiftCloud"
 INDIGO_ROOT="/home/$USERNAME/"
 SOURCE_ROOT="/Users/balegas/workspace/java/swiftcloud-indigo/"
 
@@ -10,44 +10,44 @@ REGION_NAME=(
 	)
 
 INDIGOS=(
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:36001/US-EAST"
-	"tcp://ec2-54-183-193-132.us-west-1.compute.amazonaws.com:36001/US-WEST"
-	"tcp://ec2-54-171-66-37.eu-west-1.compute.amazonaws.com:36001/EUROPE"
+	"tcp://planetlab-3.imperial.ac.uk:36001/US-EAST"
+	"tcp://planetlab1.xeno.cl.cam.ac.uk:36001/US-WEST"
+	"tcp://inriarennes1.irisa.fr:36001/EUROPE"
 	)
 
-#Pass all of these
+	#Pass all of these
 SEQUENCERS=(
-	"tcp://ec2-54-172-22-101.compute-1.amazonaws.com:31001/US-EAST"
-	"tcp://ec2-54-183-217-29.us-west-1.compute.amazonaws.com:31001/US-WEST"
-	"tcp://ec2-54-76-1-77.eu-west-1.compute.amazonaws.com:31001/EUROPE"
+	"tcp://planetlab-3.imperial.ac.uk:31001/US-EAST"
+	"tcp://planetlab1.xeno.cl.cam.ac.uk:31001/US-WEST"
+	"tcp://inriarennes1.irisa.fr:31001/EUROPE"
 	)
 					
-#Pass all of these? or just the others?
+	#Pass all of these? or just the others?
 SERVERS=(
-	"tcp://ec2-54-172-17-169.compute-1.amazonaws.com:32001/US-EAST"
-	"tcp://ec2-54-183-193-132.us-west-1.compute.amazonaws.com:32001/US-WEST"
-	"tcp://ec2-54-171-66-37.eu-west-1.compute.amazonaws.com:32001/EUROPE"
+	"tcp://planetlab-3.imperial.ac.uk:32001/US-EAST"
+	"tcp://planetlab1.xeno.cl.cam.ac.uk:32001/US-WEST"
+	"tcp://inriarennes1.irisa.fr:32001/EUROPE"
 	)
 
 SEQUENCER_MACHINES=(
-	"ec2-54-172-22-101.compute-1.amazonaws.com"
-	"ec2-54-183-217-29.us-west-1.compute.amazonaws.com"
-	"ec2-54-76-1-77.eu-west-1.compute.amazonaws.com"
+	"planetlab-3.imperial.ac.uk"
+	"planetlab1.xeno.cl.cam.ac.uk"
+	"inriarennes1.irisa.fr"
 	)
 
 SERVER_MACHINES=(
-	"ec2-54-172-17-169.compute-1.amazonaws.com"
-	"ec2-54-183-193-132.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-66-37.eu-west-1.compute.amazonaws.com"
+	"planetlab-3.imperial.ac.uk"
+	"planetlab1.xeno.cl.cam.ac.uk"
+	"inriarennes1.irisa.fr"
 	)
 
 CLIENT_MACHINES=(
-	"ec2-54-165-244-134.compute-1.amazonaws.com"
-	"ec2-54-183-199-122.us-west-1.compute.amazonaws.com"
-	"ec2-54-171-85-228.eu-west-1.compute.amazonaws.com"
+	"planetlab-4.imperial.ac.uk"
+	"planetlab2.xeno.cl.cam.ac.uk"
+	"inriarennes2.irisa.fr"
 	)
 
-SHEPARD_URL="tcp://ec2-54-172-17-169.compute-1.amazonaws.com:29876/"
+SHEPARD_URL="tcp://planetlab-3.imperial.ac.uk:29876/"
 
 #LOCAL OVERRIDE
 #USERNAME="balegas"
@@ -63,10 +63,10 @@ SHEPARD_URL="tcp://ec2-54-172-17-169.compute-1.amazonaws.com:29876/"
 #SHEPARD_URL="tcp://*:29876/"
 
 
-CONFIG=("indigo-tournament-l100.props")
+CONFIG=("indigo-tournament-test.props")
 N_REGIONS=(3)
-N_THREADS=(100 1 10 20 40 60 80 120 140 160)
-MODE=("-indigo" "-weak")
+N_THREADS=(2)
+MODE=("-indigo")
 
 #<Clients> #<Command>
 ssh_command() {
@@ -184,7 +184,7 @@ while getopts "abc:d:n:r:t:v:k" optname
 	esac
 	done
 
-CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar -Xms2G -Xmx4G"
+CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
 LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
 CMD_SRV="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
 CMD_CLT="java "$CLASSPATH" "$LOG" indigo.application.tournament.TournamentServiceBenchmark"
@@ -210,7 +210,7 @@ do
 				echo $k" CONFIG"
 				echo $m" MODE"
 				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"long-results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
+				OUTPUT_DIR=$INDIGO_ROOT"results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
@@ -258,7 +258,7 @@ do
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
 				done
 
-				sleep 360
+				sleep 600
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
