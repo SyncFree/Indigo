@@ -31,6 +31,7 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.InitializeResources;
 import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ReservationsProtocolHandler;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.proto.CommitTimestampRequest;
 import swift.proto.GenerateTimestampReply;

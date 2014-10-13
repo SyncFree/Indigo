@@ -39,7 +39,7 @@ public class DHTExecCRDT implements Message {
 	public DHTExecCRDT() {
 	}
 
-	public DHTExecCRDT(CRDTObjectUpdatesGroup<?> grp, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
+	public DHTExecCRDT(CRDTObjectUpdatesGroup<?> grp, Timestamp cltTs, CausalityClock curDCVersion) {
 		this.grp = grp;
 		this.cltTs = cltTs;
 		this.curDCVersion = curDCVersion;

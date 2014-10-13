@@ -178,7 +178,7 @@ final public class IndigoResourceManager {
 
 	protected AcquireResourcesReply acquireResources(AcquireResourcesRequest request) {
 		acquireLocks(request.getResources());
-		Map<CRDTIdentifier, Resource<?>> unsatified = new HashMap<CRDTIdentifier, Resource<?>>();
+		Map<CRDTIdentifier, Resource<?>> unsatisfied = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> satisfiedFromStorage = new HashMap<CRDTIdentifier, Resource<?>>();
 		Map<CRDTIdentifier, Resource<?>> active = new HashMap<>();
 
@@ -211,7 +211,7 @@ final public class IndigoResourceManager {
 								}
 							}
 
-							unsatified.put(req.getResourceId(), resource);
+							unsatisfied.put(req.getResourceId(), resource);
 							continue;
 						}
 					}
@@ -235,7 +235,7 @@ final public class IndigoResourceManager {
 
 				if (!satisfies) {
 					logger.log(Level.WARNING, "Couldn't satisfy " + resource + " RESOURCE CLOCK: " + ((CRDT<?>) resource).getClock() + " " + req + " " + locks.get(req.getResourceId()));
-					unsatified.put(req.getResourceId(), resource);
+					unsatisfied.put(req.getResourceId(), resource);
 				} else {
 					satisfiedFromStorage.put(req.getResourceId(), resource);
 				}
@@ -246,8 +246,8 @@ final public class IndigoResourceManager {
 			// satisfied before the update and be satisfied afterwards
 			performProvisioning(request, request.getClientTs(), handle);
 
-			if (unsatified.size() != 0) {
-				printResourcesState(unsatified);
+			if (unsatisfied.size() != 0) {
+				printResourcesState(unsatisfied);
 				// This only occurs for locks --- Can't we put the replaying of
 				// operations in the finally?
 				if (mustUpdate) {
@@ -261,7 +261,7 @@ final public class IndigoResourceManager {
 					storage.endTxnAndGetUpdates(handle, mustUpdate);
 				}
 
-				return generateDenyMessage(unsatified, snapshot);
+				return generateDenyMessage(unsatisfied, snapshot);
 			}
 
 			else {
@@ -322,12 +322,12 @@ final public class IndigoResourceManager {
 		} finally {
 			releaseLocks(request.getResources());
 		}
-		return generateDenyMessage(unsatified, snapshot);
+		return generateDenyMessage(unsatisfied, snapshot);
 	}
 	private void printResourcesState(Map<CRDTIdentifier, Resource<?>> unsatified) {
 		for (Entry<CRDTIdentifier, Resource<?>> un_i : unsatified.entrySet()) {
 			if (logger.isLoggable(Level.INFO))
-				logger.info("Resouce could not be granted: " + un_i.getKey() + ": " + un_i.getValue());
+				logger.info("Resource could not be granted: " + un_i.getKey() + ": " + un_i.getValue());
 		}
 
 	}
@@ -373,6 +373,7 @@ final public class IndigoResourceManager {
 		} finally {
 			storage.endTxn(handle, updated);
 			if (updated) {
+				System.err.println(sequencer.siteId + ": transfer ---> " + handle.getUpdates().get(0).getTimestamps());
 				// replay transaction operations in cache
 				for (CRDTObjectUpdatesGroup<?> updates : handle.getUpdates()) {
 					ManagedCRDT<BoundedCounterAsResource> crdt = (ManagedCRDT<BoundedCounterAsResource>) cache.get(updates.getTargetUID());

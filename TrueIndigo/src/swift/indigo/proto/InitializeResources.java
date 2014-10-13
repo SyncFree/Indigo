@@ -21,7 +21,6 @@ import java.util.Collection;
 
 import swift.indigo.CounterReservation;
 import swift.indigo.LockReservation;
-import swift.indigo.ReservationsProtocolHandler;
 import swift.proto.ClientRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;

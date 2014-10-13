@@ -1,13 +1,6 @@
-package swift.indigo;
+package swift.indigo.proto;
 
 import static sys.utils.NotImplemented.NotImplemented;
-import swift.indigo.proto.AcquireResourcesReply;
-import swift.indigo.proto.AcquireResourcesRequest;
-import swift.indigo.proto.DiscardSnapshotRequest;
-import swift.indigo.proto.IndigoCommitRequest;
-import swift.indigo.proto.InitializeResources;
-import swift.indigo.proto.ReleaseResourcesRequest;
-import swift.indigo.proto.TransferResourcesRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 

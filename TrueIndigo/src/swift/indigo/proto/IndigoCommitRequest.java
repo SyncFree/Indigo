@@ -5,7 +5,6 @@ import java.util.List;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.indigo.ReservationsProtocolHandler;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 

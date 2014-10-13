@@ -116,7 +116,7 @@ public class RemoteIndigo implements Indigo {
 
 	public void beginTxn() throws SwiftException {
 		hasResources = false;
-		beginTxn(new HashSet<ResourceRequest<?>>());
+		beginTxn(new HashSet<>());
 	}
 
 	@Override
@@ -178,6 +178,7 @@ public class RemoteIndigo implements Indigo {
 		V obj = (V) handle.get(id, create, classOfV);
 		if (Log.isLoggable(Level.INFO))
 			Log.info("OBJ for " + ((AbstractTxHandle) handle).cltTimestamp + " " + obj + " " + obj.getClock());
+
 		return obj;
 	}
 
@@ -221,6 +222,7 @@ public class RemoteIndigo implements Indigo {
 			List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
 			if (!updates.isEmpty()) {
+
 				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates, withLocks);
 				req.setTimestamp(timestamp);
 				final Semaphore semaphore = new Semaphore(0);

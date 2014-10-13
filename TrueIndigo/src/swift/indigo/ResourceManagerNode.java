@@ -22,6 +22,7 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ReservationsProtocolHandler;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.utils.LogSiteFormatter;
 import sys.net.api.Endpoint;
@@ -134,6 +135,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			logger.info("Finished TransferResourcesRequest: " + request + " Reply: " + reply);
 		}
 	}
+
 	public void process(ReleaseResourcesRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Processing ReleaseResourcesRequest " + request);
@@ -183,7 +185,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		AcquireResourcesReply reply = null;
 		profiler.trackRequest(profilerName, request);
 		if (request.getResources().size() == 0) {
-			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.currentClockCopy());
+			reply = new AcquireResourcesReply(AcquireReply.NO_RESOURCES, sequencer.clocks.newTimestamp(), sequencer.clocks.currentClockCopy());
 		} else {
 			if (checkAcquireAlreadyProcessed(request) != null) {
 				if (logger.isLoggable(Level.INFO))

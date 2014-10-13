@@ -2,7 +2,6 @@ package swift.indigo.proto;
 
 import swift.clocks.Timestamp;
 import swift.indigo.IndigoOperation;
-import swift.indigo.ReservationsProtocolHandler;
 import swift.indigo.ResourceManagerNode;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;

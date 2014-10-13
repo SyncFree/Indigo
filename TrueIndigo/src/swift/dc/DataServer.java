@@ -239,7 +239,7 @@ public final class DataServer {
 
 			if (logger.isLoggable(Level.INFO)) {
 				logger.info(server.siteId + ":::Data Server: after exec crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = "
-						+ req.getCltTs() + " ts: " + req.getTxTs() + " crdt:" + data);
+						+ req.getCltTs() + " ts: " + req.getTxTs());
 			}
 
 			ObjectUpdatesInfo info = new ObjectUpdatesInfo(data.getPruneClock().clone(), req.getGrp());

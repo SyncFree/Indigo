@@ -7,7 +7,6 @@ import java.util.TreeSet;
 
 import swift.clocks.Timestamp;
 import swift.indigo.IndigoOperation;
-import swift.indigo.ReservationsProtocolHandler;
 import swift.indigo.ResourceManagerNode;
 import swift.indigo.ResourceRequest;
 import sys.net.api.Envelope;

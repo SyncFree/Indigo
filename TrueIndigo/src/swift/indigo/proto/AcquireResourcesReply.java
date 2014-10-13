@@ -46,6 +46,14 @@ public class AcquireResourcesReply {
 		this.objectUpdateGroups = Collections.emptyList();
 	}
 
+	public AcquireResourcesReply(AcquireReply status, Timestamp ts, CausalityClock snapshot) {
+		this.time = System.currentTimeMillis();
+		this.timestamp = ts;
+		this.status = status;
+		this.snapshot = snapshot;
+		this.objectUpdateGroups = Collections.emptyList();
+	}
+
 	public AcquireResourcesReply(Timestamp cltTimestamp, Timestamp timestamp, CausalityClock snapshot, Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Collection<ResourceRequest<?>> requests) {
 		this.time = System.currentTimeMillis();
 		this.status = AcquireReply.YES;
