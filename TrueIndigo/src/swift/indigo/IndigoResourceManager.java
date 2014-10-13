@@ -24,6 +24,8 @@ import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.application.test.TestsUtil;
 import swift.clocks.CausalityClock;
+import swift.clocks.IncrementalTimestampGenerator;
+import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
 import swift.crdt.BoundedCounterAsResource;
 import swift.crdt.EscrowableTokenCRDT;
@@ -77,6 +79,8 @@ final public class IndigoResourceManager {
 
 	private String masterId;
 
+	private ReturnableTimestampSourceDecorator<Timestamp> tsSource;
+
 	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
 		this.transferQueue = transferQueue;
 		this.sequencer = sequencer;
@@ -93,6 +97,7 @@ final public class IndigoResourceManager {
 		this.cache = new ConcurrentHashMap<>();
 		this.locks = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
+		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(resourceMgrId));
 		initLogger();
 	}
 
@@ -188,7 +193,7 @@ final public class IndigoResourceManager {
 		boolean mustUpdate = false;
 		try {
 			// lockTable();
-			_TxnHandle handle = storage.beginTxn(request.getClientTs());
+			_TxnHandle handle = storage.beginTxn(tsSource.generateNew());
 			snapshot = handle.snapshot;
 			logger.info("Acquire started on  " + request.getClientTs() + " " + snapshot);
 			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle, active);
