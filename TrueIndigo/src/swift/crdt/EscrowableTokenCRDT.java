@@ -22,7 +22,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -51,8 +50,8 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 	public EscrowableTokenCRDT(CRDTIdentifier id) {
 		super(id);
+		this.owners = new HashMap<>();
 		this.type = ShareableLock.getDefault();
-		this.owners = new HashMap<String, Set<TripleTimestamp>>();
 	}
 
 	public EscrowableTokenCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, ShareableLock type, Map<String, Set<TripleTimestamp>> owners) {
@@ -68,10 +67,10 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 	@Override
 	public EscrowableTokenCRDT copy() {
-		Map<String, Set<TripleTimestamp>> ownersCopy = new HashMap<String, Set<TripleTimestamp>>();
-		for (Entry<String, Set<TripleTimestamp>> entry : owners.entrySet()) {
-			ownersCopy.put(entry.getKey(), new HashSet<TripleTimestamp>(entry.getValue()));
-		}
+		Map<String, Set<TripleTimestamp>> ownersCopy = new HashMap<>();
+		owners.forEach((k, v) -> {
+			ownersCopy.put(k, new HashSet<>(v));
+		});
 		return new EscrowableTokenCRDT(id, txn, clock, type, ownersCopy);
 	}
 
@@ -142,8 +141,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 
 		Set<TripleTimestamp> tsRequester = owners.get(op.requesterId());
 		if (tsRequester == null) {
-			tsRequester = new HashSet<TripleTimestamp>();
-			owners.put(op.requesterId(), tsRequester);
+			owners.put(op.requesterId(), tsRequester = new HashSet<>());
 			tsRequester.add(op.getTimestamp());
 		}
 
@@ -156,7 +154,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	}
 
 	public Set<String> owners() {
-		return new HashSet<String>(owners.keySet());
+		return new HashSet<>(owners.keySet());
 	}
 
 	public String toString() {
