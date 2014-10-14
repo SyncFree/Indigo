@@ -174,7 +174,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 							handle = new _TxnHandle(reply, txnTimestamp);
 							break;
 						} else if (reply.isImpossible()) {
-							throw new IndigoImpossibleException();
+							throw new IndigoImpossibleException(reply.getImpossibleIds());
 						} else {
 							Threading.sleep(delay);
 						}

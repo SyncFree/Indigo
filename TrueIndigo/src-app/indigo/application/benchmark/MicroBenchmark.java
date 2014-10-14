@@ -3,9 +3,11 @@ package indigo.application.benchmark;
 import static sys.Context.Networking;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Semaphore;
 import java.util.logging.FileHandler;
@@ -63,17 +65,24 @@ public class MicroBenchmark {
 			Thread t = new Thread(new Runnable() {
 				public void run() {
 					boolean result = true;
+					Set<CRDTIdentifier> excludedIds = new HashSet<>();
 					try {
 						while (result) {
 							// 50:50 workload
 							if (nWrites >= 1) {
-								List<CRDTIdentifier> ids = getNKeys(nWrites);
-								result = decrementNValues(ids, 1, stub, dc_id, fakeStub, surrogate);
+								List<CRDTIdentifier> ids = getNKeys(nWrites, excludedIds);
+								try {
+									result = decrementNValues(ids, 1, stub, dc_id, fakeStub, surrogate);
+								} catch (IndigoImpossibleException e) {
+									excludedIds.addAll(e.getResources());
+									if (excludedIds.size() == nKeys)
+										result = false;
+								}
 								Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
 							}
 							if (maxNReads > 0) {
 								int nReads = nKeys > 1 ? uniformRandom.nextInt(maxNReads) + 1 : 1;
-								List<CRDTIdentifier> ids = getNKeys(nReads);
+								List<CRDTIdentifier> ids = getNKeys(nReads, excludedIds);
 								readNValues(ids, 1, stub, dc_id, fakeStub, surrogate);
 								Thread.sleep(maxThinkTime - uniformRandom.nextInt(maxThinkTime / 2));
 							}
@@ -88,12 +97,17 @@ public class MicroBenchmark {
 					}
 				}
 
-				private List<CRDTIdentifier> getNKeys(int nKeys) {
+				private List<CRDTIdentifier> getNKeys(int nKeys, Set<CRDTIdentifier> excludedIds) {
 					List<CRDTIdentifier> ids = new LinkedList<>();
 					for (int i = 0; i < nKeys; i++) {
 						String key = distribution.sample() + "";
 						CRDTIdentifier id = new CRDTIdentifier(table + "", key);
-						ids.add(id);
+						if (excludedIds.contains(id)) {
+							i--;
+							continue;
+						} else {
+							ids.add(id);
+						}
 					}
 					return ids;
 				}
@@ -106,7 +120,7 @@ public class MicroBenchmark {
 		System.out.println("All clients stopped");
 		System.exit(0);
 	}
-	public static boolean decrementNValues(List<CRDTIdentifier> ids, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException {
+	public static boolean decrementNValues(List<CRDTIdentifier> ids, int units, Indigo stub, String siteId, Service fakeStub, Endpoint surrogate) throws SwiftException, IndigoImpossibleException {
 		long opId = profiler.startOp(resultsLogName, "DEC");
 		int counterValue = -999;
 		int availableSite = -999;
@@ -128,16 +142,14 @@ public class MicroBenchmark {
 					availableSite = x.getSiteResource(siteId);
 				}
 			}
-		} catch (IndigoImpossibleException e) {
-			result = false;
 		} finally {
 			stub.endTxn();
 			if (fakeStub != null)
 				fakeStub.request(surrogate, new CurrentClockRequest());
+			profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "", ids.size() + "", 0 + "");
 		}
 		// System.out.println(DC_ID + " " + counterValue + " " + result + " " +
 		// availableSite + " ");
-		profiler.endOp(resultsLogName, opId, counterValue + "", result + "", availableSite + "", ids.size() + "", 0 + "");
 		return result;
 	}
 

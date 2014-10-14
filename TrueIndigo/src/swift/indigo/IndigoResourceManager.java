@@ -331,13 +331,14 @@ final public class IndigoResourceManager {
 
 	private AcquireResourcesReply generateDenyMessage(Map<CRDTIdentifier, Resource<?>> unsatified, CausalityClock snapshot) {
 		boolean impossible = false;
+		Collection<CRDTIdentifier> impossibleResources = new HashSet<>();
 		for (Entry<CRDTIdentifier, Resource<?>> entry : unsatified.entrySet()) {
 			if (!entry.getValue().isReservable()) {
 				impossible = true;
-				break;
+				impossibleResources.add(entry.getValue().getUID());
 			}
 		}
-		return new AcquireResourcesReply(impossible ? AcquireReply.IMPOSSIBLE : AcquireReply.NO, snapshot);
+		return new AcquireResourcesReply(impossible ? AcquireReply.IMPOSSIBLE : AcquireReply.NO, snapshot, impossibleResources);
 	}
 
 	protected TRANSFER_STATUS transferResources(final TransferResourcesRequest request) {

@@ -3,6 +3,7 @@ package swift.indigo.proto;
 import java.util.Collection;
 import java.util.Collections;
 
+import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
@@ -20,6 +21,7 @@ public class AcquireResourcesReply {
 	protected CausalityClock snapshot;
 	protected Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
 	protected AcquireReply status;
+	protected Collection<CRDTIdentifier> impossible;
 
 	transient Collection<ResourceRequest<?>> requests;
 	transient Timestamp cltTimestamp;
@@ -44,6 +46,11 @@ public class AcquireResourcesReply {
 		this.status = status;
 		this.snapshot = snapshot;
 		this.objectUpdateGroups = Collections.emptyList();
+	}
+
+	public AcquireResourcesReply(AcquireReply status, CausalityClock snapshot, Collection<CRDTIdentifier> impossible) {
+		this(status, snapshot);
+		this.impossible = impossible;
 	}
 
 	public AcquireResourcesReply(Timestamp cltTimestamp, Timestamp timestamp, CausalityClock snapshot, Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Collection<ResourceRequest<?>> requests) {
@@ -119,6 +126,10 @@ public class AcquireResourcesReply {
 
 	public long getPhysicalClock() {
 		return time;
+	}
+
+	public Collection<CRDTIdentifier> getImpossibleIds() {
+		return impossible;
 	}
 
 }

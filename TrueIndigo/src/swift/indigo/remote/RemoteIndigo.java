@@ -152,7 +152,7 @@ public class RemoteIndigo implements Indigo {
 						break;
 					} else if (reply.isImpossible()) {
 						tsSource.returnLastTimestamp();
-						throw new IndigoImpossibleException();
+						throw new IndigoImpossibleException(reply.getImpossibleIds());
 					}
 				}
 				retryCount++;
