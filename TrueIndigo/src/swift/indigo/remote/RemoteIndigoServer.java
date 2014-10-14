@@ -16,7 +16,7 @@ import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.DiscardSnapshotRequest;
 import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.IndigoProtocolHandler;
-import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ResourceCommittedRequest;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.proto.CommitUpdatesRequest;
 import swift.proto.FetchObjectVersionRequest;
@@ -94,7 +94,7 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 		server.disposeSnapshot(request.serial());
 	}
 
-	public void onReceive(final Envelope conn, final ReleaseResourcesRequest req) {
+	public void onReceive(final Envelope conn, final ResourceCommittedRequest req) {
 		if (!emulateWeakConsistency) {
 			stub.send(lockManager, req);
 		}
@@ -128,13 +128,6 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 	}
 	public void onReceive(Envelope src, TransferResourcesRequest request) {
 		server.onReceive(src, request);
-	}
-
-	@Override
-	public void onReceive(Envelope conn, AcquireResourcesReply request) {
-		System.out.println("Not implemented!!!");
-		System.exit(0);
-
 	}
 
 }

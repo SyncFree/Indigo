@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -37,7 +38,7 @@ import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.DiscardSnapshotRequest;
 import swift.indigo.proto.IndigoCommitRequest;
-import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ResourceCommittedRequest;
 import swift.proto.CommitUpdatesReply;
 import swift.proto.FetchObjectVersionReply;
 import swift.proto.FetchObjectVersionRequest;
@@ -49,6 +50,7 @@ import sys.utils.Threading;
 
 public class RemoteIndigo implements Indigo {
 	private static Logger Log = Logger.getLogger(RemoteIndigo.class.getName());
+	private static final AtomicInteger counter = new AtomicInteger();
 	private static Profiler profiler;
 	private static final String resultsLogName = "RemoteIndigoResults";
 
@@ -76,7 +78,7 @@ public class RemoteIndigo implements Indigo {
 		this.server = server;
 		this.stub = Networking.stub();
 		// this.stubId = this.stub.localEndpoint().url();
-		this.stubId = Long.toString(System.nanoTime(), 32);
+		this.stubId = Long.toString(System.nanoTime(), 32) + "_" + counter.incrementAndGet();
 		this.emulateWeakConsistency = Args.contains("-weak") || false;
 		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
 		if (profiler == null) {
@@ -158,6 +160,7 @@ public class RemoteIndigo implements Indigo {
 			}
 		}
 	}
+
 	public void endTxn() {
 		if (handle != null)
 			handle.commit();
@@ -208,7 +211,7 @@ public class RemoteIndigo implements Indigo {
 
 		public void rollback() {
 			if (withLocks)
-				stub.send(server, new ReleaseResourcesRequest(serial, stubId, cltTimestamp));
+				stub.send(server, new ResourceCommittedRequest(serial, stubId, cltTimestamp));
 			else
 				stub.send(server, new DiscardSnapshotRequest(serial, stubId, cltTimestamp));
 
@@ -227,13 +230,11 @@ public class RemoteIndigo implements Indigo {
 				if (Log.isLoggable(Level.INFO))
 					Log.info("Going to send commit request for: " + req);
 				stub.asyncRequest(server, req, (CommitUpdatesReply reply) -> {
-					// System.out.println("Received Reply for: " +
-					// cltTimestamp);
-						if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
-							Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : " + reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
+					if (reply.getStatus() == CommitUpdatesReply.CommitStatus.INVALID_OPERATION)
+						Log.warning("FAILED COMMIT-------------->>>>>>>>>" + reply.getStatus() + " FOR : " + reply.getCommitTimestamps().get(0) + " FOR " + req.getObjectUpdateGroups());
 
-						semaphore.release();
-					});
+					semaphore.release();
+				});
 				semaphore.acquireUninterruptibly();
 				super.status = TxnStatus.COMMITTED_GLOBAL;
 			} else {

@@ -14,6 +14,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -63,7 +64,7 @@ final public class IndigoResourceManager {
 
 	private final boolean isMaster;
 
-	private int transferSeqNumber;
+	protected AtomicInteger transferSeqNumber;
 
 	private static String profilerName = "resource_manager";
 
@@ -81,8 +82,11 @@ final public class IndigoResourceManager {
 
 	private ReturnableTimestampSourceDecorator<Timestamp> tsSource;
 
-	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue) {
+	private Map<CRDTIdentifier, ResourceRequest<?>> pendingRequests;
+
+	public IndigoResourceManager(IndigoSequencerAndResourceManager sequencer, Endpoint surrogate, Map<String, Endpoint> endpoints, Queue<TransferResourcesRequest> transferQueue, Map<CRDTIdentifier, ResourceRequest<?>> pendingRequests) {
 		this.transferQueue = transferQueue;
+		this.pendingRequests = pendingRequests;
 		this.sequencer = sequencer;
 		this.resourceMgrId = sequencer.siteId + "-LockManager";
 
@@ -98,6 +102,7 @@ final public class IndigoResourceManager {
 		this.locks = new ConcurrentHashMap<>();
 		this.toBeReleased = new ConcurrentHashMap<>();
 		this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(resourceMgrId));
+		this.transferSeqNumber = new AtomicInteger();
 		initLogger();
 	}
 
@@ -157,12 +162,6 @@ final public class IndigoResourceManager {
 				if (durableSnapshot.includes(elem.getSecond())) {
 					lock.release(sequencer.siteId, elem.getSecond());
 					it.remove();
-				} else {
-					// if (logger.isLoggable(Level.WARNING)) {
-					// logger.warning("Release queue not empty for " + crdtId +
-					// ": " + lock + " SNAPSHOT" + durableSnapshot);
-					// }
-					continue;
 				}
 			}
 		}
@@ -192,10 +191,8 @@ final public class IndigoResourceManager {
 		CausalityClock snapshot = null;
 		boolean mustUpdate = false;
 		try {
-			// lockTable();
 			_TxnHandle handle = storage.beginTxn(tsSource.generateNew());
 			snapshot = handle.snapshot;
-			logger.info("Acquire started on  " + request.getClientTs() + " " + snapshot);
 			AcquireResourcesRequest modifiedRequest = preProcessRequest(request, handle, active);
 
 			// Test resource's availability
@@ -221,7 +218,9 @@ final public class IndigoResourceManager {
 						}
 					}
 				} catch (Exception e) {
-					logger.warning("Exception while retriving object from storage. Abort acquire" + e.getMessage());
+					if (logger.isLoggable(Level.WARNING)) {
+						logger.warning("Exception while retriving object from storage. Abort acquire " + e.getMessage());
+					}
 					storage.endTxn(handle, mustUpdate);
 					return new AcquireResourcesReply(AcquireReply.NO, snapshot);
 				}
@@ -239,7 +238,7 @@ final public class IndigoResourceManager {
 				}
 
 				if (!satisfies) {
-					logger.log(Level.WARNING, "Couldn't satisfy " + resource + " RESOURCE CLOCK: " + ((CRDT<?>) resource).getClock() + " " + req + " " + locks.get(req.getResourceId()));
+					logger.log(Level.WARNING, "Couldn't satisfy  " + resource + " RESOURCE CLOCK: " + ((CRDT<?>) resource).getClock() + " " + req + " " + locks.get(req.getResourceId()));
 					unsatified.put(req.getResourceId(), resource);
 				} else {
 					satisfiedFromStorage.put(req.getResourceId(), resource);
@@ -307,13 +306,6 @@ final public class IndigoResourceManager {
 						Thread.dumpStack();
 						System.exit(0);
 					}
-
-					// if (logger.isLoggable(Level.INFO))
-					// logger.info(cachedCRDT.getLatestVersion(handle) + " OBJ:"
-					// + cachedCRDT.getClock() + " SNAP:"
-					// + handle.snapshot + " LOCAL:" +
-					// storage.getLocalSnapshotClockCopy());
-
 				}
 
 				storage.endTxn(handle, false);
@@ -339,7 +331,6 @@ final public class IndigoResourceManager {
 
 	private AcquireResourcesReply generateDenyMessage(Map<CRDTIdentifier, Resource<?>> unsatified, CausalityClock snapshot) {
 		boolean impossible = false;
-
 		for (Entry<CRDTIdentifier, Resource<?>> entry : unsatified.entrySet()) {
 			if (!entry.getValue().isReservable()) {
 				impossible = true;
@@ -353,6 +344,7 @@ final public class IndigoResourceManager {
 		acquireLocks(request.getResources());
 		boolean allSuccess = true;
 		boolean atLeastOnePartial = false;
+		boolean alreadySatisfied = false;
 		boolean updated = false;
 		_TxnHandle handle = storage.beginTxn(null);
 		try {
@@ -360,6 +352,9 @@ final public class IndigoResourceManager {
 				TRANSFER_STATUS transferred = updateResourcesOwnership(req_i, handle);
 				if (transferred.equals(TRANSFER_STATUS.FAIL)) {
 					allSuccess = false;
+				}
+				if (transferred.equals(TRANSFER_STATUS.ALREADY_SATISFIED)) {
+					alreadySatisfied = true;
 				}
 				if (transferred.equals(TRANSFER_STATUS.PARTIAL)) {
 					atLeastOnePartial = true;
@@ -369,6 +364,10 @@ final public class IndigoResourceManager {
 				if (transferred.equals(TRANSFER_STATUS.SUCCESS)) {
 					atLeastOnePartial = true;
 					updated = true;
+				} else if ((!transferred.equals(TRANSFER_STATUS.ALREADY_SATISFIED))) {
+					synchronized (pendingRequests) {
+						pendingRequests.put(req_i.getResourceId(), req_i);
+					}
 				}
 			}
 		} catch (SwiftException e) {
@@ -388,7 +387,9 @@ final public class IndigoResourceManager {
 			}
 			releaseLocks(request.getResources());
 		}
-		if (allSuccess) {
+		if (alreadySatisfied && !atLeastOnePartial && allSuccess) {
+			return TRANSFER_STATUS.ALREADY_SATISFIED;
+		} else if (allSuccess) {
 			return TRANSFER_STATUS.SUCCESS;
 		} else if (atLeastOnePartial) {
 			return TRANSFER_STATUS.PARTIAL;
@@ -445,13 +446,9 @@ final public class IndigoResourceManager {
 	}
 	private <T> TRANSFER_STATUS updateResourcesOwnership(ResourceRequest<?> request, _TxnHandle handle) throws SwiftException, IncompatibleTypeException {
 		Resource resource = getResourceAndUpdateCache(request, handle, true);
-		logger.warning("GOING TO HANDLE RESOURCE TRANSFER " + request + " " + resource + " " + ((CRDT<?>) resource).getClock());
 		TRANSFER_STATUS result = TRANSFER_STATUS.FAIL;
 		// If requests can be satisfied at the caller according the local
 		// state, do not transfer... update is on the way
-		String requestMsg = "";
-		// if (!resource.checkRequest(request.getRequesterId(),
-		// (ResourceRequest<T>) request)) {
 		boolean needsTransference = false;
 		if (request instanceof CounterReservation) {
 			if (((int) resource.getSiteResource(request.getRequesterId())) - GRANT_THRESHOLD <= 0) {
@@ -472,9 +469,6 @@ final public class IndigoResourceManager {
 				// false;
 				if (request instanceof LockReservation) {
 					if (!locks.get(request.getResourceId()).checkAvailable((ShareableLock) request.getResource())) {
-						// if (logger.isLoggable(Level.WARNING) &&
-						// !result.equals(TRANSFER_STATUS.SUCCESS))
-						logger.warning("NOT AVAILABLE " + requestMsg + " " + result + " " + resource + " " + request + " " + locks.get(request.getResourceId()));
 						return result;
 					}
 				}
@@ -497,7 +491,6 @@ final public class IndigoResourceManager {
 				if (result.equals(TRANSFER_STATUS.FAIL)) {
 					// If a resource cannot be satisfied, free it locally.
 					// This is necessary to make the token converge
-					logger.warning("Will try to release " + request);
 					if (request instanceof LockReservation && locks.get(request.getResourceId()).checkCanRelease()) {
 						boolean released = resource.releaseShare(sequencer.siteId, masterId);
 						if (released) {
@@ -507,15 +500,13 @@ final public class IndigoResourceManager {
 					}
 				}
 
-			} else {
-				requestMsg += "No resources available ";
 			}
+		} else {
+			result = TRANSFER_STATUS.ALREADY_SATISFIED;
 		}
-
-		// if (logger.isLoggable(Level.WARNING) &&
-		// !result.equals(TRANSFER_STATUS.SUCCESS))
-		logger.warning(requestMsg + " " + result + " " + resource + " " + request + " " + locks.get(request.getResourceId()));
-
+		if (logger.isLoggable(Level.WARNING)) {
+			logger.warning("Resource transfer: request: " + request + " resource: " + resource + " clock: " + ((CRDT<?>) resource).getClock() + " result: " + result);
+		}
 		return result;
 	}
 	// For Locks retrieve the same request
@@ -649,7 +640,7 @@ final public class IndigoResourceManager {
 		}
 		LinkedList<TransferResourcesRequest> returnList = new LinkedList<TransferResourcesRequest>();
 		for (Entry<String, List<ResourceRequest<?>>> request : requestsBySite.entrySet()) {
-			returnList.add(new TransferResourcesRequest(sequencer.siteId, request.getKey(), requestId, request.getValue(), transferSeqNumber++));
+			returnList.add(new TransferResourcesRequest(sequencer.siteId, request.getKey(), requestId, request.getValue(), transferSeqNumber.incrementAndGet()));
 		}
 		if (returnList.size() > 0 && logger.isLoggable(Level.INFO)) {
 			logger.info("Will get permissions from: " + returnList);

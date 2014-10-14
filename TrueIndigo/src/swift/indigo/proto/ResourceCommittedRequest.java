@@ -1,28 +1,36 @@
 package swift.indigo.proto;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import swift.api.CRDTIdentifier;
 import swift.clocks.Timestamp;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.indigo.IndigoOperation;
 import swift.indigo.ReservationsProtocolHandler;
 import swift.indigo.ResourceManagerNode;
+import swift.proto.CommitUpdatesRequest;
 import sys.net.api.Envelope;
 import sys.net.api.MessageHandler;
 
-public class ReleaseResourcesRequest extends IndigoOperation {
+public class ResourceCommittedRequest extends IndigoOperation {
 
 	private Timestamp clientTs;
 	private long serial;
 	private transient boolean retry;
+	private CommitUpdatesRequest updates;
 
-	public ReleaseResourcesRequest() {
+	public ResourceCommittedRequest() {
 		super();
 	}
 
-	public ReleaseResourcesRequest(Timestamp clientTs) {
+	public ResourceCommittedRequest(Timestamp clientTs, CommitUpdatesRequest commitUpdatesRequest) {
 		super();
 		this.clientTs = clientTs;
+		this.updates = commitUpdatesRequest;
 	}
 
-	public ReleaseResourcesRequest(long serial, String clientId, Timestamp clientTs) {
+	public ResourceCommittedRequest(long serial, String clientId, Timestamp clientTs) {
 		super(clientId);
 		this.clientTs = clientTs;
 		this.serial = serial;
@@ -53,8 +61,8 @@ public class ReleaseResourcesRequest extends IndigoOperation {
 
 	@Override
 	public boolean equals(Object other) {
-		if (other instanceof ReleaseResourcesRequest) {
-			return this.compareTo((ReleaseResourcesRequest) other) == 0;
+		if (other instanceof ResourceCommittedRequest) {
+			return this.compareTo((ResourceCommittedRequest) other) == 0;
 		} else
 			return false;
 	}
@@ -62,8 +70,8 @@ public class ReleaseResourcesRequest extends IndigoOperation {
 	// Release has the HighestPriority
 	@Override
 	public int compareTo(IndigoOperation o) {
-		if (o instanceof ReleaseResourcesRequest) {
-			return clientTs.compareTo(((ReleaseResourcesRequest) o).clientTs);
+		if (o instanceof ResourceCommittedRequest) {
+			return clientTs.compareTo(((ResourceCommittedRequest) o).clientTs);
 		} else
 			return -1;
 	}
@@ -79,6 +87,14 @@ public class ReleaseResourcesRequest extends IndigoOperation {
 
 	public void setRetry(boolean retry) {
 		this.retry = retry;
+	}
+
+	public Set<CRDTIdentifier> getUpdatedCRDTs() {
+		Set<CRDTIdentifier> ids = new HashSet<>();
+		for (CRDTObjectUpdatesGroup<?> updatesList : updates.getObjectUpdateGroups()) {
+			ids.add(updatesList.getTargetUID());
+		}
+		return ids;
 	}
 
 }

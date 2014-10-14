@@ -27,10 +27,9 @@ import java.util.logging.Logger;
 
 import swift.dc.Defaults;
 import swift.dc.Sequencer;
-import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesRequest;
 import swift.indigo.proto.InitializeResources;
-import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ResourceCommittedRequest;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.proto.CommitTimestampRequest;
 import swift.proto.GenerateTimestampReply;
@@ -83,7 +82,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 
 		// TODO:
 		// try to release any resources properly...
-		lockManagerNode.onReceive(null, new ReleaseResourcesRequest(request.getCltTimestamp()));
+		lockManagerNode.onReceive(Envelope.DISCARD, new ResourceCommittedRequest(request.getCltTimestamp(), request.getCommitUpdatesRequest()));
 	}
 
 	@Override
@@ -94,14 +93,7 @@ public class IndigoSequencerAndResourceManager extends Sequencer implements Rese
 	}
 
 	@Override
-	public void onReceive(Envelope conn, AcquireResourcesReply request) {
-		if (logger.isLoggable(Level.INFO))
-			logger.info("Got AcquireResourcesReply:" + request);
-		lockManagerNode.onReceive(null, request);
-	}
-
-	@Override
-	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
+	public void onReceive(Envelope conn, ResourceCommittedRequest request) {
 		if (logger.isLoggable(Level.INFO))
 			logger.info("Got ReleaseResourcesRequest:" + request);
 		lockManagerNode.onReceive(conn, request);

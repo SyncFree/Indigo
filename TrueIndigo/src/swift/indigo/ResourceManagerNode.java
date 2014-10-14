@@ -1,10 +1,14 @@
 package swift.indigo;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -16,12 +20,13 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import swift.api.CRDTIdentifier;
 import swift.application.test.TestsUtil;
 import swift.clocks.Timestamp;
 import swift.indigo.proto.AcquireResourcesReply;
 import swift.indigo.proto.AcquireResourcesReply.AcquireReply;
 import swift.indigo.proto.AcquireResourcesRequest;
-import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ResourceCommittedRequest;
 import swift.indigo.proto.TransferResourcesRequest;
 import swift.utils.LogSiteFormatter;
 import sys.net.api.Endpoint;
@@ -35,7 +40,7 @@ import sys.utils.Threading;
 public class ResourceManagerNode implements ReservationsProtocolHandler {
 	protected static final long DEFAULT_QUEUE_PROCESSING_WAIT_TIME = 1;
 
-	private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
+	// private static final int DEFAULT_REQUEST_TRANSFER_RATIO = 3;
 
 	private IndigoResourceManager manager;
 
@@ -55,6 +60,8 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	private ResourceManagerNode thisManager = this;
 
 	private Set<IndigoOperation> waitingIndex;
+
+	private HashMap<CRDTIdentifier, ResourceRequest<?>> pendingRequests;
 
 	private ExecutorService workers;
 
@@ -77,9 +84,10 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		this.incomingRequestsQueue = new ConcurrentLinkedQueue<IndigoOperation>();
 
 		this.waitingIndex = new ConcurrentHashSet<IndigoOperation>();
+		this.pendingRequests = new HashMap<CRDTIdentifier, ResourceRequest<?>>();
 
 		this.workers = Executors.newCachedThreadPool();
-		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages);
+		this.manager = new IndigoResourceManager(sequencer, surrogate, endpoints, outgoingMessages, pendingRequests);
 		this.stub = sequencer.stub;
 
 		this.sequencer = sequencer;
@@ -122,19 +130,20 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Processing TransferResourcesRequest: " + request);
 		}
-
 		TRANSFER_STATUS reply = manager.transferResources(request);
-		// Never keep reply
-		// if (reply.hasTransferred()) {
-		// alreadyProcessedTransfers.put(request.getClientTs(), request);
+		if (reply.equals(TRANSFER_STATUS.SUCCESS) || reply.equals(TRANSFER_STATUS.ALREADY_SATISFIED)) {
+			synchronized (pendingRequests) {
+				for (ResourceRequest<?> req_i : request.getResources()) {
+					pendingRequests.remove(req_i.getResourceId());
+				}
+			}
+		}
 		waitingIndex.remove(request);
-		// }
-
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Finished TransferResourcesRequest: " + request + " Reply: " + reply);
 		}
 	}
-	public void process(ReleaseResourcesRequest request) {
+	public void process(ResourceCommittedRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Processing ReleaseResourcesRequest " + request);
 		}
@@ -146,32 +155,28 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				manager.releaseResources(arr);
 				arr.setReleased();
 				waitingIndex.remove(request);
-			} else {
-				if (logger.isLoggable(Level.WARNING))
-					logger.warning("Trying to release but did not get resources: exiting, should not happen " + request);
-				System.exit(0);
 			}
-			if (logger.isLoggable(Level.INFO))
-				logger.info("Finished ReleaseResourcesRequest" + request);
 		}
 		profiler.endOp(profilerName, opId);
-	}
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Finished ReleaseResourcesRequest" + request);
 
+	}
 	public void processWithReply(Envelope conn, AcquireResourcesRequest request) {
-		long opId = profiler.startOp(profilerName, "acquire");
-		AcquireResourcesReply reply = null;
 		if (logger.isLoggable(Level.INFO))
 			logger.info("Processing AcquireResourcesRequest " + request);
+		AcquireResourcesReply reply = null;
+		long opId = profiler.startOp(profilerName, "acquire");
 		reply = manager.acquireResources(request);
 		if (reply.acquiredStatus().equals(AcquireReply.YES)) {
 			replies.put(request.getClientTs(), reply);
 		}
-		if (logger.isLoggable(Level.INFO))
-			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply + " " + reply.getSnapshot());
-
 		waitingIndex.remove(request);
 		profiler.endOp(profilerName, opId);
 		conn.reply(reply);
+		if (logger.isLoggable(Level.INFO))
+			logger.info("Finished AcquireResourcesRequest " + request + " Reply: " + reply + " " + reply.getSnapshot());
+
 	}
 	/**
 	 * Message handlers
@@ -205,8 +210,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 	}
 	@Override
 	public void onReceive(Envelope conn, TransferResourcesRequest request) {
-		// if (!alreadyProcessedTransfers.containsKey(request.getClientTs())) {
-		// Check if the message is duplicated
 		if (!isDuplicate(request)) {
 			synchronized (transferRequestsQueue) {
 				transferRequestsQueue.add(request);
@@ -214,14 +217,33 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 		} else {
 			logger.info("repeated message");
 		}
-		// } else {
-		// logger.info("already processed request " + request);
-		// }
 	}
 
 	@Override
-	public void onReceive(Envelope conn, ReleaseResourcesRequest request) {
+	public void onReceive(Envelope conn, ResourceCommittedRequest request) {
 		AcquireResourcesReply reply = replies.get(request.getClientTs());
+
+		synchronized (pendingRequests) {
+			for (CRDTIdentifier id : request.getUpdatedCRDTs()) {
+				Map<String, SortedSet<ResourceRequest<?>>> updatedResources = new HashMap<>();
+				if (pendingRequests.containsKey(id)) {
+					ResourceRequest<?> pendingRequest = pendingRequests.get(id);
+					SortedSet<ResourceRequest<?>> sitePendingRequests = updatedResources.get(pendingRequest.getRequesterId());
+					if (sitePendingRequests == null) {
+						sitePendingRequests = new TreeSet<>();
+						updatedResources.put(pendingRequest.getRequesterId(), sitePendingRequests);
+					}
+					sitePendingRequests.add(pendingRequest);
+				}
+				synchronized (incomingRequestsQueue) {
+					for (Entry<String, SortedSet<ResourceRequest<?>>> entry : updatedResources.entrySet()) {
+						TransferResourcesRequest transfer = new TransferResourcesRequest(entry.getKey(), sequencer.siteId, manager.transferSeqNumber.incrementAndGet(), entry.getValue());
+						incomingRequestsQueue.add(transfer);
+					}
+				}
+			}
+		}
+
 		if (reply != null && !reply.isReleased()) {
 			if (!isDuplicate(request)) {
 				boolean hasLock = false;
@@ -238,12 +260,6 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 				}
 			}
 		}
-	}
-
-	@Override
-	public void onReceive(Envelope conn, AcquireResourcesReply request) {
-		if (logger.isLoggable(Level.WARNING))
-			logger.warning("RPC " + request.getClass() + " not implemented!");
 	}
 
 	/**

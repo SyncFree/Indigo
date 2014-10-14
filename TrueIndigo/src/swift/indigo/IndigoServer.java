@@ -48,7 +48,7 @@ import swift.indigo.proto.FetchObjectReply;
 import swift.indigo.proto.FetchObjectRequest;
 import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.IndigoProtocolHandler;
-import swift.indigo.proto.ReleaseResourcesRequest;
+import swift.indigo.proto.ResourceCommittedRequest;
 import swift.indigo.remote.IndigoImpossibleException;
 import swift.indigo.remote.RemoteIndigoServer;
 import sys.net.api.Endpoint;
@@ -225,7 +225,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 
 			public void rollback() {
 				if (withLocks)
-					stub.send(lockManager, new ReleaseResourcesRequest(serial, stubId, cltTimestamp()));
+					stub.send(lockManager, new ResourceCommittedRequest(serial, stubId, cltTimestamp()));
 
 				tsSource.returnLastTimestamp();
 
