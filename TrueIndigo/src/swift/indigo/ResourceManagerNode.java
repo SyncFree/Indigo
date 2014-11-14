@@ -143,6 +143,7 @@ public class ResourceManagerNode implements ReservationsProtocolHandler {
 			logger.info("Finished TransferResourcesRequest: " + request + " Reply: " + reply);
 		}
 	}
+
 	public void process(ResourceCommittedRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("Processing ReleaseResourcesRequest " + request);

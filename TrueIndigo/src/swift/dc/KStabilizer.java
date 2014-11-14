@@ -1,7 +1,7 @@
 package swift.dc;
 
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
-import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_ISDOMINATED;
 import static sys.Context.Networking;
 
 import java.util.ArrayList;
@@ -72,25 +72,31 @@ public class KStabilizer {
 
 	void checkBlockedTransactions() {
 		CausalityClock clock = server.clocks.currentClockCopy();
-		blockedTransactions.values().parallelStream().forEach(txns -> {
+		blockedTransactions
+				.values()
+				.parallelStream()
+				.forEach(
+						txns -> {
 
-			List<CommitUpdatesRequest> done = new ArrayList<>();
+							List<CommitUpdatesRequest> done = new ArrayList<>();
 
-			for (CommitUpdatesRequest req : txns)
-				if (req.getDependencyClock().compareTo(clock).is(CMP_ISDOMINATED, CMP_EQUALS)) {
-					done.add(req);
-					if (Log.isLoggable(Level.INFO))
-						Log.info(server.siteId + " @@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
-					server.doOneCommit(server.getSession(req.getClientId()), req);
-				} else {
-					if (Log.isLoggable(Level.INFO))
-						Log.info(server.siteId + "now: " + clock + " @@@@ Still blocked  deps:" + req.getDependencyClock() + " after: " + (System.currentTimeMillis() - req.blkTime));
-					break;
-				}
-			txns.removeAll(done);
-		});
+							for (CommitUpdatesRequest req : txns)
+								if (clock.compareTo(req.getDependencyClock()).is(CMP_DOMINATES, CMP_EQUALS)) {
+									done.add(req);
+									if (Log.isLoggable(Level.INFO))
+										Log.info(server.siteId + " @@@@ Time spent blocking: " + (System.currentTimeMillis() - req.blkTime) + "   deps:" + req.getDependencyClock());
+									server.doOneCommit(server.getSession(req.getClientId()), req);
+								} else {
+									if (Log.isLoggable(Level.INFO))
+										Log.info(server.siteId + " ts: " + req.getTimestamp() + "  now: " + clock + " @@@@ Still blocked  deps:" + req.getDependencyClock() + " after: " + (System.currentTimeMillis() - req.blkTime)
+												+ "   cmp: " + req.getDependencyClock().compareTo(clock));
+									break;
+								}
+							txns.removeAll(done);
+						});
 
 	}
+
 	private Deque<CommitUpdatesRequest> getBlocked(CommitUpdatesRequest req) {
 		String key = req.getCltTimestamp().getIdentifier();
 		Deque<CommitUpdatesRequest> res = blockedTransactions.get(key), nres;

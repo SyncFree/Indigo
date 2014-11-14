@@ -33,74 +33,73 @@ import sys.net.api.MessageHandler;
  */
 public class InitializeResources extends ClientRequest {
 
-    protected LockReservation[] locks;
-    protected CounterReservation[] counters;
+	protected LockReservation[] locks;
+	protected CounterReservation[] counters;
 
-    /**
-     * Fake constructor for Kryo serialization.
-     */
-    public InitializeResources() {
-    }
+	/**
+	 * Fake constructor for Kryo serialization.
+	 */
+	public InitializeResources() {
+	}
 
-    public InitializeResources(String clientId, LockReservation... locks) {
-        super(clientId);
-        this.locks = locks;
-    }
+	public InitializeResources(String clientId, LockReservation... locks) {
+		super(clientId);
+		this.locks = locks;
+	}
 
-    public InitializeResources(String clientId, LockReservation[] locks, CounterReservation[] counters) {
-        super(clientId);
-        this.locks = locks;
-        this.counters = counters;
-    }
+	public InitializeResources(String clientId, LockReservation[] locks, CounterReservation[] counters) {
+		super(clientId);
+		this.locks = locks;
+		this.counters = counters;
+	}
 
-    public InitializeResources(String serverId, Collection<LockReservation> locks) {
-        super(serverId);
-        this.locks = locks.toArray(new LockReservation[locks.size()]);
-    }
+	public InitializeResources(String serverId, Collection<LockReservation> locks) {
+		super(serverId);
+		this.locks = locks.toArray(new LockReservation[locks.size()]);
+	}
 
-    public InitializeResources(String serverId, Collection<LockReservation> locks,
-            Collection<CounterReservation> counters) {
-        super(serverId);
-        this.locks = locks.toArray(new LockReservation[locks.size()]);
-        this.counters = counters.toArray(new CounterReservation[counters.size()]);
-    }
+	public InitializeResources(String serverId, Collection<LockReservation> locks, Collection<CounterReservation> counters) {
+		super(serverId);
+		this.locks = locks.toArray(new LockReservation[locks.size()]);
+		this.counters = counters.toArray(new CounterReservation[counters.size()]);
+	}
 
-    public boolean hasLocks() {
-        if (locks != null) {
-            return true;
-        } else {
-            return false;
-        }
+	public boolean hasLocks() {
+		if (locks != null) {
+			return true;
+		} else {
+			return false;
+		}
 
-    }
+	}
 
-    public Collection<LockReservation> locks() {
-        return Arrays.asList(locks);
-    }
+	public Collection<LockReservation> locks() {
+		return Arrays.asList(locks);
+	}
 
-    public boolean hasCounters() {
-        if (counters != null) {
-            return true;
-        } else {
-            return false;
-        }
+	public boolean hasCounters() {
+		if (counters != null) {
+			return true;
+		} else {
+			return false;
+		}
 
-    }
+	}
 
-    public Collection<CounterReservation> counters() {
-        return Arrays.asList(counters);
-    }
+	public Collection<CounterReservation> counters() {
+		return Arrays.asList(counters);
+	}
 
-    public String requesterId() {
-        return super.getClientId();
-    }
+	public String requesterId() {
+		return super.getClientId();
+	}
 
-    @Override
-    public void deliverTo(Envelope conn, MessageHandler handler) {
-        ((ReservationsProtocolHandler) handler).onReceive(conn, this);
-    }
+	@Override
+	public void deliverTo(Envelope conn, MessageHandler handler) {
+		((ReservationsProtocolHandler) handler).onReceive(conn, this);
+	}
 
-    public String toString() {
-        return String.format("%s, %s)", requesterId(), Arrays.asList(locks));
-    }
+	public String toString() {
+		return String.format("%s, %s)", requesterId(), Arrays.asList(locks));
+	}
 }

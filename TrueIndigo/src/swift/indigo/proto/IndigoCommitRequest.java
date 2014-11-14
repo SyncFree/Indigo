@@ -18,8 +18,7 @@ public class IndigoCommitRequest extends swift.proto.CommitUpdatesRequest {
 		super();
 	}
 
-	public IndigoCommitRequest(long serial, String clientId, Timestamp cltTimestamp, CausalityClock dependencyClock,
-			List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, boolean withLocks) {
+	public IndigoCommitRequest(long serial, String clientId, Timestamp cltTimestamp, CausalityClock dependencyClock, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, boolean withLocks) {
 		super(clientId, cltTimestamp, dependencyClock, objectUpdateGroups);
 		this.serial = serial;
 		this.withLocks = withLocks;

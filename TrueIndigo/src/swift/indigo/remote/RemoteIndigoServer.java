@@ -76,19 +76,29 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 
 	public void onReceive(final Envelope src, final AcquireResourcesRequest req) {
 
-		if (emulateWeakConsistency || (!emulateStrongConsistency && req.getResources().isEmpty())) {
-			CausalityClock snapshot = server.clocks.currentClockCopy();
-			monotonizeSnapshot(snapshot);
-			src.reply(new AcquireResourcesReply(server.registerSnapshot(snapshot), snapshot));
-		} else {
-			stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
-				if (r != null) {
-					monotonizeSnapshot(r.getSnapshot());
-					src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
-				}
-			});
-		}
+		stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
+			if (r != null) {
+				monotonizeSnapshot(r.getSnapshot());
+				src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
+			}
+		});
+
+		// if (emulateWeakConsistency || (!emulateStrongConsistency &&
+		// req.getResources().isEmpty())) {
+		// CausalityClock snapshot = server.clocks.currentClockCopy();
+		// monotonizeSnapshot(snapshot);
+		// src.reply(new
+		// AcquireResourcesReply(server.registerSnapshot(snapshot), snapshot));
+		// } else {
+		// stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
+		// if (r != null) {
+		// monotonizeSnapshot(r.getSnapshot());
+		// src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
+		// }
+		// });
+		// }
 	}
+
 	@Override
 	public void onReceive(final Envelope src, final DiscardSnapshotRequest request) {
 		server.disposeSnapshot(request.serial());
