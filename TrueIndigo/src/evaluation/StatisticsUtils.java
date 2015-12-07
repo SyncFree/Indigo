@@ -14,8 +14,8 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 public class StatisticsUtils {
 	private static final long ONE_SECOND_IN_NANOS = 1000000000;
-	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 1000;
-	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 30;
+	private static final long ONE_MINUTE_IN_NANOS = ONE_SECOND_IN_NANOS * 60;
+	private static final long WARMUP_TIME = ONE_SECOND_IN_NANOS * 0;
 	private static final int OUTLIER = 3000;
 	static Frequency valuesFreq;
 
@@ -43,9 +43,10 @@ public class StatisticsUtils {
 		}
 
 	}
+
 	/**
 	 * Transactions per second
-	 * 
+	 *
 	 * @param rangeI
 	 * @param rangeF
 	 * @param increment
@@ -94,6 +95,7 @@ public class StatisticsUtils {
 		System.out.printf("START\tTPS\tTPL\n");
 		System.out.printf("%s\t%s\t%s\n", startTime, TPS, AVGLatencyNanos);
 	}
+
 	public static void createTPS(String filter, String[] files) throws FileNotFoundException {
 		System.out.printf("THREADS\tAVG_TPS\n");
 		for (String file : files) {
@@ -180,7 +182,8 @@ public class StatisticsUtils {
 	}
 
 	// OP_NAME START_TIME DURATION SITE -> OP_NAME (MEAN_TIME, STD_DEV)*
-	private static void createCDFTournament(int rangeI, int rangeF, int increment, String filename) throws FileNotFoundException {
+	private static void createCDFTournament(int rangeI, int rangeF, int increment, String filename)
+			throws FileNotFoundException {
 		Map<String, Frequency> durationFrequency = new HashMap<>();
 		boolean warmUpComplete = false;
 		long startTime = -1;
@@ -219,7 +222,8 @@ public class StatisticsUtils {
 			}
 		}
 		String header = "LAT";
-		String[] opNames = new String[]{"VIEW_STATUS", "ENROLL_TOURNAMENT", "DISENROLL_TOURNAMENT", "DO_MATCH", "ADD_PLAYER", "ADD_TOURNAMENT", "REM_TOURNAMENT"};
+		String[] opNames = new String[] { "VIEW_STATUS", "ENROLL_TOURNAMENT", "DISENROLL_TOURNAMENT", "DO_MATCH",
+				"ADD_PLAYER", "ADD_TOURNAMENT", "REM_TOURNAMENT" };
 		for (String opName : opNames) {
 			header += "\t" + opName;
 		}
@@ -243,6 +247,7 @@ public class StatisticsUtils {
 
 		scanner.close();
 	}
+
 	private static void createHistogramTournament(String[] filenames) throws FileNotFoundException {
 		Map<String, Map<String, DescriptiveStatistics>> opsDuration = new HashMap<>();
 		System.out.printf("OP_NAME\tUS-EAST\tUS-WEST\tEUROPE\tGLOBAL\n");
@@ -265,7 +270,7 @@ public class StatisticsUtils {
 				if (startTime == -1) {
 					startTime = opStartTime;
 				}
-				if (!warmUpComplete && opStartTime - startTime > WARMUP_TIME) {
+				if (!warmUpComplete && opStartTime - startTime >= WARMUP_TIME) {
 					warmUpComplete = true;
 					startTime = opStartTime;
 				}
@@ -286,6 +291,7 @@ public class StatisticsUtils {
 				}
 			}
 			scanner.close();
+
 		}
 	}
 
@@ -361,6 +367,7 @@ public class StatisticsUtils {
 			System.out.println(outputLine.toString());
 		}
 	}
+
 	public static void main(String[] args) {
 		try {
 			if (args[0].equals("-cdf")) {

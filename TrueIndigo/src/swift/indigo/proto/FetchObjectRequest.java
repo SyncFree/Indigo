@@ -53,6 +53,7 @@ public class FetchObjectRequest extends ClientRequest {
 	protected CRDTIdentifier uid;
 	protected boolean subscribe;
 	protected CausalityClock dcClock;
+	protected CausalityClock safeClock;
 
 	public FetchObjectRequest() {
 	}
@@ -63,9 +64,10 @@ public class FetchObjectRequest extends ClientRequest {
 		this.subscribe = subscribe;
 	}
 
-	public FetchObjectRequest(CausalityClock dcClock, String clientId, CRDTIdentifier uid, boolean subscribe) {
+	public FetchObjectRequest(CausalityClock dcClock, CausalityClock safeClock, String clientId, CRDTIdentifier uid, boolean subscribe) {
 		this(clientId, uid, subscribe);
 		this.dcClock = dcClock.clone();
+		this.safeClock = safeClock;
 	}
 
 	public boolean hasSubscription() {
@@ -86,5 +88,9 @@ public class FetchObjectRequest extends ClientRequest {
 	@Override
 	public void deliverTo(Envelope src, MessageHandler handler) {
 		((IndigoProtocolHandler) handler).onReceive(src, this);
+	}
+
+	public CausalityClock getSafeClock() {
+		return safeClock;
 	}
 }

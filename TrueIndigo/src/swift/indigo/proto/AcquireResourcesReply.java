@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo.proto;
 
 import java.util.Collection;
@@ -35,8 +35,6 @@ public class AcquireResourcesReply {
 	public enum AcquireReply {
 		IMPOSSIBLE, YES, NO, RELEASED, REPEATED, NO_RESOURCES
 	}
-
-	long serial;
 
 	protected Timestamp timestamp;
 	protected CausalityClock snapshot;
@@ -55,12 +53,12 @@ public class AcquireResourcesReply {
 	public AcquireResourcesReply() {
 	}
 
-	public AcquireResourcesReply(boolean dummy) {
-		this.time = System.currentTimeMillis();
-		this.status = AcquireReply.NO;
-		if (dummy != false)
-			throw new RuntimeException("Expected false...");
-	}
+	// public AcquireResourcesReply(boolean dummy) {
+	// this.time = System.currentTimeMillis();
+	// this.status = AcquireReply.NO;
+	// if (dummy != false)
+	// throw new RuntimeException("Expected false...");
+	// }
 
 	public AcquireResourcesReply(AcquireReply status, CausalityClock snapshot) {
 		this.time = System.currentTimeMillis();
@@ -69,12 +67,16 @@ public class AcquireResourcesReply {
 		this.objectUpdateGroups = Collections.emptyList();
 	}
 
-	public AcquireResourcesReply(AcquireReply status, CausalityClock snapshot, Collection<CRDTIdentifier> impossible) {
+	public AcquireResourcesReply(AcquireReply status, CausalityClock snapshot,
+			Collection<CRDTIdentifier> impossible) {
 		this(status, snapshot);
 		this.impossible = impossible;
 	}
 
-	public AcquireResourcesReply(Timestamp cltTimestamp, Timestamp timestamp, CausalityClock snapshot, Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Collection<ResourceRequest<?>> requests) {
+	public AcquireResourcesReply(Timestamp cltTimestamp, Timestamp timestamp,
+			CausalityClock snapshot,
+			Collection<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
+			Collection<ResourceRequest<?>> requests) {
 		this.time = System.currentTimeMillis();
 		this.status = AcquireReply.YES;
 		this.snapshot = snapshot;
@@ -85,22 +87,12 @@ public class AcquireResourcesReply {
 	}
 
 	// Used for weak consistency emulation...
-	public AcquireResourcesReply(long serial, CausalityClock currentClockEstimate) {
+	public AcquireResourcesReply(CausalityClock currentClockEstimate) {
 		this.time = System.currentTimeMillis();
-		this.serial = serial;
 		this.status = AcquireReply.YES;
 		this.timestamp = null;
 		this.snapshot = currentClockEstimate;
 		this.objectUpdateGroups = Collections.emptyList();
-	}
-
-	public long serial() {
-		return serial;
-	}
-
-	public AcquireResourcesReply setSerial(long serial) {
-		this.serial = serial;
-		return this;
 	}
 
 	public Timestamp timestamp() {
@@ -108,7 +100,9 @@ public class AcquireResourcesReply {
 	}
 
 	public boolean acquiredResources() {
-		return status == AcquireReply.YES || status == AcquireReply.NO_RESOURCES || status == AcquireReply.RELEASED;
+		return status == AcquireReply.YES
+				|| status == AcquireReply.NO_RESOURCES
+				|| status == AcquireReply.RELEASED;
 	}
 
 	public AcquireReply acquiredStatus() {
@@ -129,6 +123,7 @@ public class AcquireResourcesReply {
 	public String toString() {
 		return "STATUS " + status + " TS: " + timestamp;
 	}
+
 	public Collection<ResourceRequest<?>> getResourcesRequest() {
 		return requests;
 	}

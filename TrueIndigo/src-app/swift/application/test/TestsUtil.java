@@ -14,7 +14,7 @@ import swift.crdt.ShareableLock;
 import swift.exceptions.SwiftException;
 import swift.indigo.CounterReservation;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoSequencer;
 import swift.indigo.IndigoServer;
 import swift.indigo.LockReservation;
 import swift.indigo.ResourceRequest;
@@ -30,7 +30,7 @@ public class TestsUtil {
 		argsSeq.addAll(Arrays.asList(servers));
 		argsSeq.add("-sequencers");
 		argsSeq.addAll(Arrays.asList(otherSequencers));
-		IndigoSequencerAndResourceManager.main(argsSeq.toArray(new String[0]));
+		IndigoSequencer.main(argsSeq.toArray(new String[0]));
 	}
 
 	public static void startServer(String siteId, String masterId, int serverPort, int DHTPort, int pubSubPort, int indigoPort, int serverPort4Seq, String sequencerUrl, String[] otherServers) {

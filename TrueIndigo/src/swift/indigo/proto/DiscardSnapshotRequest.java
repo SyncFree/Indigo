@@ -33,7 +33,6 @@ import sys.net.api.MessageHandler;
  */
 public class DiscardSnapshotRequest extends ClientRequest {
 
-	protected long serial;
 	protected Timestamp cltTimestamp;
 
 	/**
@@ -42,14 +41,9 @@ public class DiscardSnapshotRequest extends ClientRequest {
 	public DiscardSnapshotRequest() {
 	}
 
-	public DiscardSnapshotRequest(long serial, String clientId, Timestamp cltTimestamp) {
+	public DiscardSnapshotRequest(String clientId, Timestamp cltTimestamp) {
 		super(clientId);
-		this.serial = serial;
 		this.cltTimestamp = cltTimestamp;
-	}
-
-	public long serial() {
-		return serial;
 	}
 
 	public Timestamp cltTimestamp() {

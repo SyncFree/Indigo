@@ -22,7 +22,7 @@ final public class FifoQueues {
 	FifoQueue<GenerateTimestampRequest> queue4GenTS(final String clientId) {
 		FifoQueue<GenerateTimestampRequest> res = gts.get(clientId), nq;
 		if (res == null) {
-			res = gts.putIfAbsent(clientId, nq = new FifoQueue<GenerateTimestampRequest>(clientId));
+			res = gts.putIfAbsent(clientId, nq = new FifoQueue<>(clientId));
 			if (res == null)
 				res = nq;
 		}
@@ -32,7 +32,7 @@ final public class FifoQueues {
 	FifoQueue<CommitTimestampRequest> queue4CommitTS(final String clientId) {
 		FifoQueue<CommitTimestampRequest> res = cts.get(clientId), nq;
 		if (res == null) {
-			res = cts.putIfAbsent(clientId, nq = new FifoQueue<CommitTimestampRequest>(clientId));
+			res = cts.putIfAbsent(clientId, nq = new FifoQueue<>(clientId));
 			if (res == null)
 				res = nq;
 		}
@@ -42,7 +42,7 @@ final public class FifoQueues {
 	FifoQueue<CommitUpdatesRequest> queue4CommitTxn(final String clientId) {
 		FifoQueue<CommitUpdatesRequest> res = txn.get(clientId), nq;
 		if (res == null) {
-			res = txn.putIfAbsent(clientId, nq = new FifoQueue<CommitUpdatesRequest>(clientId));
+			res = txn.putIfAbsent(clientId, nq = new FifoQueue<>(clientId));
 			if (res == null)
 				res = nq;
 		}

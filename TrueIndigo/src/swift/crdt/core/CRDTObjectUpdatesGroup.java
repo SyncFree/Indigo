@@ -23,7 +23,6 @@ import java.util.List;
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 
@@ -41,13 +40,12 @@ import swift.clocks.TimestampMapping;
  * TODO: document life-cycle of mappings and dependencyClock references
  * (optimization hacks in {@link #strippedWithCopiedTimestampMappings()} and
  * {@link #withGlobalDependencyClock(CausalityClock)})
- * 
+ *
  * @author mzawirsk
  */
 public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
 	protected CRDTIdentifier id;
-	protected CausalityClock dependencyClock;
 	// the first one is the client timestamp, followed by system timestamp(s)
 	protected TimestampMapping timestampMapping;
 	protected List<CRDTUpdate<V>> operations;
@@ -61,22 +59,22 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
 	/**
 	 * Constructs a group of operations.
-	 * 
+	 *
 	 * @param id
 	 * @param timestampMapping
 	 * @param creationState
 	 * @param dependencyClock
 	 */
-	public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState, final CausalityClock dependencyClock) {
-		this(id, timestampMapping, new LinkedList<CRDTUpdate<V>>(), creationState, dependencyClock);
+	public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState) {
+		this(id, timestampMapping, new LinkedList<CRDTUpdate<V>>(), creationState);
 	}
 
-	private CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, List<CRDTUpdate<V>> operations, V creationState, final CausalityClock dependencyClock) {
+	private CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping,
+			List<CRDTUpdate<V>> operations, V creationState) {
 		this.id = id;
 		this.timestampMapping = timestampMapping;
 		this.operations = operations;
 		this.creationState = creationState;
-		this.dependencyClock = dependencyClock;
 	}
 
 	/**
@@ -97,20 +95,21 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 	/**
 	 * Merge in system timestamp(s) for this transaction from another instance
 	 * of the updates group. Idempotent.
-	 * 
+	 *
 	 * @param timestampsToMerge
 	 *            list of timestamps to add
 	 */
 	public synchronized void mergeSystemTimestamps(final CRDTObjectUpdatesGroup<V> group) {
 		if (id != null && group.id != null && !id.equals(group.id)) {
-			throw new IllegalArgumentException("Cannot group timestamps for two group of operations on different objects");
+			throw new IllegalArgumentException(
+					"Cannot group timestamps for two group of operations on different objects");
 		}
 		timestampMapping.mergeIn(group.timestampMapping);
 	}
 
 	/**
 	 * Adds a new system timestamp for this transaction. Idempotent.
-	 * 
+	 *
 	 * @param ts
 	 *            system timestamp to add
 	 */
@@ -132,7 +131,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 	 * <p>
 	 * When it returns true, all subsequent calls will also yield true
 	 * (timestamp mappings can only grow).
-	 * 
+	 *
 	 * @param clock
 	 *            clock to check against
 	 * @return true if any timestamp (client or system) used to represent the
@@ -142,17 +141,18 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 		return timestampMapping.anyTimestampIncluded(clock);
 	}
 
-	/**
-	 * Returns the minimum causality clock for the object on which the
-	 * operations are to be executed, representing causal dependencies of this
-	 * group of operations.
-	 * 
-	 * @return causality clock of object state when operations have been issued
-	 * 
-	 */
-	public synchronized CausalityClock getDependency() {
-		return dependencyClock;
-	}
+	// /**
+	// * Returns the minimum causality clock for the object on which the
+	// * operations are to be executed, representing causal dependencies of this
+	// * group of operations.
+	// *
+	// * @return causality clock of object state when operations have been
+	// issued
+	// *
+	// */
+	// public synchronized CausalityClock getDependency() {
+	// return dependencyClock;
+	// }
 
 	/**
 	 * @return read-only reference to the internal list of operations
@@ -171,7 +171,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
 	/**
 	 * Appends a new operation to the sequence of operations.
-	 * 
+	 *
 	 * @param op
 	 *            next operation to be applied within the transaction
 	 */
@@ -181,7 +181,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
 	/**
 	 * Applies all operations in order to the given object instance.
-	 * 
+	 *
 	 * @param crdt
 	 *            object where operations are applied
 	 */
@@ -207,35 +207,21 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 	}
 
 	/**
-	 * @param newDependencyClock
-	 * @return shallow copy of this object dependencyClock set to another one.
-	 */
-	public CRDTObjectUpdatesGroup<V> withDependencyClock(final CausalityClock newDependencyClock) {
-		if (newDependencyClock != null && !newDependencyClock.compareTo(dependencyClock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
-			throw new IllegalArgumentException("new dependency clock is concurrent or lower than the old one");
-		}
-		return new CRDTObjectUpdatesGroup<V>(id, timestampMapping, operations, creationState, newDependencyClock);
-	}
-
-	/**
-	 * @param newId
-	 * @return shallow copy of the object id set to another one, if not null.
-	 */
-	public CRDTObjectUpdatesGroup<V> withId(CRDTIdentifier newId) {
-		return new CRDTObjectUpdatesGroup<V>(newId != null ? newId : id, timestampMapping, operations, creationState, dependencyClock);
-	}
-
-	/**
 	 * @return shallow copy of this object with a deep copy of timestamps that
 	 *         may change (the only mutable piece of state at that state), and
 	 *         stripped out of dependencyClock and object id information
 	 */
 	public CRDTObjectUpdatesGroup<V> strippedWithCopiedTimestampMappings() {
-		return new CRDTObjectUpdatesGroup<V>(null, timestampMapping.copy(), operations, creationState, null);
+		return new CRDTObjectUpdatesGroup<V>(null, timestampMapping.copy(), operations, creationState);
 	}
 
 	@Override
 	public String toString() {
-		return String.format("[id=%s,deps=%s,ts=%s,ops=%s", id, dependencyClock, timestampMapping, operations);
+		return String.format("[id=%s,ts=%s,ops=%s", id, timestampMapping, operations);
+	}
+
+	public void substituteClientTimestamp(Timestamp newTimestamp) {
+		timestampMapping.substituteClientTimestamp(newTimestamp);
+
 	}
 }

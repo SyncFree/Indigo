@@ -3,15 +3,15 @@ package indigo.application.tournament.cs;
 import static java.lang.System.exit;
 import static sys.Context.Networking;
 import indigo.application.adservice.Results;
-import indigo.application.tournament.TournamentServiceBenchmark;
-import indigo.application.tournament.TournamentServiceOps;
+import indigo.application.tournament.reservations.TournamentServiceBenchmark;
+import indigo.application.tournament.reservations.TournamentServiceOps;
 
 import java.io.PrintStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoSequencer;
 import sys.net.api.Endpoint;
 import sys.net.api.Service;
 import sys.utils.Args;
@@ -47,7 +47,7 @@ public class TournamentServiceClient extends TournamentServiceBenchmark {
 		TournamentServiceClient client = new TournamentServiceClient();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "INIT"});
+			IndigoSequencer.main(new String[]{"-name", "INIT"});
 
 			args = new String[]{"-server", "localhost"};
 

@@ -228,17 +228,17 @@ public final class DataServer {
 				}
 
 				V creationState = (V) req.getGrp().getCreationState();
-				final ManagedCRDT<V> crdt = new ManagedCRDT<V>(id, creationState, req.getGrp().getDependency(), true);
+				final ManagedCRDT<V> crdt = new ManagedCRDT<V>(id, creationState, req.getDependencyClock(), true);
 				data = localPutCRDT(crdt);
 			}
 
 			data.pruneIfPossible(clocks.pruneClockCopy());
 
-			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+			data.execute((CRDTObjectUpdatesGroup<V>) req.getGrp(), req.getDependencyClock(), CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 			data.getClock().recordAllUntil(req.getCltTs());
 
 			if (logger.isLoggable(Level.INFO)) {
-				logger.info(server.siteId + ":::Data Server: after exec crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getGrp().getDependency() + "; cltTs = "
+				logger.info(server.siteId + ":::Data Server: after exec crdt : " + id + "; clk = " + data.getClock() + " ; cltClock = " + clocks.clientClockCopy() + ";  snapshotVersion = " + req.getDependencyClock() + "; cltTs = "
 						+ req.getCltTs() + " ts: " + req.getTxTs());
 			}
 
@@ -251,6 +251,7 @@ public final class DataServer {
 			unlock(id);
 		}
 	}
+
 	public void updatePruneClock(CausalityClock safeSnapshot) {
 		clocks.updateClock(clocks.pruneClock, safeSnapshot);
 	}

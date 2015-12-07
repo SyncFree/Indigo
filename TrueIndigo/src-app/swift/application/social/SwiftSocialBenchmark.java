@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoSequencer;
 import swift.indigo.IndigoServer;
 import swift.utils.SafeLog;
 import sys.shepard.Shepard;
@@ -151,7 +151,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 		SwiftSocialBenchmark instance = new SwiftSocialBenchmark();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X"});
+			IndigoSequencer.main(new String[]{"-name", "X"});
 			IndigoServer.main(new String[]{"-servers", "localhost"});
 
 			args = new String[]{"-server", "localhost", "-threads", "5", "-props", "src-app/swift/application/social/swiftsocial-test.props"};

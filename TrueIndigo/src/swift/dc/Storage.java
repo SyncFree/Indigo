@@ -22,7 +22,7 @@ public class Storage {
 	public <V extends CRDT<V>> CRDTData<V> getData(CRDTIdentifier uid) {
 		Map<String, CRDTData<?>> m = db.get(uid.getTable()), nm;
 		if (m == null) {
-			m = db.putIfAbsent(uid.getTable(), nm = new ConcurrentHashMap<String, CRDTData<?>>());
+			m = db.putIfAbsent(uid.getTable(), nm = new ConcurrentHashMap<>());
 			if (m == null)
 				m = nm;
 		}

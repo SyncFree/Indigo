@@ -29,6 +29,7 @@ public class CRDTData<V extends CRDT<V>> extends ManagedCRDT<V> {
 	}
 
 	boolean pruneIfPossible(CausalityClock clock) {
+		// System.exit(0);
 		long now = System.currentTimeMillis();
 		if (lastPrunedTime + Defaults.PRUNING_INTERVAL < now) {
 			super.prune(clock, false);

@@ -100,7 +100,9 @@ public class MicroBenchmark {
 				private List<CRDTIdentifier> getNKeys(int nKeys, Set<CRDTIdentifier> excludedIds) {
 					List<CRDTIdentifier> ids = new LinkedList<>();
 					for (int i = 0; i < nKeys; i++) {
-						String key = distribution.sample() + "";
+						String key = "1";
+						if (MicroBenchmark.nKeys != 1)
+							key = distribution.sample() + "";
 						CRDTIdentifier id = new CRDTIdentifier(table + "", key);
 						if (excludedIds.contains(id)) {
 							i--;
@@ -136,6 +138,7 @@ public class MicroBenchmark {
 				if ((x.getValue()) > 0) {
 					result = x.decrement(units, siteId);
 					if (result == false) {
+						System.out.println(x);
 						System.out.println("FAILED");
 					}
 					counterValue = x.getValue();

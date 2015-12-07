@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 /*****************************************************************************
  * Copyright 2011-2012 INRIA
  * Copyright 2011-2012 Universidade Nova de Lisboa
@@ -228,7 +228,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 		List<Pair<String, ShareableLock>> list = new LinkedList<>();
 		for (String entry : owners.keySet()) {
 			if (excludeSiteId != null && !excludeSiteId.equals(entry))
-				list.add(new Pair<String, ShareableLock>(entry, type));
+				list.add(new Pair<>(entry, type));
 		}
 		return (Queue<Pair<String, ShareableLock>>) list;
 	}
@@ -237,7 +237,7 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 	public Queue<Pair<String, ShareableLock>> preferenceList() {
 		List<Pair<String, ShareableLock>> list = new LinkedList<>();
 		for (String entry : owners.keySet()) {
-			list.add(new Pair<String, ShareableLock>(entry, type));
+			list.add(new Pair<>(entry, type));
 		}
 		return (Queue<Pair<String, ShareableLock>>) list;
 	}
@@ -260,5 +260,34 @@ public class EscrowableTokenCRDT extends BaseCRDT<EscrowableTokenCRDT> implement
 			registerLocalOperation(op);
 			return true;
 		}
+	}
+
+	@Override
+	public ResourceRequest<ShareableLock> transferOwnershipPolicy(String siteId, ResourceRequest<ShareableLock> request) {
+		return request;
+	}
+
+	@Override
+	public List<Pair<String, ResourceRequest<ShareableLock>>> provisionPolicy(String siteId, ResourceRequest<ShareableLock> request) {
+		Queue<Pair<String, ShareableLock>> pref = preferenceList();
+		List<Pair<String, ResourceRequest<ShareableLock>>> contactList = new LinkedList<>();
+		if (!checkRequest(siteId, request)) {
+			if (pref.size() > 0) {
+				if ((request.getResource()).isCompatible(getCurrentResource())) {
+					String preferred = pref.peek().getFirst();
+					contactList.add(new Pair<>(preferred, request));
+				} else {
+					for (Pair<String, ?> site : pref) {
+						contactList.add(new Pair<>(site.getFirst(), request));
+					}
+				}
+			}
+		}
+		return contactList;
+	}
+
+	@Override
+	public boolean remoteRequiresReservations(ResourceRequest<ShareableLock> request) {
+		return !checkRequest(request.getRequesterId(), request);
 	}
 }

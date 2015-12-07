@@ -1,7 +1,7 @@
 package indigo.application.tournament.cs;
 
-import indigo.application.tournament.TournamentServiceApp;
-import indigo.application.tournament.TournamentServiceOps;
+import indigo.application.tournament.reservations.TournamentServiceApp;
+import indigo.application.tournament.reservations.TournamentServiceOps;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

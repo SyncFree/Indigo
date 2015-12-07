@@ -18,12 +18,13 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.crdt;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -47,9 +48,7 @@ import swift.utils.Pair;
  * 
  * @param <V>
  */
-public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCounterWithLocalEscrow, Integer>
-		implements
-			ConsumableResource<Integer> {
+public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCounterWithLocalEscrow, Integer> implements ConsumableResource<Integer> {
 
 	private static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
 
@@ -68,12 +67,11 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 
 	public BoundedCounterWithLocalEscrow(String localId, CRDTIdentifier uid, ConsumableResource<Integer> original) {
 		super(uid, original);
-		this.activeRequests = new HashSet<ResourceRequest<Integer>>();
+		this.activeRequests = new HashSet<>();
 		this.localId = localId;
 	}
 
-	private BoundedCounterWithLocalEscrow(String localId, CRDTIdentifier uid, ConsumableResource<Integer> resource,
-			HashSet<ResourceRequest<Integer>> activeRequests) {
+	private BoundedCounterWithLocalEscrow(String localId, CRDTIdentifier uid, ConsumableResource<Integer> resource, HashSet<ResourceRequest<Integer>> activeRequests) {
 		this(localId, uid, resource);
 		this.activeRequests = activeRequests;
 	}
@@ -177,10 +175,8 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 	}
 
 	@Override
-	public BoundedCounterWithLocalEscrow createDecoratorCopy(Resource<Integer> resource)
-			throws IncompatibleTypeException {
-		BoundedCounterWithLocalEscrow newDecorator = new BoundedCounterWithLocalEscrow(localId, getUID(),
-				(ConsumableResource<Integer>) resource, new HashSet<ResourceRequest<Integer>>(activeRequests));
+	public BoundedCounterWithLocalEscrow createDecoratorCopy(Resource<Integer> resource) throws IncompatibleTypeException {
+		BoundedCounterWithLocalEscrow newDecorator = new BoundedCounterWithLocalEscrow(localId, getUID(), (ConsumableResource<Integer>) resource, new HashSet<ResourceRequest<Integer>>(activeRequests));
 		return newDecorator;
 	}
 
@@ -216,8 +212,7 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 
 	@Override
 	public Queue<Pair<String, Integer>> preferenceList(String excludeSiteId) {
-		PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1,
-				DEFAUT_PREFERENCE_LIST);
+		PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1, DEFAUT_PREFERENCE_LIST);
 		Collection<String> owners = super.getAllResourceOwners();
 
 		for (String site : owners) {
@@ -242,6 +237,27 @@ public class BoundedCounterWithLocalEscrow extends ResourceDecorator<BoundedCoun
 		BaseCRDT crdt = ((BaseCRDT) super.originalResource);
 		return crdt.getClock();
 
+	}
+
+	@Override
+	public ResourceRequest<Integer> transferOwnershipPolicy(String siteId, ResourceRequest<Integer> request) {
+		System.out.println("NOT IMPLEMENTED @ " + getClass());
+		System.exit(0);
+		return request;
+	}
+
+	@Override
+	public List<Pair<String, ResourceRequest<Integer>>> provisionPolicy(String siteId, ResourceRequest<Integer> request) {
+		System.out.println("NOT IMPLEMENTED @ " + getClass());
+		System.exit(0);
+		return null;
+	}
+
+	@Override
+	public boolean remoteRequiresReservations(ResourceRequest<Integer> request) {
+		System.out.println("NOT IMPLEMENTED @ " + getClass());
+		System.exit(0);
+		return true;
 	}
 
 }

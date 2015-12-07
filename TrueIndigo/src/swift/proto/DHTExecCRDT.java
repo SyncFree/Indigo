@@ -32,25 +32,26 @@ public class DHTExecCRDT implements Message {
 
 	CRDTObjectUpdatesGroup<?> grp;
 	CausalityClock curDCVersion;
-	CausalityClock snapshotVersion;
+	CausalityClock dependencyClock;
 	CausalityClock trxVersion;
 	Timestamp cltTs;
 
 	public DHTExecCRDT() {
 	}
 
-	public DHTExecCRDT(CRDTObjectUpdatesGroup<?> grp, Timestamp cltTs, CausalityClock curDCVersion) {
+	public DHTExecCRDT(CRDTObjectUpdatesGroup<?> grp, Timestamp cltTs, CausalityClock curDCVersion, CausalityClock depClock) {
 		this.grp = grp;
 		this.cltTs = cltTs;
 		this.curDCVersion = curDCVersion;
+		this.dependencyClock = depClock;
 	}
 
 	public CRDTObjectUpdatesGroup<?> getGrp() {
 		return grp;
 	}
 
-	public CausalityClock getSnapshotVersion() {
-		return snapshotVersion;
+	public CausalityClock getDependencyClock() {
+		return dependencyClock;
 	}
 
 	public CausalityClock getTrxVersion() {

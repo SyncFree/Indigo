@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 
 import swift.indigo.Defaults;
 import swift.indigo.Indigo;
-import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoSequencer;
 import swift.indigo.IndigoServer;
 import swift.indigo.remote.RemoteIndigo;
 import sys.shepard.Shepard;
@@ -67,8 +67,7 @@ public class AdServiceBenchmark extends AdServiceApp {
 			final List<String> partition = ads.subList(lo, Math.min(hi, ads.size()));
 			threadPool.execute(new Runnable() {
 				public void run() {
-					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate,
-							Defaults.REMOTE_INDIGO_URL));
+					final Indigo stub = RemoteIndigo.getInstance(Networking.resolve(surrogate, Defaults.REMOTE_INDIGO_URL));
 					AdServiceBenchmark.super.initAds(stub, partition, numCopies, counter, numAds * numCopies, siteId);
 				}
 			});
@@ -123,8 +122,7 @@ public class AdServiceBenchmark extends AdServiceApp {
 					// same time; avoid problems akin to DDOS symptoms.
 					Threading.sleep(Sys.random().nextInt(1000));
 					Indigo stub = RemoteIndigo.getInstance(Networking.resolve(server, Defaults.REMOTE_INDIGO_URL));
-					AdServiceBenchmark.super.runClientSession(new AdServiceOps(stub, siteId), sessionId, commands,
-							false);
+					AdServiceBenchmark.super.runClientSession(new AdServiceOps(stub, siteId), sessionId, commands, false);
 				}
 			});
 		}
@@ -152,7 +150,7 @@ public class AdServiceBenchmark extends AdServiceApp {
 		AdServiceBenchmark instance = new AdServiceBenchmark();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X"});
+			IndigoSequencer.main(new String[]{"-name", "X"});
 			IndigoServer.main(new String[]{"-name", "X"});
 
 			args = new String[]{"-server", "localhost", "-name", "X", "-threads", "1"};

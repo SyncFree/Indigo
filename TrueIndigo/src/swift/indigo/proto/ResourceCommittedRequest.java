@@ -37,7 +37,6 @@ import sys.net.api.MessageHandler;
 public class ResourceCommittedRequest extends IndigoOperation {
 
 	private Timestamp clientTs;
-	private long serial;
 	private transient boolean retry;
 	private CommitUpdatesRequest updates;
 
@@ -51,10 +50,9 @@ public class ResourceCommittedRequest extends IndigoOperation {
 		this.updates = commitUpdatesRequest;
 	}
 
-	public ResourceCommittedRequest(long serial, String clientId, Timestamp clientTs) {
+	public ResourceCommittedRequest(String clientId, Timestamp clientTs) {
 		super(clientId);
 		this.clientTs = clientTs;
-		this.serial = serial;
 	}
 
 	@Override
@@ -69,10 +67,6 @@ public class ResourceCommittedRequest extends IndigoOperation {
 
 	public String toString() {
 		return String.format("Release: %s)", clientTs);
-	}
-
-	public long serial() {
-		return serial;
 	}
 
 	@Override

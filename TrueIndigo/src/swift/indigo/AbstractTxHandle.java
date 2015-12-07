@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo;
 
 import static sys.utils.NotImplemented.NotImplemented;
@@ -59,7 +59,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	protected Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> ops;
 
 	protected AbstractTxHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
-		this.ops = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
+		this.ops = new HashMap<>();
 		this.snapshot = snapshot.clone();
 		this.cltTimestamp = cltTimestamp;
 		this.status = TxnStatus.PENDING;
@@ -69,21 +69,30 @@ abstract public class AbstractTxHandle implements TxnHandle {
 		return KryoLib.copy(this);
 	}
 
-	protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException;
+	protected abstract <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
+			boolean create, Class<V> classOfV) throws VersionNotFoundException;
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+	NoSuchObjectException, VersionNotFoundException, NetworkException {
 
 		V res = (V) cache.get(id);
-		if (res == null)
-			cache.put(id, res = this.getCRDT(id, snapshot, create, classOfV).getVersion(snapshot, this));
+		if (res == null) {
+			ManagedCRDT<V> crdt = this.getCRDT(id, snapshot, create, classOfV);
+			res = crdt.getVersion(snapshot, this);
+			// System.out.println(cltTimestamp + " Object read " + crdt +
+			// " with snapshot " + snapshot + " got version: " + res);
+			cache.put(id, res);
+		}
 
 		return res;
 	}
 
 	@Override
-	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+	public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+			ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+			VersionNotFoundException, NetworkException {
 		return get(id, create, classOfV);
 	}
 
@@ -129,7 +138,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 		synchronized (this) {
 			CRDTObjectUpdatesGroup<V> group = (CRDTObjectUpdatesGroup<V>) ops.get(id);
 			if (group == null)
-				ops.put(id, group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), null, snapshot));
+				ops.put(id, group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), null));
 
 			group.append(op);
 		}
@@ -138,7 +147,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	@Override
 	public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
 		synchronized (this) {
-			CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState, snapshot);
+			CRDTObjectUpdatesGroup<V> group = new CRDTObjectUpdatesGroup<V>(id, timestampMapping(), creationState);
 			if (ops.put(id, group) != null) {
 				throw new IllegalStateException("CRDT creation was preceded by some other operation:" + id);
 			}
@@ -177,16 +186,18 @@ abstract public class AbstractTxHandle implements TxnHandle {
 	protected Map<CRDTIdentifier, CRDT<?>> cache = new HashMap<CRDTIdentifier, CRDT<?>>();
 
 	@Override
-	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids, final BulkGetProgressListener listener) {
+	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids,
+			final BulkGetProgressListener listener) {
 		return bulkGet(subscribeUpdates, ids.toArray(new CRDTIdentifier[ids.size()]));
 	}
 
 	/**
 	 * TODO document
-	 * 
+	 *
 	 * @param ids
 	 * @return
 	 */
+	@Override
 	public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final CRDTIdentifier... ids) {
 		Map<CRDTIdentifier, CRDT<?>> res = new HashMap<CRDTIdentifier, CRDT<?>>();
 		for (CRDTIdentifier i : ids)
@@ -198,6 +209,7 @@ abstract public class AbstractTxHandle implements TxnHandle {
 		return res;
 	}
 
+	@Override
 	public String toString() {
 		return "CLT " + cltTimestamp + " SNAPSHOT " + snapshot + " OPS " + ops.size();
 	}

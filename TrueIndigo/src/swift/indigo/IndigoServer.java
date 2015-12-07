@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 /*****************************************************************************
  * Copyright 2011-2012 INRIA
  * Copyright 2011-2012 Universidade Nova de Lisboa
@@ -42,17 +42,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
-import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
@@ -81,17 +77,17 @@ import sys.utils.Timings;
 
 /**
  * Class to handle the Indigo requests from clients.
- * 
+ *
  * @author smduarte
  */
 public class IndigoServer extends Server implements IndigoProtocolHandler {
-	AtomicLong snapshots = new AtomicLong(0L);
 
 	static Logger logger = Logger.getLogger(IndigoServer.class.getName());
 
 	final boolean emulateWeakConsistency;
 
 	Endpoint lockManager;
+	Snapshots snapshots = new Snapshots();
 	AtomicInteger stubCounter = new AtomicInteger(0);
 
 	RemoteIndigoServer rindigo;
@@ -99,22 +95,20 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 	public IndigoServer() {
 		this.lockManager = super.sequencer;
 		this.rindigo = new RemoteIndigoServer(lockManager, this);
-
 		this.emulateWeakConsistency = Args.contains("-weak");
 	}
 
-	public long registerSnapshot(CausalityClock snapshot) {
-		super.updateCurrentClock(snapshot);
-		long serial = snapshots.incrementAndGet();
-		Snapshots.register(serial, snapshot);
-		return serial;
+	public void discardTransaction(Timestamp cltTs) {
+		if (snapshots.free(cltTs)) {
+			super.dataServer.updatePruneClock(snapshots.oldest());
+		}
 	}
 
-	public void disposeSnapshot(long serial) {
-		if (Snapshots.free(serial))
-			super.dataServer.updatePruneClock(Snapshots.safeSnapshot());
+	synchronized public void registerTransaction(Timestamp cltTs) {
+		snapshots.register(cltTs, super.clocks.currentClockCopy());
 	}
 
+	@Override
 	public void onReceive(Envelope src, FetchObjectRequest request) {
 		if (logger.isLoggable(Level.INFO)) {
 			logger.info("FetchObjectRequest client = " + request.getClientId() + " id: " + request.getUid());
@@ -125,7 +119,7 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 		if (request.hasSubscription())
 			getSession(request.getClientId()).subscribe(request.getUid());
 
-		ManagedCRDT<?> crdt = getCRDT(request.getUid(), request.getDcClock(), request.getClientId());
+		ManagedCRDT<?> crdt = getCRDT(request.getUid(), request.getSafeClock(), request.getClientId());
 		src.reply(new FetchObjectReply(crdt));
 	}
 
@@ -158,95 +152,101 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 			this.tsSource = new ReturnableTimestampSourceDecorator<Timestamp>(new IncrementalTimestampGenerator(stubId));
 			this.session = server.getSession(stubId);
 		}
+
+		@Override
 		public String toString() {
 			return "indigo-" + stubId;
 		}
 
-		public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		@Override
+		public <V extends CRDT<V>> V get(CRDTIdentifier id) throws WrongTypeException, NoSuchObjectException,
+				VersionNotFoundException, NetworkException {
 			return get(id, false, null);
 		}
 
-		public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-			return (V) handle.get(id, create, classOfV);
+		@Override
+		public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+			return handle.get(id, create, classOfV);
 		}
 
+		@Override
 		public void beginTxn() throws IndigoImpossibleException {
 			beginTxn(new HashSet<ResourceRequest<?>>());
 		}
 
+		@Override
 		public void beginTxn(Collection<ResourceRequest<?>> resources) throws IndigoImpossibleException {
-			try {
-				Timestamp txnTimestamp = tsSource.generateNew();
+			Timestamp txnTimestamp = tsSource.generateNew();
 
-				if (emulateWeakConsistency) {
-					handle = new _TxnHandle(txnTimestamp);
-					return;
-				}
-
-				for (ResourceRequest<?> req : resources) {
-					req.setClientTs(txnTimestamp);
-				}
-
-				if (resources.size() > 0) {
-					AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
-					for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
-						AcquireResourcesReply reply = stub.request(lockManager, request);
-						if (reply != null && reply.acquiredResources() || resources.size() == 0) {
-							handle = new _TxnHandle(reply, txnTimestamp);
-							break;
-						} else if (reply.isImpossible()) {
-							throw new IndigoImpossibleException(reply.getImpossibleIds());
-						} else {
-							Threading.sleep(delay);
-						}
-
-					}
-				} else
-					handle = new _TxnHandle(txnTimestamp);
-			} finally {
+			if (emulateWeakConsistency) {
+				handle = new _TxnHandle(txnTimestamp);
+				return;
 			}
+
+			for (ResourceRequest<?> req : resources) {
+				req.setClientTs(txnTimestamp);
+			}
+
+			if (resources.size() > 0) {
+				AcquireResourcesRequest request = new AcquireResourcesRequest(stubId, txnTimestamp, resources);
+				for (int delay = 50;; delay = Math.min(1000, 2 * delay)) {
+					AcquireResourcesReply reply = stub.request(lockManager, request);
+					if (reply != null && reply.acquiredResources() || resources.size() == 0) {
+						handle = new _TxnHandle(reply, txnTimestamp);
+						break;
+					} else if (reply.isImpossible()) {
+						throw new IndigoImpossibleException(reply.getImpossibleIds());
+					} else {
+						Threading.sleep(delay);
+					}
+
+				}
+			} else
+				handle = new _TxnHandle(txnTimestamp);
 		}
 
+		@Override
 		public void endTxn() {
 			handle.commit();
-			disposeSnapshot(handle.serial);
+			discardTransaction(handle.cltTimestamp());
 			handle = null;
 		}
 
+		@Override
 		public void abortTxn() {
 			Thread.dumpStack();
 			handle.rollback();
-			disposeSnapshot(handle.serial);
+			discardTransaction(handle.cltTimestamp());
 			handle = null;
 		}
 
 		class _TxnHandle extends AbstractTxHandle {
-			final long serial;
 
 			boolean withLocks;
 			Timestamp timestamp;
 
 			_TxnHandle(AcquireResourcesReply reply, Timestamp cltTimestamp) {
 				super(reply.getSnapshot(), cltTimestamp);
+				snapshots.register(super.cltTimestamp, super.snapshot);
 				this.timestamp = reply.timestamp();
 				this.withLocks = true;
 
 				for (CRDTObjectUpdatesGroup<?> i : reply.operations())
 					super.ops.put(i.getTargetUID(), i);
 
-				Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
 			}
 
 			_TxnHandle(Timestamp cltTimestamp) {
 				super(server.clocks.clientClockCopy(), cltTimestamp);
+				snapshots.register(super.cltTimestamp, super.snapshot);
 				this.withLocks = false;
-
-				Snapshots.register(serial = snapshots.incrementAndGet(), super.snapshot);
 			}
 
+			@Override
 			public void rollback() {
 				if (withLocks)
-					stub.send(lockManager, new ResourceCommittedRequest(serial, stubId, cltTimestamp()));
+					stub.send(lockManager, new ResourceCommittedRequest(stubId, cltTimestamp()));
 
 				tsSource.returnLastTimestamp();
 
@@ -261,7 +261,8 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 						List<CRDTObjectUpdatesGroup<?>> groups = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 						groups.addAll(ops.values());
 
-						final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp(), snapshot, groups, withLocks);
+						final IndigoCommitRequest req = new IndigoCommitRequest(stubId, cltTimestamp(), snapshot,
+								groups, withLocks);
 
 						if (groups.isEmpty()) {
 							rollback();
@@ -280,7 +281,8 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 
 			@SuppressWarnings("unchecked")
 			@Override
-			protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) {
+			protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier id, CausalityClock version,
+					boolean create, Class<V> classOfV) {
 				try {
 					Timings.mark();
 					ManagedCRDT<V> res = (ManagedCRDT<V>) server.getCRDT(id, version, stubId);
@@ -293,39 +295,4 @@ public class IndigoServer extends Server implements IndigoProtocolHandler {
 			}
 		}
 	}
-}
-
-class Snapshots {
-
-	static void register(long serial, CausalityClock cc) {
-		synchronized (serials) {
-			serials.put(serial, cc);
-		}
-	}
-
-	static CausalityClock safeSnapshot() {
-		synchronized (serials) {
-			// System.out.println("------------------------>$$$$$$$$$$$" + last
-			// + "/" + serials.size());
-			if (serials.isEmpty())
-				return last;
-			else {
-				last = serials.get(serials.firstKey());
-				return last;
-			}
-		}
-	}
-
-	static boolean free(long serial) {
-		synchronized (serials) {
-			CausalityClock cc = serials.remove(serial);
-			if (serials.isEmpty() && cc != null)
-				last = cc;
-
-			return cc != null;
-		}
-	}
-
-	static CausalityClock last = ClockFactory.newClock();
-	static SortedMap<Long, CausalityClock> serials = new TreeMap<Long, CausalityClock>();
 }

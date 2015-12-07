@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import swift.indigo.IndigoSequencerAndResourceManager;
+import swift.indigo.IndigoSequencer;
 import sys.net.api.Endpoint;
 import sys.net.api.Service;
 import sys.net.impl.Networking;
@@ -58,7 +58,7 @@ public class AdServiceClient extends AdServiceBenchmark {
 		AdServiceClient client = new AdServiceClient();
 		if (args.length == 0) {
 
-			IndigoSequencerAndResourceManager.main(new String[]{"-name", "X0"});
+			IndigoSequencer.main(new String[]{"-name", "X0"});
 
 			args = new String[]{"-server", "localhost", "-name", "X0", "-threads", "1"};
 

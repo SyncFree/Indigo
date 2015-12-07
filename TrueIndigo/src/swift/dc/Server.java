@@ -51,7 +51,7 @@ import sys.utils.Tasks;
 
 /**
  * Class to handle the requests from clients.
- * 
+ *
  * @author preguica, smduarte
  */
 public class Server implements SurrogateProtocol {
@@ -86,7 +86,8 @@ public class Server implements SurrogateProtocol {
 		this.clocks = new Clocks("server");
 
 		this.endpoint4clts = Networking.bind(Networking.resolve(Args.valueOf("-url", SERVER_URL)), this);
-		this.endpoint4servers = Networking.bind(Networking.resolve(Args.valueOf("-url4Seq", SERVER_URL4SEQUENCERS)), this);
+		this.endpoint4servers = Networking.bind(Networking.resolve(Args.valueOf("-url4Seq", SERVER_URL4SEQUENCERS)),
+				this);
 
 		this.sequencer = Networking.resolve(Args.valueOf("-sequencer", ""), Defaults.SEQUENCER_URL);
 
@@ -125,7 +126,7 @@ public class Server implements SurrogateProtocol {
 		final AtomicBoolean txnOK = new AtomicBoolean(true);
 		req.getObjectUpdateGroups().parallelStream().forEach(i -> {
 			try {
-				DHTExecCRDT execReq = new DHTExecCRDT(i, req.getCltTimestamp(), clock);
+				DHTExecCRDT execReq = new DHTExecCRDT(i, req.getCltTimestamp(), clock, req.getDependencyClock());
 				ExecCRDTResult res = dataServer.execCRDT(execReq);
 				txnOK.compareAndSet(true, res.isResult());
 			} catch (Exception x) {
@@ -134,9 +135,10 @@ public class Server implements SurrogateProtocol {
 		});
 		return txnOK.get();
 	}
+
 	/**
 	 * Return null if CRDT does not exist
-	 * 
+	 *
 	 * @param subscribe
 	 *            Subscription type
 	 */
@@ -186,7 +188,8 @@ public class Server implements SurrogateProtocol {
 		} else {
 
 			crdt.augmentWithDCClockWithoutMappings(currentClockCopy);
-			final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND : FetchStatus.OK;
+			final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
+					: FetchStatus.OK;
 			if (Log.isLoggable(Level.INFO)) {
 				Log.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/" + req.getUid());
 			}
@@ -198,7 +201,8 @@ public class Server implements SurrogateProtocol {
 	@Override
 	public void onReceive(final Envelope src, final CommitUpdatesRequest req) {
 		if (Log.isLoggable(Level.INFO)) {
-			Log.info("CommitUpdatesRequest client = " + req.getClientId() + ":ts=" + req.getCltTimestamp() + ":nops=" + req.getObjectUpdateGroups().size() + "/" + req.getTimestamp());
+			Log.info("CommitUpdatesRequest " + req.getDependencyClock() + " cltTs " + req.getCltTimestamp() + " ts"
+					+ req.getTimestamp());
 		}
 
 		if (req.isReadOnly() || !clocks.record(req.getCltTimestamp(), clocks.clientClock)) {
@@ -206,32 +210,36 @@ public class Server implements SurrogateProtocol {
 		} else {
 
 			req.setSource(src);
-			fifo.queue4CommitTxn(req.getCltTimestamp().getIdentifier()).enqueue(req.getCltTimestamp().getCounter(), req, (CommitUpdatesRequest i) -> {
-				if (Log.isLoggable(Level.INFO)) {
-					Log.info("CommitUpdatesRequest ... SeqNo=" + i.getCltTimestamp());
-				}
-				if (clocks.cmp(clocks.currentClock, i.getDependencyClock()).is(CMP_DOMINATES, CMP_EQUALS)) {
-					final ClientSession session = getSession(i.getClientId());
-					if (i.getTimestamp() == null)
-						prepareAndDoCommit(session, i);
-					else {
-						doOneCommit(session, i);
-					}
-				} else
-					kStability.blockTransaction(i);
-			});
+			fifo.queue4CommitTxn(req.getCltTimestamp().getIdentifier()).enqueue(req.getCltTimestamp().getCounter(),
+					req, (CommitUpdatesRequest i) -> {
+						if (Log.isLoggable(Level.INFO)) {
+							Log.info("CommitUpdatesRequest ... SeqNo=" + i.getCltTimestamp());
+						}
+						if (clocks.cmp(clocks.currentClock, i.getDependencyClock()).is(CMP_DOMINATES, CMP_EQUALS)) {
+							final ClientSession session = getSession(i.getClientId());
+							if (i.getTimestamp() == null)
+								prepareAndDoCommit(session, i);
+							else {
+								doOneCommit(session, i);
+							}
+						} else
+							kStability.blockTransaction(i);
+					});
 		}
 	}
 
 	@Override
 	public void onReceive(final Envelope src, final RemoteCommitUpdatesRequest req) {
 
-		System.out.println(siteId + " >>>>>>>>GOT K COMMIT FOR: " + req.getTimestamp() + " deps: " + req.getDependencyClock());
+		// System.out.println(siteId + " >>>>>>>>GOT K COMMIT FOR: " +
+		// req.getTimestamp() + " deps: "
+		// + req.getDependencyClock() + " cltTS " + req.getCltTimestamp());
+		// System.out.println(req.getObjectUpdateGroups());
 
 		String id = req.getTimestamp().getIdentifier();
 		fifo.queue4CommitTxn(id).enqueue(req.getTimestamp().getCounter(), req, i -> {
-			if (Log.isLoggable(Level.INFO)) {
-				Log.info("RemoteCommitUpdatesRequest ... SeqNo=" + i.getTimestamp());
+			if (Log.isLoggable(Level.WARNING)) {
+				Log.warning("RemoteCommitUpdatesRequest... SeqNo=" + i.getTimestamp());
 			}
 			rqueues.queue4CommitTxn(id).offer(i, j -> {
 				if (clocks.cmp(clocks.currentClock, j.getDependencyClock()).is(CMP_DOMINATES, CMP_EQUALS)) {
@@ -245,7 +253,8 @@ public class Server implements SurrogateProtocol {
 	}
 
 	protected void prepareAndDoCommit(final ClientSession session, final CommitUpdatesRequest req) {
-		endpoint4servers.asyncRequest(sequencer, new GenerateTimestampRequest(req.getClientId(), req.getCltTimestamp(), req.getDependencyClock()), (GenerateTimestampReply reply) -> {
+		endpoint4servers.asyncRequest(sequencer, new GenerateTimestampRequest(req.getClientId(), req.getCltTimestamp(),
+				req.getDependencyClock()), (GenerateTimestampReply reply) -> {
 			req.setTimestamp(reply.getTimestamp());
 			doOneCommit(session, req);
 		});
@@ -254,7 +263,9 @@ public class Server implements SurrogateProtocol {
 	protected void doOneCommit(final ClientSession session, final CommitUpdatesRequest req) {
 
 		if (Log.isLoggable(Level.INFO)) {
-			Log.info(siteId + ":::CommitUpdatesRequest: doProcessOneCommit: cltTs = " + req.getCltTimestamp() + " :ts=" + req.getTimestamp() + " :nops=" + req.getObjectUpdateGroups().size());
+			Log.info(siteId + ":::CommitUpdatesRequest: doProcessOneCommit: cltTs = " + req.getCltTimestamp() + " :ts="
+					+ req.getTimestamp() + " :nops=" + req.getObjectUpdateGroups().size());
+			System.out.println(req.getObjectUpdateGroups());
 		}
 
 		final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();
@@ -266,29 +277,35 @@ public class Server implements SurrogateProtocol {
 		currentClockCopy.record(req.getTimestamp());
 
 		boolean execOK = execTxnCRDTOps(req, currentClockCopy);
-		if (!execOK) // Execution failed...
+		if (!execOK) { // Execution failed...
 			req.getSource().reply(new CommitUpdatesReply());
-		else {
-			endpoint4servers.asyncRequest(sequencer, new CommitTimestampRequest(req), (CommitTimestampReply i) -> {
-				if (Log.isLoggable(Level.INFO)) {
-					Log.info(siteId + ":::Commit: received CommitTimestampReply vrs:" + i.getCurrentClock() + ";ts = " + req.getTimestamp());
-				}
+			System.out.println("Execution failed");
+			System.exit(0);
+		} else {
+			endpoint4servers.asyncRequest(
+					sequencer,
+					new CommitTimestampRequest(req),
+					(CommitTimestampReply i) -> {
+						if (Log.isLoggable(Level.INFO)) {
+							Log.info(siteId + ":::Commit: received CommitTimestampReply vrs:" + i.getCurrentClock()
+									+ ";ts = " + req.getTimestamp());
+						}
 
-				if (i.getStatus() == CommitTimestampReply.CommitTSStatus.OK) {
-					if (Log.isLoggable(Level.INFO)) {
-						Log.info(siteId + ":::Commit OK: ts:" + req.getTimestamp());
-					}
+						if (i.getStatus() == CommitTimestampReply.CommitTSStatus.OK) {
+							if (Log.isLoggable(Level.INFO)) {
+								Log.info(siteId + ":::Commit OK: ts:" + req.getTimestamp());
+							}
 
-					if (req.kStability() >= 0)
-						kStability.makeStable(req, () -> {
-							req.getSource().reply(new CommitUpdatesReply(req.getTimestamp()));
-						});
+							if (req.kStability() >= 0)
+								kStability.makeStable(req, () -> {
+									req.getSource().reply(new CommitUpdatesReply(req.getTimestamp()));
+								});
 
-					i.getCurrentClock().record(req.getTimestamp());
-					updateCurrentClock(i.getCurrentClock());
-				}
+							i.getCurrentClock().record(req.getTimestamp());
+							updateCurrentClock(i.getCurrentClock());
+						}
 
-			});
+					});
 		}
 	}
 
@@ -310,6 +327,7 @@ public class Server implements SurrogateProtocol {
 			suPubSub.subscribe(key, this);
 		}
 
+		@Override
 		public void onNotification(UpdateNotification update) {
 		}
 	}

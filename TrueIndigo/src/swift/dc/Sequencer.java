@@ -45,13 +45,14 @@ public class Sequencer implements SequencerProtocol {
 
 	public final Service stub;
 	public final String siteId;
-	public final Clocks clocks;
+	protected final Clocks clocks;
 
 	protected Sequencer() {
 
 		this.siteId = Args.valueOf("-siteId", "X");
 
-		Endpoint localEndpoint = Networking.resolve(Args.valueOf("-url", Defaults.SEQUENCER_URL));
+		Endpoint localEndpoint = Networking.resolve(Args.valueOf("-url",
+				Defaults.SEQUENCER_URL));
 		this.stub = Networking.bind(localEndpoint, this);
 
 		this.clocks = new Clocks("Sequencer");
@@ -80,7 +81,8 @@ public class Sequencer implements SequencerProtocol {
 			src.reply(new GenerateTimestampReply(iTS, req.getCltTimestamp()));
 		} else {
 			if (Log.isLoggable(Level.INFO)) {
-				Log.info("do sequencer: Duplicate GenerateTimestampRequest: " + req);
+				Log.info("do sequencer: Duplicate GenerateTimestampRequest: "
+						+ req);
 			}
 			src.reply(new GenerateTimestampReply(req.getCltTimestamp()));
 		}
@@ -91,12 +93,16 @@ public class Sequencer implements SequencerProtocol {
 		req.rtClock = System.currentTimeMillis();
 		Timestamp ts = req.getTimestamp();
 		if (Log.isLoggable(Level.INFO)) {
-			Log.info("sequencer: CommitTimestampRequest:" + req.getTimestamp());
+			Log.info("sequencer: CommitTimestampRequest:" + req.getTimestamp()
+					+ " " + req.getCommitUpdatesRequest().getDependencyClock()
+					+ " CLT TS " + req.getCltTimestamp());
 		}
 		if (clocks.record(ts, clocks.currentClock)) {
-			src.reply(new CommitTimestampReply(CommitTSStatus.OK, clocks.currentClockCopy()));
+			src.reply(new CommitTimestampReply(CommitTSStatus.OK, clocks
+					.currentClockCopy()));
 		} else
-			src.reply(new CommitTimestampReply(CommitTSStatus.FAILED, clocks.currentClockCopy()));
+			src.reply(new CommitTimestampReply(CommitTSStatus.FAILED, clocks
+					.currentClockCopy()));
 	}
 
 	public static void main(String[] args) {

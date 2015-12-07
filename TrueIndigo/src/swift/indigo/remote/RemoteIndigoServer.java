@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo.remote;
 
 import static sys.Context.Networking;
@@ -28,7 +28,6 @@ import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
-import swift.clocks.ClockFactory;
 import swift.indigo.Defaults;
 import swift.indigo.IndigoServer;
 import swift.indigo.ReservationsProtocolHandler;
@@ -39,7 +38,6 @@ import swift.indigo.proto.IndigoCommitRequest;
 import swift.indigo.proto.IndigoProtocolHandler;
 import swift.indigo.proto.ResourceCommittedRequest;
 import swift.indigo.proto.TransferResourcesRequest;
-import swift.proto.CommitUpdatesRequest;
 import swift.proto.FetchObjectVersionRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.Envelope;
@@ -57,12 +55,8 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 	final boolean emulateRedBlueConsistency;
 	final boolean emulateStrongConsistency;
 
-	final CausalityClock monotonicClock;
-
 	public RemoteIndigoServer(Endpoint lockManager, IndigoServer server) {
 		this.server = server;
-
-		this.monotonicClock = ClockFactory.newClock();
 
 		this.emulateWeakConsistency = Args.contains("-weak");
 		this.emulateRedBlueConsistency = Args.contains("-redblue");
@@ -83,60 +77,47 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 
 		Log.info("Remote Indigo Server running @: " + this.stub.localEndpoint());
 		if (emulateRedBlueConsistency || emulateWeakConsistency)
-			Log.info(emulateRedBlueConsistency ? "Emulating redblue consistency: " + this.lockManager : "Fallback to weak consistency...");
+			Log.info(emulateRedBlueConsistency ? "Emulating redblue consistency: " + this.lockManager
+					: "Fallback to weak consistency...");
 
 	}
 
-	private void monotonizeSnapshot(CausalityClock clock) {
-		synchronized (monotonicClock) {
-			clock.merge(monotonicClock);
-			clock.merge(server.clocks.currentClockCopy());
-			monotonicClock.merge(clock);
-		}
-	}
-
+	@Override
 	public void onReceive(final Envelope src, final AcquireResourcesRequest req) {
-
-		stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
-			if (r != null) {
-				monotonizeSnapshot(r.getSnapshot());
-				src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
-			}
-		});
-
-		// if (emulateWeakConsistency || (!emulateStrongConsistency &&
-		// req.getResources().isEmpty())) {
-		// CausalityClock snapshot = server.clocks.currentClockCopy();
-		// monotonizeSnapshot(snapshot);
-		// src.reply(new
-		// AcquireResourcesReply(server.registerSnapshot(snapshot), snapshot));
-		// } else {
-		// stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
-		// if (r != null) {
-		// monotonizeSnapshot(r.getSnapshot());
-		// src.reply(r.setSerial(server.registerSnapshot(r.getSnapshot())));
-		// }
-		// });
-		// }
+		server.registerTransaction(req.getClientTs());
+		if (emulateWeakConsistency || (!emulateStrongConsistency && req.getResources().isEmpty())) {
+			CausalityClock snapshot = server.clocks.currentClockCopy();
+			src.reply(new AcquireResourcesReply(snapshot));
+		} else {
+			stub.asyncRequest(lockManager, req, (AcquireResourcesReply r) -> {
+				if (r != null) {
+					server.clocks.updateCurrentClock(r.getSnapshot());
+					src.reply(r);
+				}
+			});
+		}
 	}
 
 	@Override
 	public void onReceive(final Envelope src, final DiscardSnapshotRequest request) {
-		server.disposeSnapshot(request.serial());
+		server.discardTransaction(request.cltTimestamp());
 	}
 
+	@Override
 	public void onReceive(final Envelope conn, final ResourceCommittedRequest req) {
 		if (!emulateWeakConsistency) {
 			stub.send(lockManager, req);
 		}
-		server.disposeSnapshot(req.serial());
+		server.discardTransaction(req.getClientTs());
 	}
 
+	@Override
 	public void onReceive(final Envelope src, final IndigoCommitRequest req) {
-		server.onReceive(src, (CommitUpdatesRequest) req);
-		server.disposeSnapshot(req.serial());
+		server.onReceive(src, req);
+		server.discardTransaction(req.getCltTimestamp());
 	}
 
+	@Override
 	public void onReceive(final Envelope src, final FetchObjectVersionRequest req) {
 
 		Callable<Boolean> fetcher = () -> {
@@ -157,6 +138,8 @@ public class RemoteIndigoServer implements ReservationsProtocolHandler, IndigoPr
 			e.printStackTrace();
 		}
 	}
+
+	@Override
 	public void onReceive(Envelope src, TransferResourcesRequest request) {
 		server.onReceive(src, request);
 	}

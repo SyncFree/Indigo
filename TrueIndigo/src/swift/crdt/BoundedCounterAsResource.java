@@ -18,10 +18,12 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.crdt;
 
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import swift.api.CRDTIdentifier;
@@ -204,4 +206,36 @@ public class BoundedCounterAsResource extends BoundedCounterCRDT<BoundedCounterA
 		return counter.preferenceList(excludeSiteId);
 	}
 
+	public ResourceRequest<Integer> transferOwnershipPolicy(String siteId, ResourceRequest<Integer> request) {
+		int availableLocally = (int) getSiteResource(siteId);
+		int requested = (int) request.getResource();
+		// If request can be satisfied retrieve max(request ,
+		// half-permission)
+		if (checkRequest(siteId, request))
+			request = new CounterReservation(request.getRequesterId(), request.getResourceId(), Math.max(availableLocally / 2, requested));
+		else {
+			// If cannot be satisfied, transfer half of the available
+			if (availableLocally / 2 > 0)
+				request = new CounterReservation(request.getRequesterId(), request.getResourceId(), availableLocally / 2);
+			else {
+				request = null;
+			}
+		}
+		return request;
+	}
+
+	@Override
+	public List<Pair<String, ResourceRequest<Integer>>> provisionPolicy(String siteId, ResourceRequest<Integer> request) {
+		List<Pair<String, ResourceRequest<Integer>>> contactList = new LinkedList<>();
+		Queue<Pair<String, Integer>> pref = preferenceList(siteId);
+		if (getSiteResource(siteId) - REQUEST_THRESHOLD <= 0 && pref.size() > 0) {
+			contactList.add(new Pair<String, ResourceRequest<Integer>>(pref.peek().getFirst(), request));
+		}
+		return contactList;
+	}
+
+	@Override
+	public boolean remoteRequiresReservations(ResourceRequest<Integer> request) {
+		return getSiteResource(request.getRequesterId()) - THRESHOLD_TO_GRANT <= 0;
+	}
 }

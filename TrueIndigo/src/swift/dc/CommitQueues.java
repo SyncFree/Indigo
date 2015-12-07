@@ -17,7 +17,7 @@ final public class CommitQueues {
 	TaskQueue<CommitUpdatesRequest> queue4CommitTxn(final String id) {
 		TaskQueue<CommitUpdatesRequest> res = txn.get(id), nq;
 		if (res == null) {
-			res = txn.putIfAbsent(id, nq = new TaskQueue<CommitUpdatesRequest>(id));
+			res = txn.putIfAbsent(id, nq = new TaskQueue<>(id));
 			if (res == null)
 				res = nq;
 		}

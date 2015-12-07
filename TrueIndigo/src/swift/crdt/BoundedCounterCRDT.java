@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.crdt;
 
 import java.util.Comparator;
@@ -35,6 +35,9 @@ import swift.crdt.core.BaseCRDT;
 import swift.utils.Pair;
 
 public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extends BaseCRDT<T> {
+
+	protected static final int REQUEST_THRESHOLD = 100;
+	protected static final int THRESHOLD_TO_GRANT = 500;
 
 	protected static final Comparator<Pair<String, Integer>> DEFAUT_PREFERENCE_LIST = new Comparator<Pair<String, Integer>>() {
 
@@ -54,18 +57,17 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 
 	public BoundedCounterCRDT(CRDTIdentifier id) {
 		super(id);
-		this.permissions = new HashMap<String, Map<String, Integer>>();
-		this.delta = new HashMap<String, Integer>();
+		this.permissions = new HashMap<>();
+		this.delta = new HashMap<>();
 	}
 
 	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
 		super(id, txn, clock);
-		this.permissions = new HashMap<String, Map<String, Integer>>();
-		this.delta = new HashMap<String, Integer>();
+		this.permissions = new HashMap<>();
+		this.delta = new HashMap<>();
 	}
 
-	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal,
-			Map<String, Map<String, Integer>> permissions, Map<String, Integer> decrements) {
+	public BoundedCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal, Map<String, Map<String, Integer>> permissions, Map<String, Integer> decrements) {
 		super(id, txn, clock);
 		this.permissions = permissions;
 		this.delta = decrements;
@@ -77,8 +79,8 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 		super(id);
 		this.initVal = initVal;
 		this.val = initVal;
-		this.permissions = new HashMap<String, Map<String, Integer>>();
-		this.delta = new HashMap<String, Integer>();
+		this.permissions = new HashMap<>();
+		this.delta = new HashMap<>();
 
 	}
 
@@ -105,7 +107,7 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 
 	protected void checkExistsPermissionPair(String leftId, String rightId) {
 		if (!permissions.containsKey(leftId)) {
-			HashMap<String, Integer> sitePerm = new HashMap<String, Integer>();
+			HashMap<String, Integer> sitePerm = new HashMap<>();
 			sitePerm.put(rightId, 0);
 			if (leftId.equals(rightId)) {
 				delta.put(leftId, 0);
@@ -151,8 +153,7 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 	}
 
 	public Queue<Pair<String, Integer>> preferenceList(String excludeSiteId) {
-		PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<Pair<String, Integer>>(1,
-				DEFAUT_PREFERENCE_LIST);
+		PriorityQueue<Pair<String, Integer>> preferenceList = new PriorityQueue<>(1, DEFAUT_PREFERENCE_LIST);
 		for (String site : permissions.keySet()) {
 			if (excludeSiteId != null && !excludeSiteId.equals(site))
 				preferenceList.add(new Pair<String, Integer>(site, availableSiteId(site)));
@@ -163,8 +164,7 @@ public abstract class BoundedCounterCRDT<T extends BoundedCounterCRDT<T>> extend
 	protected void applyTransfer(BoundedCounterTransfer<T> transferUpdate) {
 		checkExistsPermissionPair(transferUpdate.getOriginId(), transferUpdate.getTargetId());
 		Map<String, Integer> targetPermissions = permissions.get(transferUpdate.getOriginId());
-		targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId())
-				+ transferUpdate.getAmount());
+		targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId()) + transferUpdate.getAmount());
 	}
 
 	public abstract boolean decrement(int amount, String siteId);

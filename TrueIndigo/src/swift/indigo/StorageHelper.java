@@ -18,13 +18,14 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,11 +34,11 @@ import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
-import swift.clocks.IncrementalTimestampGenerator;
+import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampSource;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
-import swift.dc.Sequencer;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
@@ -60,41 +61,42 @@ public class StorageHelper {
 
 	final String LOCK_MANAGER;
 	final Service stub;
-	final Sequencer sequencer;
+	final IndigoSequencer sequencer;
 
 	private final CausalityClock grantedRequests;
-	private final IncrementalTimestampGenerator cltTimestampSource;
-	private Map<Class, Class> tableToType;
+	private final Map<Class, Class> tableToType;
 	private final boolean isMasterLockManager;
 	private final Endpoint surrogate;
 
+	private final ReturnableTimestampSourceDecorator<Timestamp> dummyTsSource;
+
 	// TODO: Sequencer should be remote
-	public StorageHelper(final Sequencer sequencer, Endpoint surrogate, String resourceMgrId, boolean isMasterLockManager) {
+	public StorageHelper(final IndigoSequencer sequencer, Endpoint surrogate, String resourceMgrId,
+			boolean isMasterLockManager, ReturnableTimestampSourceDecorator<Timestamp> dummyTsSource) {
 		this.sequencer = sequencer;
 		this.LOCK_MANAGER = sequencer.siteId + "_LockManager";
 		this.stub = sequencer.stub;
 		this.isMasterLockManager = isMasterLockManager;
 		this.surrogate = surrogate;
-
-		this.grantedRequests = sequencer.clocks.currentClockCopy();
-		this.cltTimestampSource = new IncrementalTimestampGenerator(resourceMgrId, 0L);
-		this.tableToType = new HashMap<Class, Class>();
+		this.dummyTsSource = dummyTsSource;
+		this.grantedRequests = getCurrentClockCopy();
+		this.tableToType = new HashMap<>();
 	}
 
 	public <A extends ResourceRequest<?>, B extends CRDT<?>> void registerType(Class<A> requestType, Class<B> theClass) {
 		this.tableToType.put(requestType, theClass);
 	}
 
-	synchronized CausalityClock getCurrentClock() {
-		return sequencer.clocks.currentClockCopy();
+	CausalityClock getCurrentClockCopy() {
+		return sequencer.clocks().currentClockCopy();
 	}
 
 	public CausalityClock getLocalSnapshotClockCopy() {
 		return grantedRequests.clone();
 	}
 
-	_TxnHandle beginTxn(Timestamp cltTimestamp) {
-		return new _TxnHandle(getCurrentClock(), cltTimestamp);
+	_TxnHandle beginTxn(Timestamp cltTimestamp, TimestampSource<Timestamp> tsSourceForTxn) {
+		return new _TxnHandle(getCurrentClockCopy(), cltTimestamp, tsSourceForTxn);
 	}
 
 	public void endTxn(final _TxnHandle handle, final boolean writeThrough) {
@@ -110,15 +112,16 @@ public class StorageHelper {
 	class _TxnHandle extends AbstractTxHandle {
 
 		protected Timestamp commitTs;
-		protected CausalityClock readTimestamp;
+		protected CausalityClock lockManagerAndSnapshot;
+		protected TimestampSource<Timestamp> tsSourceForTxn;
 
-		_TxnHandle(CausalityClock snapshot, Timestamp cltTimestamp) {
+		_TxnHandle(CausalityClock snapshot, Timestamp cltTimestamp, TimestampSource<Timestamp> tsSourceForTxn) {
 			super(snapshot, cltTimestamp);
 			synchronized (grantedRequests) {
 				grantedRequests.merge(snapshot);
-				this.readTimestamp = grantedRequests.clone();
+				this.lockManagerAndSnapshot = grantedRequests.clone();
+				this.tsSourceForTxn = tsSourceForTxn;
 			}
-
 		}
 
 		@Override
@@ -130,18 +133,25 @@ public class StorageHelper {
 				List<CRDTObjectUpdatesGroup<?>> updates = getUpdates();
 
 				if (!updates.isEmpty()) {
-					commitTs = sequencer.clocks.newTimestamp();
+					// commitTs = sequencer.clocks().newTimestamp();
 
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, cltTimestamp(), snapshot, updates);
-					req.setTimestamp(commitTs);
+					// for (CRDTObjectUpdatesGroup<?> upd : updates) {
+					// upd.addSystemTimestamp(commitTs);
+					// }
+
+					req = new CommitUpdatesRequest(cltTimestamp().getIdentifier(), cltTimestamp(), snapshot, updates);
+					// req.setTimestamp(commitTs);
 				} else {
-					req = new CommitUpdatesRequest(LOCK_MANAGER + "-" + sequencer.siteId, new Timestamp("dummy", -1L), snapshot, updates);
-					System.out.println("NAO pode acontecer");
+					req = new CommitUpdatesRequest(commitTs.getIdentifier(), new Timestamp("dummy", -1L), snapshot,
+							updates);
 					Thread.dumpStack();
 					System.exit(0);
 				}
 
 				final Semaphore semaphore = new Semaphore(0);
+				if (Log.isLoggable(Level.INFO)) {
+					Log.info("GOING TO COMMIT------->>" + req + " FOR : " + req.getTimestamp());
+				}
 				stub.asyncRequest(surrogate, req, (CommitUpdatesReply r) -> {
 					if (Log.isLoggable(Level.INFO)) {
 						Log.info("FINISH COMMIT------->>" + r.getStatus() + " FOR : " + req.getTimestamp());
@@ -156,8 +166,9 @@ public class StorageHelper {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version, boolean create, Class<V> classOfV) throws VersionNotFoundException {
-			FetchObjectRequest req = new FetchObjectRequest(grantedRequests, LOCK_MANAGER, uid, true);
+		protected <V extends CRDT<V>> ManagedCRDT<V> getCRDT(CRDTIdentifier uid, CausalityClock version,
+				boolean create, Class<V> classOfV) throws VersionNotFoundException {
+			FetchObjectRequest req = new FetchObjectRequest(grantedRequests, version, LOCK_MANAGER, uid, true);
 
 			FetchObjectReply reply = stub.request(surrogate, req);
 
@@ -179,9 +190,11 @@ public class StorageHelper {
 		}
 
 		@SuppressWarnings("unchecked")
-		public <V extends CRDT<V>> ManagedCRDT<V> getLatestVersion(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+		public <V extends CRDT<V>> ManagedCRDT<V> getLatestVersion(CRDTIdentifier id, boolean create, Class<V> classOfV)
+				throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
-			FetchObjectRequest req = new FetchObjectRequest(getCurrentClock(), LOCK_MANAGER, id, true);
+			FetchObjectRequest req = new FetchObjectRequest(getCurrentClockCopy(), getLocalSnapshotClockCopy(),
+					LOCK_MANAGER, id, true);
 			FetchObjectReply reply = stub.request(surrogate, req);
 
 			if (reply != null) {
@@ -190,22 +203,27 @@ public class StorageHelper {
 					return res;
 				}
 				if (create && reply.getStatus() == FetchObjectReply.FetchStatus.OBJECT_NOT_FOUND) {
-					return createCRDT(id, getCurrentClock(), classOfV);
+					return createCRDT(id, getCurrentClockCopy(), classOfV);
 				}
 			}
 			return null;
 		}
 
+		@Override
 		protected Timestamp cltTimestamp() {
-			if (cltTimestamp == null)
-				cltTimestamp = cltTimestampSource.generateNew();
+			if (cltTimestamp == null) {
+				// verificar se o acquire tambem passa por aqui. se sim, tirar o
+				// record new event do acquire.
+				cltTimestamp = recordNewEvent(tsSourceForTxn);
+
+			}
 
 			return cltTimestamp;
 		}
 	}
 
-	public Timestamp recordNewEvent() {
-		Timestamp ts = sequencer.clocks.newTimestamp(); // short circuit
+	public Timestamp recordNewEvent(TimestampSource<Timestamp> tsSource) {
+		Timestamp ts = tsSource.generateNew();
 		// sequencer, is it
 		// safe????
 		if (ts != null)
@@ -218,6 +236,12 @@ public class StorageHelper {
 	public Collection<CRDTObjectUpdatesGroup<?>> endTxnAndGetUpdates(final _TxnHandle handle, boolean b) {
 		endTxn(handle, b);
 		return handle.getUpdates();
+	}
+
+	public void setNewClientTS(_TxnHandle handle, Timestamp newTimestamp) {
+		for (Entry<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> entry : handle.ops.entrySet())
+			entry.getValue().substituteClientTimestamp(newTimestamp);
+		System.out.println("After update client timestamp " + handle.ops);
 	}
 
 }

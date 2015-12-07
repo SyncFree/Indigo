@@ -1,122 +1,8 @@
 #!/bin/bash
-USERNAME="fctple_SwiftCloud"
-INDIGO_ROOT="/home/$USERNAME/"
-SOURCE_ROOT="/Users/balegas/workspace/java/swiftcloud-indigo/"
-
-REGION_NAME=(
-	"US-EAST"
-	"US-WEST"
-	"EUROPE"
-	)
-
-INDIGOS=(
-	"tcp://planetlab-3.imperial.ac.uk:36001/US-EAST"
-	"tcp://planetlab1.xeno.cl.cam.ac.uk:36001/US-WEST"
-	"tcp://inriarennes1.irisa.fr:36001/EUROPE"
-	)
-
-	#Pass all of these
-SEQUENCERS=(
-	"tcp://planetlab-3.imperial.ac.uk:31001/US-EAST"
-	"tcp://planetlab1.xeno.cl.cam.ac.uk:31001/US-WEST"
-	"tcp://inriarennes1.irisa.fr:31001/EUROPE"
-	)
-					
-	#Pass all of these? or just the others?
-SERVERS=(
-	"tcp://planetlab-3.imperial.ac.uk:32001/US-EAST"
-	"tcp://planetlab1.xeno.cl.cam.ac.uk:32001/US-WEST"
-	"tcp://inriarennes1.irisa.fr:32001/EUROPE"
-	)
-
-SEQUENCER_MACHINES=(
-	"planetlab-3.imperial.ac.uk"
-	"planetlab1.xeno.cl.cam.ac.uk"
-	"inriarennes1.irisa.fr"
-	)
-
-SERVER_MACHINES=(
-	"planetlab-3.imperial.ac.uk"
-	"planetlab1.xeno.cl.cam.ac.uk"
-	"inriarennes1.irisa.fr"
-	)
-
-CLIENT_MACHINES=(
-	"planetlab-4.imperial.ac.uk"
-	"planetlab2.xeno.cl.cam.ac.uk"
-	"inriarennes2.irisa.fr"
-	)
-
-SHEPARD_URL="tcp://planetlab-3.imperial.ac.uk:29876/"
-
-#LOCAL OVERRIDE
-#USERNAME="balegas"
-#INDIGO_ROOT="/Users/$USERNAME/swiftcloud_deployment/"
-#SOURCE_ROOT="/Users/$USERNAME/workspace/java/swiftcloud-indigo/"
-
-#REGION_NAME=( "LOCAL" )
-#INDIGOS=( "tcp://*:36001/LOCAL" )
-#SEQUENCERS=( "tcp://*:31001/LOCAL" )
-#SERVERS=( "tcp://*:32001/LOCAL" )
-#SERVER_MACHINES=("localhost")
-#CLIENT_MACHINES=("localhost")
-#SHEPARD_URL="tcp://*:29876/"
-
-
-CONFIG=("indigo-tournament-test.props")
-N_REGIONS=(3)
-N_THREADS=(2)
-MODE=("-indigo")
-
-#<Clients> #<Command>
-ssh_command() {
-	hosts=($1)
-	for h in ${hosts[@]}; do
-		OIFS=$IFS
-		IFS=':'			
-		tokens=($h)
-		client=${tokens[0]}
-		echo "client  " $client
-		ssh -t $USERNAME@$client $2
-		IFS=$OIFS
-	done
-}
-
-kill_all() {
-#	cmd="rm -fr crdtdb/results/*"
-	cmd="killall java"
-	ssh_command "$1" "$cmd"
-	echo "All clients have stopped"
-}
-
-rsync_source() {
-	servers=("$@")
-	cmd="prsync -r "		
-	for h in ${servers[@]}; do
-		cmd=$cmd" -H "$USERNAME"@"$h" "
-	done
-	ant -buildfile $SOURCE_ROOT/TrueIndigo/balegas-jar-build.xml 
-	cmd1=$cmd" "$SOURCE_ROOT"TrueIndigo/swiftcloud.jar "$INDIGO_ROOT
-	$cmd1
-	cmd2=$cmd" "$SOURCE_ROOT"TrueIndigo/stuff "$INDIGO_ROOT
-	$cmd2
-	cmd3=$cmd" "$SOURCE_ROOT"configs/ "$INDIGO_ROOT
-	$cmd3
-}
-
-get_results() {
-	servers=("$@")
-	CMD="rsync -r "		
-	for h in ${servers[@]}; do
-		cmd=$CMD" "$USERNAME"@"$h":results_tournament* "$SOURCE_ROOT"../indigo_results_tournament/"
-		$cmd
-	done
-}
-
-#function join { local IFS="$1"; shift; echo "$*"; }
+source util.bash
 
 #Process options
-while getopts "abc:d:n:r:t:v:k" optname
+while getopts "abc:d:kl:n:p:r:t:v" optname
   do
     case "$optname" in
 		"a")
@@ -130,20 +16,27 @@ while getopts "abc:d:n:r:t:v:k" optname
 			exit
 		;;
 		
-		"c")
+		"d")
+			DEPLOYMENT=$OPTARG
+			source $DEPLOYMENT
+		;;
+		"k")
+			kill_all "`echo ${SERVER_MACHINES[@]}`"
+			kill_all "`echo ${CLIENT_MACHINES[@]}`"
+			kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
+			exit
+		;;
+		"l")
 			case $OPTARG in
-				'strong')
-					MODE=( "-strong")
+				'debug')
+					LOG_LEVEL="debug-log.properties"
 				;;
-				'weak') 
-					MODE=( "-weak")
-				;;
-				'indigo') 
-					MODE=( "-indigo")
+				'normal') 
+					LOG_LEVEL="default-log.properties"
 				;;
 			esac
 		;;
-		"d")
+		"p")
 			case $OPTARG in
 				'zipf')
 					DISTRIBUTION="zipf"
@@ -165,12 +58,6 @@ while getopts "abc:d:n:r:t:v:k" optname
 		"v")
 			INIT_VAL=($OPTARG)
 		;;
-		"k")
-			kill_all "`echo ${SERVER_MACHINES[@]}`"
-			kill_all "`echo ${CLIENT_MACHINES[@]}`"
-			kill_all "`echo ${SEQUENCER_MACHINES[@]}`"
-			exit
-		;;
 		"?")
 			echo "Unknown option $OPTARG"
 		;;
@@ -183,12 +70,17 @@ while getopts "abc:d:n:r:t:v:k" optname
 		;;
 	esac
 	done
+	
+	
+if [ -z ${DEPLOYMENT} ]
+ then 
+	echo "Deployment file not set. Please use -d DEPLOYMENT_FILENAME"
+	set -e
+	exit
+else
+	echo "Loaded config file "$DEPLOYMENT
+fi
 
-CLASSPATH="-classpath "$INDIGO_ROOT"swiftcloud.jar"
-LOG="-Djava.util.logging.config.file="$INDIGO_ROOT"stuff/benchmarks.properties"
-CMD_SRV="java "$CLASSPATH" "$LOG" indigo.application.benchmark.MicroBenchmark"
-CMD_CLT="java "$CLASSPATH" "$LOG" indigo.application.tournament.TournamentServiceBenchmark"
-SHEPARD="java "$CLASSPATH" "$LOG" sys.shepard.PatientShepard"
 echo "####################################################"
 echo "####################################################"
 echo "####################################################"
@@ -205,21 +97,26 @@ do
 			for k in "${CONFIG[@]}"
 			do
 				:
-				echo $j" THREADS"
-				echo $i" REGIONS"
-				echo $k" CONFIG"
-				echo $m" MODE"
-				echo $INIT_VAL" INIT VALUE"
-				OUTPUT_DIR=$INDIGO_ROOT"results_tournament"$m"-c-"$k"-r"$i"-t"$j"/"
+				mode=$m
+				m="-"$m
+				echo "THREADS "$j
+				echo "REGIONS "$i
+				echo "CONFIG "$k
+				echo "MODE "$m
+				OUTPUT_DIR=$RESULTS_ROOT""$EXPERIMENT_NAME_PREFIX"-c-"$k"-r"$i"-t"$j"/"
 				makeDir="mkdir -p $OUTPUT_DIR"
 
 				sequencer_machines=(${SEQUENCER_MACHINES[@]:0:$i})
 				sequencers=${SEQUENCERS[@]:0:$i}
 				servers=(${SERVERS[@]:0:$i})
+				sequencer_ports=(${SEQUENCER_PORTS[@]:0:$i})
 				
 				ri=0;
 				for h in ${sequencer_machines[@]}; do
-					cmd=$CMD_SRV" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -server "${servers[$((ri))]}" "$m
+					CLASSPATH="-classpath "${INDIGO_ROOT[$((ri))]}"swiftcloud.jar"
+					LOG="-Djava.util.logging.config.file="${INDIGO_ROOT[$((ri))]}"configs/"$LOG_LEVEL
+					CMD_SRV="java "$CLASSPATH" "$LOG" "$SERVER_RUNTIME
+					cmd=$CMD_SRV" -startSequencer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencers "$sequencers" -server "${servers[$((ri))]}" "$m" -seqPort "${SEQUENCER_PORTS[$((ri))]}
 					echo "Start Sequencer "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_sequencer_console.log" &
 					ri=`expr $ri + 1`
@@ -230,7 +127,11 @@ do
 				server_machines=(${SERVER_MACHINES[@]:0:$i})
 				ri=0;
 				for h in ${server_machines[@]}; do
-					cmd=$CMD_SRV" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencerUrl "${SEQUENCERS[$((ri))]}" -servers "${servers[@]}" "$m
+					CLASSPATH="-classpath "${INDIGO_ROOT[$((ri))]}"swiftcloud.jar"
+					LOG="-Djava.util.logging.config.file="${INDIGO_ROOT[$((ri))]}"configs/"$LOG_LEVEL
+					CMD_SRV="java "$CLASSPATH" "$LOG" "$SERVER_RUNTIME
+					cmd=$CMD_SRV" -startServer -siteId "${REGION_NAME[$((ri))]}" -master "${REGION_NAME[0]}" -sequencerUrl "${SEQUENCERS[$((ri))]}" -servers "${servers[@]}" "$m" -srvPortForSeq "${SER_SEQ_PORTS[$((ri))]}" -dhtPort "${DHT_PORT[$((ri))]}" -pubSubPort "${PUB_SUB_PORT[$((ri))]}" -indigoPort "${INDIGO_PORTS[$((ri))]}" -srvPort "${SER_PORTS[$((ri))]}
+					
 					echo "Start Server "$h "CMD" $cmd
 					ssh $USERNAME@$h "nohup "$cmd " 2>&1 | tee dc_server_console.log" &
 					ri=`expr $ri + 1`
@@ -239,11 +140,16 @@ do
 				sleep 10
 
 				master=${SERVER_MACHINES[0]}
-				cmd=$makeDir" & "$makeDir"init & "$CMD_CLT" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -config "$k" -results_dir "$OUTPUT_DIR"init "$m
+				CLASSPATH="-classpath "${INDIGO_ROOT[$((0))]}"swiftcloud.jar"
+				LOG="-Djava.util.logging.config.file="${INDIGO_ROOT[$((0))]}"configs/"$LOG_LEVEL
+				CMD_CLT="java "$CLASSPATH" "$LOG" "$APP
+				config_dir=${INDIGO_ROOT[$((0))]}"/configs/"$k
+				cmd=$makeDir" & "$makeDir"init & "$CMD_CLT" -init -siteId "${REGION_NAME[0]}" -master "${REGION_NAME[0]}" -config "$config_dir" -results_dir "$OUTPUT_DIR"init "$m
+				SHEPARD="java "$CLASSPATH" "$LOG" "$SHEPARD
+				ssh $USERNAME@${SERVER_MACHINES[0]} "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
+				echo "Shepard at "$SHEPARD_URL
 				echo "Init data "$master" CMD "$cmd
 				ssh $USERNAME@$master "nohup "$cmd
-				echo "Start shepard "$SHEPARD" -url "$SHEPARD_URL" -count "$i
-				ssh $USERNAME@$master "nohup "$SHEPARD" -url "$SHEPARD_URL" -count "$i &
 				
 				sleep 30
 
@@ -252,13 +158,17 @@ do
 				ri=0;
 				for h in ${client_machines[@]}; do
 					site=`expr $ri + 1`
-					cmd=$makeDir" ; "$CMD_CLT" -run -siteId "${REGION_NAME[$((ri))]}" -site "$site" -master "${REGION_NAME[0]}" -config "$k" -threads "$j" -srvAddress "${indigos[$((ri))]}" -results_dir "$OUTPUT_DIR" -shepard "$SHEPARD_URL" "$m
+					CLASSPATH="-classpath "${INDIGO_ROOT[$((ri))]}"swiftcloud.jar"
+					LOG="-Djava.util.logging.config.file="${INDIGO_ROOT[$((ri))]}"configs/"$LOG_LEVEL
+					CMD_CLT="java "$CLASSPATH" "$LOG" "$APP
+					config_dir=${INDIGO_ROOT[$((ri))]}"/configs/"$k
+					cmd=$makeDir" ; "$CMD_CLT" -run -siteId "${REGION_NAME[$((ri))]}" -site "$site" -master "${REGION_NAME[0]}" -config "$config_dir" -threads "$j" -srvAddress "${indigos[$((ri))]}" -results_dir "$OUTPUT_DIR" "$m" -shepard "$SHEPARD_URL
 					ri=`expr $ri + 1`
 					echo "Run client "$h" CMD "$cmd
 					ssh $USERNAME@$h "nohup "$cmd" 2>&1 | tee client_console.log" &
 				done
 
-				sleep 600
+				sleep $DURATION
 
 				kill_all "`echo ${CLIENT_MACHINES[@]}`"
 				kill_all "`echo ${SERVER_MACHINES[@]}`"
@@ -266,31 +176,31 @@ do
 
 				
 				#Generate results
-				ri=0;
-				RUN_STATS="java $CLASSPATH evaluation.StatisticsUtils"
-				CDF="-cdf 0 1000 5"
-				TPSL="-tpsl"
-				cdf_dir=$OUTPUT_DIR"CDF/"
-				tpsl_dir=$OUTPUT_DIR"TPSL/"
-				makeDir="mkdir -p "$cdf_dir" ; mkdir -p "$tpsl_dir
-				
-				for h in ${client_machines[@]}; do
-					output_cdf=$cdf_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
-					output_tpsl=$tpsl_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
-
-					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
-					cmd="$awk | $RUN_STATS $CDF"
-					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
-					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
-
-					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
-					cmd="$awk | $RUN_STATS $TPSL"
-					echo "Generate results "$h" CMD "$cmd" to "$output_tpsl
-					ssh $USERNAME@$h "$cmd > $output_tpsl"
-
-					ri=`expr $ri + 1`
-
-				done
+#				ri=0;
+#				RUN_STATS="java $CLASSPATH evaluation.StatisticsUtils"
+#				CDF="-cdf 0 1000 5"
+#				TPSL="-tpsl"
+#				cdf_dir=$OUTPUT_DIR"CDF/"
+#				tpsl_dir=$OUTPUT_DIR"TPSL/"
+#				makeDir="mkdir -p "$cdf_dir" ; mkdir -p "$tpsl_dir
+#				
+#				for h in ${client_machines[@]}; do
+#					output_cdf=$cdf_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
+#					output_tpsl=$tpsl_dir"tournament_results_"${REGION_NAME[$((ri))]}".dat"
+#
+#					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
+#					cmd="$awk | $RUN_STATS $CDF"
+#					echo "Generate RemoteIndigo CDF "$h" CMD "$cmd" to "$output_cdf
+#					ssh $USERNAME@$h "$makeDir ; $cmd > $output_cdf"
+#
+#					awk="awk -F '\t'  '{print \$2\" \"\$4}' "$OUTPUT_DIR"tournament_results_"${REGION_NAME[$((ri))]}".log"
+#					cmd="$awk | $RUN_STATS $TPSL"
+#					echo "Generate results "$h" CMD "$cmd" to "$output_tpsl
+#					ssh $USERNAME@$h "$cmd > $output_tpsl"
+#
+#					ri=`expr $ri + 1`
+#
+#				done
 
 			done
 		done
@@ -298,3 +208,7 @@ do
 done
 
 echo "Finish"
+
+echo "####################################################"
+echo "####################################################"
+echo "####################################################"

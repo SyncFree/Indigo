@@ -18,10 +18,11 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Queue;
 
 import swift.api.CRDTIdentifier;
@@ -60,5 +61,11 @@ public interface Resource<T> {
 	default boolean overThreshold(String ownerId, ResourceRequest<T> request) {
 		return false;
 	}
+
+	ResourceRequest<T> transferOwnershipPolicy(String siteId, ResourceRequest<T> request);
+
+	List<Pair<String, ResourceRequest<T>>> provisionPolicy(String siteId, ResourceRequest<T> request);
+
+	boolean remoteRequiresReservations(ResourceRequest<T> request);
 
 }

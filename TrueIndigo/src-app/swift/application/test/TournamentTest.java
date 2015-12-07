@@ -1,6 +1,6 @@
 package swift.application.test;
 
-import indigo.application.tournament.TournamentServiceBenchmark;
+import indigo.application.tournament.reservations.TournamentServiceBenchmark;
 
 import java.util.Random;
 import java.util.concurrent.BrokenBarrierException;

@@ -18,7 +18,7 @@ specific language governing permissions and limitations
 under the License.
 
 -------------------------------------------------------------------
-**/
+ **/
 package swift.indigo.remote;
 
 import static sys.Context.Networking;
@@ -37,7 +37,6 @@ import java.util.logging.Logger;
 import swift.api.CRDT;
 import swift.api.CRDTIdentifier;
 import swift.api.TxnHandle;
-import swift.application.test.TestsUtil;
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.ReturnableTimestampSourceDecorator;
@@ -123,7 +122,7 @@ public class RemoteIndigo implements Indigo {
 					}
 				});
 				logger.addHandler(fileTxt);
-				profiler.printMessage(resultsLogName, TestsUtil.dumpArgs());
+				profiler.printMessage(resultsLogName, Args.dumpArgs());
 			} catch (Exception e) {
 				e.printStackTrace();
 				Log.warning("Exception while generating log file");
@@ -148,7 +147,7 @@ public class RemoteIndigo implements Indigo {
 
 		AcquireResourcesRequest request;
 		if (emulateWeakConsistency) {
-			request = new AcquireResourcesRequest(stubId, txnTimestamp, new LinkedList<ResourceRequest<?>>());
+			request = new AcquireResourcesRequest(stubId, txnTimestamp, new LinkedList<>());
 			AcquireResourcesReply reply = stub.request(server, request);
 			handle = new _TxnHandle(reply, txnTimestamp, false);
 			return;
@@ -207,7 +206,6 @@ public class RemoteIndigo implements Indigo {
 	}
 
 	class _TxnHandle extends AbstractTxHandle {
-		final long serial;
 
 		boolean withLocks;
 		Timestamp timestamp;
@@ -221,21 +219,19 @@ public class RemoteIndigo implements Indigo {
 				// Puts new objects in cache so that they can be used
 				// immediately.
 				if (!cache.containsKey(i.getTargetUID()) && i.getCreationState() != null) {
-					ManagedCRDT crdt = new ManagedCRDT(i.getTargetUID(), i.getCreationState(), snapshot, false);
-					crdt.execute(i, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+					ManagedCRDT crdt = new ManagedCRDT<>(i.getTargetUID(), i.getCreationState(), snapshot, false);
+					crdt.execute(i, snapshot, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 					cache.put(i.getTargetUID(), crdt.getLatestVersion(this));
 				}
 				super.ops.put(i.getTargetUID(), i);
 			}
-
-			this.serial = reply.serial();
 		}
 
 		public void rollback() {
 			if (withLocks)
-				stub.send(server, new ResourceCommittedRequest(serial, stubId, cltTimestamp));
+				stub.send(server, new ResourceCommittedRequest(stubId, cltTimestamp));
 			else
-				stub.send(server, new DiscardSnapshotRequest(serial, stubId, cltTimestamp));
+				stub.send(server, new DiscardSnapshotRequest(stubId, cltTimestamp));
 
 			tsSource.returnLastTimestamp();
 		}
@@ -247,7 +243,7 @@ public class RemoteIndigo implements Indigo {
 
 			if (!updates.isEmpty()) {
 
-				final IndigoCommitRequest req = new IndigoCommitRequest(serial, stubId, cltTimestamp, snapshot, updates, withLocks);
+				final IndigoCommitRequest req = new IndigoCommitRequest(stubId, cltTimestamp, snapshot, updates, withLocks);
 				req.setTimestamp(timestamp);
 				final Semaphore semaphore = new Semaphore(0);
 				if (Log.isLoggable(Level.INFO))
@@ -263,7 +259,7 @@ public class RemoteIndigo implements Indigo {
 			} else {
 				super.status = TxnStatus.COMMITTED_LOCAL;
 				if (hasResources) {
-					System.out.printf("CANT HAPPEN  CLT_TS %s, TS %s, SNAPSHOT %s", cltTimestamp, timestamp, snapshot);
+					System.out.printf("CANT HAPPEN  CLT_TS %s, TS %s, SNAPSHOT %s\n", cltTimestamp, timestamp, snapshot);
 					try {
 						Thread.sleep(500);
 					} catch (InterruptedException e) {

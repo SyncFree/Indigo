@@ -152,4 +152,13 @@ public class Args {
 		}
 		return lines.toArray(new String[]{});
 	}
+	
+	public static String dumpArgs() {
+		StringBuilder result = new StringBuilder();
+		for (String s : getCurrent()) {
+			result.append(s);
+			result.append("\n");
+		}
+		return result.toString();
+	}
 }
